@@ -1,0 +1,4 @@
+interface:
+  display_name: "趋势机会研究"
+  short_description: "分析研究主题在单个平台的趋势信号、结合机会与证据缺口"
+  default_prompt: "Use $trend-opportunity-radar to analyze a research topic on one platform for evidence-backed trend opportunities."

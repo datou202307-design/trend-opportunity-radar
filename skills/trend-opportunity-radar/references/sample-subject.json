@@ -1,0 +1,16 @@
+{
+  "name": "AI assistant for filling last-minute restaurant tables",
+  "subject_type": "idea",
+  "summary": "Help independent restaurants match last-minute table availability with nearby diners.",
+  "facts": [],
+  "hypotheses": [
+    {
+      "statement": "Independent restaurants may value a faster way to recover late cancellations.",
+      "origin": "user_premise"
+    }
+  ],
+  "audiences": ["independent restaurant operators", "nearby spontaneous diners"],
+  "scenarios": ["same-day cancellation recovery"],
+  "constraints": ["No demand, adoption, or revenue claim is confirmed."],
+  "source_refs": []
+}

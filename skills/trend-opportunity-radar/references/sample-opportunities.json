@@ -1,0 +1,17 @@
+{
+  "opportunities": [
+    {
+      "title": "Validate a same-day cancellation recovery workflow",
+      "topic_key": "last-minute-table-inventory",
+      "audience": "independent restaurant operators with late cancellations",
+      "task_gap": "Operators have perishable table inventory and limited time to reach nearby diners.",
+      "subject_entry": "Test whether the idea can publish a verified same-day opening and route an interested diner to the restaurant's existing booking flow.",
+      "expected_action": "Interview five operators and run one manual concierge test before building automation.",
+      "support_refs": ["https://example.com/post-001", "https://example.com/post-002"],
+      "counter_refs": [],
+      "counter_review": "No direct counterexample was captured in this small sample; this remains a validation gap.",
+      "risk_boundaries": ["Do not claim proven demand, revenue recovery, or platform access."],
+      "missing_evidence": ["Operator willingness to participate", "Diner conversion behavior"]
+    }
+  ]
+}
