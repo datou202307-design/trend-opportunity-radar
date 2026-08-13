@@ -1,0 +1,4 @@
+interface:
+  display_name: "趋势机会研究"
+  short_description: "审计单平台信号采样，输出证据热度、机会卡片与本地可视化报告"
+  default_prompt: "Use $trend-opportunity-radar to analyze a research topic on one platform and generate an evidence-backed local HTML opportunity report."

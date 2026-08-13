@@ -1,0 +1,77 @@
+{
+  "platform": "x",
+  "collection": {
+    "mode": "quick",
+    "query_runs": [
+      {
+        "query_term": "restaurant cancellations",
+        "query_layer": "category",
+        "observed_result_count": 12,
+        "retained_signal_count": 1,
+        "detail_open_count": 1,
+        "discarded_result_count": 11
+      },
+      {
+        "query_term": "last minute dinner",
+        "query_layer": "platform_baseline",
+        "observed_result_count": 10,
+        "retained_signal_count": 1,
+        "detail_open_count": 1,
+        "discarded_result_count": 9
+      }
+    ],
+    "counts": {
+      "query_count": 2,
+      "observed_result_count": 22,
+      "detail_open_count": 2,
+      "counter_signal_count": 0
+    },
+    "stop_reason": "Example fixture intentionally stops before contract completion."
+  },
+  "signals": [
+    {
+      "id": "post-001",
+      "query_term": "restaurant cancellations",
+      "query_layer": "category",
+      "topic_key": "last-minute-table-inventory",
+      "title": "Restaurant operators discuss late cancellation losses",
+      "summary": "A public discussion about empty tables after same-day cancellations.",
+      "url": "https://example.com/post-001",
+      "source_type": "direct_post",
+      "evidence_role": "support",
+      "detail_captured": true,
+      "author_id": "author-1",
+      "published_at": "2026-08-05T08:00:00Z",
+      "captured_at": "2026-08-06T08:00:00Z",
+      "observed_content_count": 12,
+      "search_result_count": 120,
+      "views": 12000,
+      "likes": 420,
+      "comments": 88,
+      "shares": 40,
+      "permission_scope": "public",
+      "limitations": ["Public browser result; ranking and platform coverage are incomplete."]
+    },
+    {
+      "id": "post-002",
+      "query_term": "last minute dinner",
+      "query_layer": "platform_baseline",
+      "topic_key": "last-minute-table-inventory",
+      "title": "Diners ask for same-day local table availability",
+      "summary": "A public discussion about finding nearby tables without calling multiple venues.",
+      "url": "https://example.com/post-002",
+      "source_type": "direct_post",
+      "evidence_role": "support",
+      "detail_captured": true,
+      "author_id": "author-2",
+      "published_at": "2026-08-04T08:00:00Z",
+      "captured_at": "2026-08-06T08:00:00Z",
+      "observed_content_count": 8,
+      "search_rank": 3,
+      "likes": 160,
+      "comments": 34,
+      "shares": 12,
+      "permission_scope": "public"
+    }
+  ]
+}
