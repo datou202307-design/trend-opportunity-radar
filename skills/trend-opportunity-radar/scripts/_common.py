@@ -201,9 +201,8 @@ def text_integrity_issues(value: Any, path: str = "$") -> list[str]:
             issues.extend(text_integrity_issues(child, f"{path}[{index}]"))
     elif isinstance(value, str):
         hits = [marker for marker in MOJIBAKE_MARKERS if marker in value]
-        latin_noise = sum(1 for char in value if "\u00c0" <= char <= "\u00ff")
-        if hits or latin_noise >= 4:
-            issues.append(f"{path}: suspected text-encoding corruption ({', '.join(hits[:3]) or 'latin-1 noise'})")
+        if hits:
+            issues.append(f"{path}: suspected text-encoding corruption ({', '.join(hits[:3])})")
     return issues
 
 
@@ -316,11 +315,13 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
         "source_mode": signal_source_mode,
         "source_type": infer_source_type(row, signal_source_mode, url, detail_captured),
         "evidence_role": role if role in {"support", "counter", "neutral"} else "neutral",
+        "profile_evidence_role": as_text(first(row, "profile_evidence_role", "profileEvidenceRole")),
         "detail_captured": detail_captured,
         "content_id": as_text(first(row, "content_id", "contentId", "id")),
         "canonical_url": url,
         "query_term": as_text(first(row, "query_term", "queryTerm", "query", "keyword")),
         "query_layer": as_text(first(row, "query_layer", "queryLayer", "scope")) or "unspecified",
+        "query_intent": as_text(first(row, "query_intent", "queryIntent")),
         "query_terms": [as_text(item) for item in as_list(first(row, "query_terms", "queryTerms")) if as_text(item)],
         "query_layers": [as_text(item) for item in as_list(first(row, "query_layers", "queryLayers")) if as_text(item)],
         "semantic_relevance": as_text(first(row, "semantic_relevance", "semanticRelevance")).lower()
@@ -386,7 +387,7 @@ def merge_signals(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]
     reviewed = left if left.get("semantic_review") else right if right.get("semantic_review") else None
     if reviewed:
         merged["semantic_review"] = reviewed["semantic_review"]
-    for field in ("evidence_role", "topic_key"):
+    for field in ("evidence_role", "profile_evidence_role", "query_intent", "topic_key"):
         reviewed_value = reviewed.get(field) if reviewed else None
         merged[field] = reviewed_value or left.get(field) or right.get(field)
     if merged["detail_captured"]:
@@ -573,8 +574,8 @@ def normalize_collection(raw: Any, retained_count: int, unique_count: int, signa
     if observed is None and query_runs:
         values = [as_number(item.get("observed_result_count")) for item in query_runs if isinstance(item, dict)]
         observed = sum(value for value in values if value is not None) if any(value is not None for value in values) else None
-    detail_count = int(as_number(counts.get("detail_open_count")) or sum(1 for signal in signals if signal.get("detail_captured")))
-    counter_count = int(as_number(counts.get("counter_signal_count")) or sum(1 for signal in signals if signal.get("evidence_role") == "counter"))
+    detail_count = sum(1 for signal in signals if signal.get("detail_captured"))
+    counter_count = sum(1 for signal in signals if signal.get("evidence_role") == "counter")
     duplicate_count = retained_count - unique_count
     discarded = as_number(counts.get("discarded_result_count"))
     if discarded is None and observed is not None:
@@ -585,9 +586,9 @@ def normalize_collection(raw: Any, retained_count: int, unique_count: int, signa
         "observed_results": observed is not None and observed >= contract["observed_result_target"][0],
         "unique_signals": unique_count >= contract["unique_signal_target"][0],
         "relevant_unique_signals": len({
-            as_text(signal.get("content_id") or signal.get("canonical_url") or signal.get("source_url") or signal.get("url") or signal.get("title"))
+            as_text(signal.get("dedupe_hash"))
             for signal in signals
-            if signal.get("semantic_relevance") in {"direct", "adjacent"}
+            if signal.get("semantic_relevance") in {"direct", "adjacent"} and as_text(signal.get("dedupe_hash"))
         }) >= contract["relevant_unique_signal_min"],
         "detail_opens": detail_count >= contract["detail_open_target"][0],
         "counter_signals": counter_count >= contract["counter_signal_min"],

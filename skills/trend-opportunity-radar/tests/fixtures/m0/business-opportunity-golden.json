@@ -1,0 +1,61 @@
+{
+  "schema_version": "trend-business-opportunity-golden-v0.1",
+  "baseline_name": "business-opportunity-v0.6.1-behavior",
+  "purpose": "Protect the current business-opportunity behavior while the shared kernel and profiles are introduced.",
+  "backward_compatible_prompt": "Analyze [research topic] on [platform] for trend opportunities.",
+  "expected_default_intent": "business_opportunity",
+  "required_subject_types": ["product", "opportunity", "idea", "problem", "project"],
+  "required_query_layers": ["platform_baseline", "category", "subject_bridge"],
+  "required_report_formats": ["json", "markdown", "html"],
+  "required_report_keys": [
+    "schema_version",
+    "generated_at",
+    "subject",
+    "platform",
+    "collection",
+    "topics",
+    "opportunities",
+    "limitations",
+    "monitoring_recommendation",
+    "communication",
+    "decision_support"
+  ],
+  "required_opportunity_keys": [
+    "title",
+    "audience",
+    "task_gap",
+    "subject_entry",
+    "expected_action",
+    "support_refs",
+    "counter_refs",
+    "risk_boundaries",
+    "missing_evidence",
+    "evidence_status"
+  ],
+  "required_collection_terminal": {
+    "contract_status": "met",
+    "stop_reason": "sampling_contract_met"
+  },
+  "reader_order": [
+    "decision_support",
+    "opportunities",
+    "topics",
+    "monitoring_recommendation",
+    "limitations",
+    "audit"
+  ],
+  "forbidden_reader_terms": [
+    "topic_key",
+    "sampling_contract_met",
+    "cli_not_found",
+    "adapter-selection.json",
+    "请自行补齐详情页"
+  ],
+  "invariants": [
+    "Observed heat and evidence confidence remain separate.",
+    "Support and counter references are disjoint.",
+    "A single snapshot is not described as a confirmed time trend.",
+    "An evidence limitation is paired with a usable next action.",
+    "Raw evidence is not modified by a report profile."
+  ]
+}

@@ -2,17 +2,19 @@
 
 An independent, brand-neutral agent Skill for analyzing evidence-backed trend opportunities for a research topic on one platform.
 
-Current status: **v0.6.0 candidate**. This is a platform-signal and opportunity-research workflow, not a viral-content or traffic prediction system.
+Current status: **v0.7.0 candidate**. This is a constrained platform-research workflow, not a viral-content, traffic, demand, or revenue prediction system. The candidate supports five decision profiles on X and Xiaohongshu, with validated optional OpenCLI read-only collection and DokoBot rendered-page verification or fallback.
 
 ## What it does
 
 - Accepts a product, business opportunity, idea, user problem, audience need, or project as the research topic.
+- Supports five decision goals: business opportunities, brand sentiment, competitor users, content opportunities, and product-demand validation.
+- Compiles a short natural-language request into a versioned research context, so users do not need to specify internal evidence roles or sampling gates.
 - Analyzes one platform at a time, including X, Xiaohongshu, and adapter-defined platforms.
 - Imports user-provided data or collects authorized, read-only browser and API signals.
 - Normalizes evidence, source links, capture times, metrics, and limitations.
 - Uses explicit quick, standard, and deep sampling contracts with a collection ledger.
 - Atomically persists each completed query into one canonical raw snapshot.
-- Orchestrates DokoBot query progression, session continuation, raw-output retention, and sampling gates.
+- Orchestrates adapter-neutral query progression, raw-output retention, bounded recovery, and sampling gates.
 - Distinguishes successful reads, timeouts, continuation availability, and explicit result exhaustion; first-screen completion or a timed-out read can no longer finalize a query as exhausted.
 - Captures DokoBot's console-only session metadata through a deterministic wrapper, preserves immutable per-capture audit files, and restarts an expired continuation once before marking a query partial.
 - Diagnoses missing, sandbox-hidden, permission-denied, broken, or browser-disconnected DokoBot environments before collection.
@@ -27,6 +29,7 @@ Current status: **v0.6.0 candidate**. This is a platform-signal and opportunity-
 - Keeps raw audit states in JSON while rendering incomplete evidence as localized research-status guidance rather than a software error.
 - Condenses per-signal limitation notes into no more than four decision-impact summaries in human-facing reports while preserving the complete audit list in JSON.
 - Recommends an optional, portable follow-up monitoring task so single snapshots can become comparable time series without overwriting history or pretending an automation was created.
+- Preserves every repeated raw capture as a separate attempt file instead of overwriting earlier evidence.
 - Adapts report language and decision framing to the user's request, research goal, and audience, and pairs every visible evidence gap with current value, boundaries, and a concrete resolution path.
 - Backfills eligible retained detail links before reporting, without spending search-query budget, and keeps recoverable internal sampling gates out of human-facing reports.
 - Applies a general-audience title readability gate, preserving the audit title while replacing unexplained product jargon with concrete reader-facing language.
@@ -78,7 +81,7 @@ No live-data connector is required. The workflow supports:
 - authorized platform APIs;
 - historical snapshots.
 
-Chrome, DokoBot, or an equivalent controlled browser is optional. When DokoBot is available, the bundled orchestrator treats it as a first-class read-only adapter and blocks rather than silently downgrading an undersized run. Users are responsible for platform terms, account permissions, and lawful data access. Credentials, cookies, and tokens must never be included in Skill inputs or outputs.
+Chrome, OpenCLI, DokoBot, or an equivalent controlled browser is optional. The adapter selector uses only validated read-only capabilities and blocks rather than silently downgrading an undersized run. Users are responsible for platform terms, account permissions, and lawful data access. Credentials, cookies, and tokens must never be included in Skill inputs or outputs.
 
 ## Important boundaries
 

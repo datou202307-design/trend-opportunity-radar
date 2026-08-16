@@ -10,6 +10,8 @@ from typing import Any
 
 from _common import SAMPLING_CONTRACTS, as_bool, as_list, as_text, load_data, merge_signals, now_iso, write_json
 from append_collection_result import append_query_result, signal_key
+from platform_adapter_contract import CONTRACT_VERSION, SCHEMA_VERSION as ADAPTER_REGISTRY_VERSION, build_detail_command, build_search_command, normalize_platform, status_supports
+from research_context import load_context
 
 
 SCHEMA_VERSION = "collection-orchestrator-v0.2"
@@ -27,10 +29,10 @@ GENERIC_RECOVERY_TOKENS = {
 
 
 def query_tokens(value: str) -> list[str]:
-    return [item.casefold() for item in re.findall(r"[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)?", as_text(value))]
-XHS_ALIASES = {"xiaohongshu", "xhs", "小红书"}
-
-
+    return [
+        item.casefold()
+        for item in re.findall(r"[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)?|[\u4e00-\u9fff]+", as_text(value))
+    ]
 def required_layers(mode: str) -> int:
     return SAMPLING_CONTRACTS[mode]["layer_query_min"]
 
@@ -47,7 +49,7 @@ def search_budget(state: dict[str, Any]) -> dict[str, Any]:
         "upper": upper,
         "estimated_atomic_read": atomic_read_reserve,
         "launch_ceiling": launch_ceiling,
-        "may_start_search": observed < launch_ceiling,
+        "may_start_search": observed <= launch_ceiling,
         "atomic_overshoot": max(0, observed - upper),
     }
 
@@ -58,6 +60,7 @@ def new_active_query(query: dict[str, Any]) -> dict[str, Any]:
         "term": query["term"],
         "layer": query["layer"],
         "url": query["url"],
+        "query_intent": query.get("query_intent", ""),
         "session_id": "",
         "can_continue": False,
         "observed_result_keys": [],
@@ -75,7 +78,7 @@ def new_active_query(query: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def validate_plan(plan: Any, mode: str) -> list[dict[str, str]]:
+def validate_plan(plan: Any, mode: str, context: dict[str, Any] | None = None) -> list[dict[str, str]]:
     source = plan.get("queries") if isinstance(plan, dict) else None
     if not isinstance(source, list):
         raise SystemExit("Query plan requires a queries array.")
@@ -92,11 +95,18 @@ def validate_plan(plan: Any, mode: str) -> list[dict[str, str]]:
         term = as_text(item.get("term") or item.get("query_term"))
         layer = as_text(item.get("layer") or item.get("query_layer"))
         url = as_text(item.get("url"))
+        query_intent = as_text(item.get("query_intent"))
         if query_id in ids or not term or layer not in LAYERS or not url.startswith(("http://", "https://")):
             raise SystemExit("Each query needs a unique id, term, valid layer, and http(s) platform search URL.")
         ids.add(query_id)
         layer_counts[layer] += 1
-        queries.append({"id": query_id, "term": term, "layer": layer, "url": url})
+        if context:
+            allowed = set(context["query_intents"])
+            if not query_intent and context["research_intent"] != "business_opportunity":
+                raise SystemExit("Non-default Decision Profiles require query_intent on every query.")
+            if query_intent and query_intent not in allowed:
+                raise SystemExit("Query intent is not allowed by the frozen Decision Profile.")
+        queries.append({"id": query_id, "term": term, "layer": layer, "url": url, **({"query_intent": query_intent} if query_intent else {})})
     minimum = required_layers(mode)
     if any(count < minimum for count in layer_counts.values()):
         raise SystemExit(f"{mode} requires at least {minimum} queries in each query layer.")
@@ -117,6 +127,7 @@ def validate_recovery_plan(plan: Any, state: dict[str, Any]) -> list[dict[str, s
     known_terms = {as_text(item["term"]).casefold() for item in state["queries"]}
     known_urls = {as_text(item["url"]) for item in state["queries"]}
     queries: list[dict[str, str]] = []
+    context = load_context(Path(state["research_context"])) if state.get("research_context") else None
     for index, item in enumerate(source):
         if not isinstance(item, dict):
             raise SystemExit("Every recovery query definition must be an object.")
@@ -124,17 +135,24 @@ def validate_recovery_plan(plan: Any, state: dict[str, Any]) -> list[dict[str, s
         term = as_text(item.get("term") or item.get("query_term"))
         layer = as_text(item.get("layer") or item.get("query_layer"))
         url = as_text(item.get("url"))
+        query_intent = as_text(item.get("query_intent"))
         if not term or layer not in LAYERS or not url.startswith(("http://", "https://")):
             raise SystemExit("Each recovery query needs an id, term, valid layer, and http(s) platform search URL.")
         if query_id in known_ids or term.casefold() in known_terms or url in known_urls:
             raise SystemExit("Recovery queries must not repeat an existing id, term, or URL.")
+        if context:
+            allowed = set(context["query_intents"])
+            if not query_intent and context["research_intent"] != "business_opportunity":
+                raise SystemExit("Non-default Decision Profiles require query_intent on every recovery query.")
+            if query_intent and query_intent not in allowed:
+                raise SystemExit("Recovery query intent is not allowed by the frozen Decision Profile.")
         word_count = len(re.findall(r"[\w'-]+", term, flags=re.UNICODE))
         if word_count > 4:
             raise SystemExit("Recovery query terms must contain at most four words so they broaden rather than restack constraints.")
         known_ids.add(query_id)
         known_terms.add(term.casefold())
         known_urls.add(url)
-        queries.append({"id": query_id, "term": term, "layer": layer, "url": url})
+        queries.append({"id": query_id, "term": term, "layer": layer, "url": url, **({"query_intent": query_intent} if query_intent else {})})
     deficient = set(recovery_diagnostics(state)["recommended_layers"])
     if deficient and queries[0]["layer"] not in deficient:
         raise SystemExit("The recovery query must target one of the currently deficient layers.")
@@ -161,27 +179,26 @@ def load_state(path: Path) -> dict[str, Any]:
 
 
 def normalized_platform(value: str) -> str:
-    key = as_text(value).casefold()
-    return "xiaohongshu" if key in XHS_ALIASES else key
+    return normalize_platform(value)
 
 
 def search_capture_command(state: dict[str, Any], active: dict[str, Any], raw_output: Path, screens: int) -> list[str]:
-    if state.get("adapter") == "opencli":
-        contract = SAMPLING_CONTRACTS[state["mode"]]
-        per_query_target = math.ceil(contract["observed_result_target"][0] / contract["query_target"][0])
-        limit = min(20, max(per_query_target, 10))
-        return ["opencli", "xiaohongshu", "search", active["term"], "--limit", str(limit), "-f", "json", "--window", "background", "--trace", "retain-on-failure"]
-    command = ["dokobot", "read", active["url"], "--local", "--reuse-tab", "--format", "chunks", "--screens", str(screens)]
-    if active.get("session_id"):
-        command.extend(["--session-id", active["session_id"]])
-    command.extend(["--output", str(raw_output.resolve())])
-    return command
+    return build_search_command(state, active, raw_output, screens)
 
 
 def detail_capture_command(state: dict[str, Any], url: str, output: Path) -> list[str]:
-    if state.get("adapter") == "opencli":
-        return ["opencli", "xiaohongshu", "note", url, "-f", "json", "--window", "background", "--trace", "retain-on-failure"]
-    return ["dokobot", "read", url, "--local", "--reuse-tab", "--format", "text", "--output", str(output.resolve())]
+    return build_detail_command(state, url, output)
+
+
+def merged_snapshot_signals(signals: list[Any], platform: str) -> list[dict[str, Any]]:
+    """Merge search/detail variants before evaluating layer evidence gates."""
+    merged: dict[str, dict[str, Any]] = {}
+    for item in signals:
+        if not isinstance(item, dict):
+            continue
+        key = signal_key(item, platform)
+        merged[key] = merge_signals(merged[key], item) if key in merged else dict(item)
+    return list(merged.values())
 
 
 def snapshot_counts(state: dict[str, Any]) -> dict[str, int]:
@@ -189,12 +206,26 @@ def snapshot_counts(state: dict[str, Any]) -> dict[str, int]:
     if not snapshot_path.exists():
         return {"query_count": 0, "observed_result_count": 0, "unique_sample_count": 0, "detail_open_count": 0, "counter_signal_count": 0}
     snapshot = load_data(str(snapshot_path))
-    counts = ((snapshot.get("collection") or {}).get("counts") or {}) if isinstance(snapshot, dict) else {}
+    collection = snapshot.setdefault("collection", {}) if isinstance(snapshot, dict) else {}
+    counts = collection.setdefault("counts", {})
     signals = snapshot.get("signals", []) if isinstance(snapshot, dict) else []
-    actual_detail_count = len({signal_key(item) for item in signals if isinstance(item, dict) and item.get("detail_captured")})
-    if int(counts.get("detail_open_count") or 0) != actual_detail_count:
-        counts["detail_open_count"] = actual_detail_count
-        snapshot.setdefault("collection", {})["counts"] = counts
+    runs = collection.get("query_runs", []) if isinstance(collection.get("query_runs"), list) else []
+    platform = as_text(state.get("platform"))
+    valid_signals = [item for item in signals if isinstance(item, dict)]
+    unique_keys = {signal_key(item, platform) for item in valid_signals}
+    canonical = {
+        "query_count": len(runs),
+        "observed_result_count": sum(int(item.get("observed_result_count") or 0) for item in runs if isinstance(item, dict)),
+        "retained_sample_count": len(valid_signals),
+        "unique_sample_count": len(unique_keys),
+        "duplicate_count": len(valid_signals) - len(unique_keys),
+        "discarded_result_count": sum(int(item.get("discarded_result_count") or 0) for item in runs if isinstance(item, dict)),
+        "detail_open_count": len({signal_key(item, platform) for item in valid_signals if item.get("detail_captured")}),
+        "counter_signal_count": len({signal_key(item, platform) for item in valid_signals if item.get("evidence_role") == "counter"}),
+    }
+    if any(int(counts.get(key) or 0) != value for key, value in canonical.items()):
+        counts.update(canonical)
+        collection["counts"] = counts
         write_json(str(snapshot_path), snapshot)
     return {key: int(counts.get(key) or 0) for key in (
         "query_count", "observed_result_count", "unique_sample_count", "detail_open_count", "counter_signal_count"
@@ -208,22 +239,23 @@ def contract_checks(state: dict[str, Any]) -> dict[str, bool]:
     layer_counts = {layer: sum(1 for query in completed if query["layer"] == layer) for layer in LAYERS}
     snapshot_path = Path(state["snapshot"])
     snapshot = load_data(str(snapshot_path)) if snapshot_path.exists() else {}
-    raw_signals = snapshot.get("signals", []) if isinstance(snapshot, dict) else []
+    raw_rows = snapshot.get("signals", []) if isinstance(snapshot, dict) else []
+    raw_signals = merged_snapshot_signals(raw_rows, as_text(state.get("platform")))
     runs = ((snapshot.get("collection") or {}).get("query_runs") or []) if isinstance(snapshot, dict) else []
     layer_stats = {}
     for layer in LAYERS:
         layer_runs = [item for item in runs if item.get("query_layer") == layer]
-        layer_signals = [item for item in raw_signals if item.get("query_layer") == layer]
+        layer_signals = [item for item in raw_signals if item.get("query_layer") == layer or layer in as_list(item.get("query_layers"))]
         layer_stats[layer] = {
             "observed": sum(int(item.get("observed_result_count") or 0) for item in layer_runs),
-            "unique": len({signal_key(item) for item in layer_signals}),
-            "relevant": len({signal_key(item) for item in layer_signals if item.get("semantic_relevance") in {"direct", "adjacent"}}),
-            "direct_relevance": len({signal_key(item) for item in layer_signals if item.get("semantic_relevance") == "direct"}),
+            "unique": len({signal_key(item, state.get("platform", "")) for item in layer_signals}),
+            "relevant": len({signal_key(item, state.get("platform", "")) for item in layer_signals if item.get("semantic_relevance") in {"direct", "adjacent"}}),
+            "direct_relevance": len({signal_key(item, state.get("platform", "")) for item in layer_signals if item.get("semantic_relevance") == "direct"}),
             "details": sum(1 for item in layer_signals if item.get("detail_captured")),
             "direct": sum(1 for item in layer_signals if item.get("semantic_relevance") == "direct" and (item.get("detail_captured") or item.get("source_type") in {"direct_post", "exported_item"})),
         }
     reviewed = sum(1 for item in raw_signals if item.get("semantic_relevance") in {"direct", "adjacent", "weak"})
-    relevant_unique = len({signal_key(item) for item in raw_signals if item.get("semantic_relevance") in {"direct", "adjacent"}})
+    relevant_unique = len({signal_key(item, state.get("platform", "")) for item in raw_signals if item.get("semantic_relevance") in {"direct", "adjacent"}})
     return {
         "queries": counts["query_count"] >= contract["query_target"][0],
         "query_layers": all(count >= required_layers(state["mode"]) for count in layer_counts.values()),
@@ -267,10 +299,10 @@ def recovery_diagnostics(state: dict[str, Any]) -> dict[str, Any]:
         layer_runs = [item for item in runs if item.get("query_layer") == layer]
         layer_signals = [item for item in raw_signals if item.get("query_layer") == layer or layer in as_list(item.get("query_layers"))]
         observed = sum(int(item.get("observed_result_count") or 0) for item in layer_runs)
-        unique = len({signal_key(item) for item in layer_signals})
+        unique = len({signal_key(item, state.get("platform", "")) for item in layer_signals})
         details = sum(1 for item in layer_signals if item.get("detail_captured"))
-        relevant = len({signal_key(item) for item in layer_signals if item.get("semantic_relevance") in {"direct", "adjacent"}})
-        direct_relevance = len({signal_key(item) for item in layer_signals if item.get("semantic_relevance") == "direct"})
+        relevant = len({signal_key(item, state.get("platform", "")) for item in layer_signals if item.get("semantic_relevance") in {"direct", "adjacent"}})
+        direct_relevance = len({signal_key(item, state.get("platform", "")) for item in layer_signals if item.get("semantic_relevance") == "direct"})
         direct = sum(
             1 for item in layer_signals
             if item.get("semantic_relevance") == "direct"
@@ -289,7 +321,7 @@ def recovery_diagnostics(state: dict[str, Any]) -> dict[str, Any]:
         if any(deficits.values()):
             recommended_layers.append(layer)
     counts = snapshot_counts(state)
-    relevant_unique = len({signal_key(item) for item in raw_signals if item.get("semantic_relevance") in {"direct", "adjacent"}})
+    relevant_unique = len({signal_key(item, state.get("platform", "")) for item in raw_signals if item.get("semantic_relevance") in {"direct", "adjacent"}})
     global_deficits = {
         "observed": max(0, contract["observed_result_target"][0] - counts["observed_result_count"]),
         "unique": max(0, contract["unique_signal_target"][0] - counts["unique_sample_count"]),
@@ -330,6 +362,11 @@ def recovery_diagnostics(state: dict[str, Any]) -> dict[str, Any]:
         candidates: list[str] = []
         if 2 <= len(distinctive) <= 4:
             candidates.append(" ".join(distinctive))
+        if len(distinctive) == 1 and re.fullmatch(r"[\u4e00-\u9fff]{2,12}", distinctive[0]):
+            # Removing a generic Latin product token such as AI from a proven
+            # Chinese query yields a real contiguous platform phrase rather
+            # than an invented synonym or compound query.
+            candidates.append(distinctive[0])
         # When the first mechanical broadening has already been used, continue by
         # taking real contiguous phrases from the same proven query. Never invent
         # a new compound phrase merely because one query slot remains.
@@ -392,7 +429,7 @@ def detail_backfill_plan(state: dict[str, Any]) -> dict[str, Any]:
         candidates = []
         for signal in signals:
             layers = {as_text(signal.get("query_layer")), *[as_text(item) for item in as_list(signal.get("query_layers"))]}
-            key = signal_key(signal)
+            key = signal_key(signal, state.get("platform", ""))
             detail_access = signal.get("detail_access") if isinstance(signal.get("detail_access"), dict) else {}
             url = as_text(detail_access.get("url") or signal.get("source_url") or signal.get("canonical_url") or signal.get("url"))
             if layer not in layers or signal.get("semantic_relevance") not in {"direct", "adjacent"} or signal.get("detail_captured") or key in attempted or not url.startswith(("http://", "https://")):
@@ -414,7 +451,7 @@ def detail_backfill_plan(state: dict[str, Any]) -> dict[str, Any]:
     if remaining_needed:
         candidates = []
         for signal in signals:
-            key = signal_key(signal)
+            key = signal_key(signal, state.get("platform", ""))
             detail_access = signal.get("detail_access") if isinstance(signal.get("detail_access"), dict) else {}
             url = as_text(detail_access.get("url") or signal.get("source_url") or signal.get("canonical_url") or signal.get("url"))
             if signal.get("semantic_relevance") not in {"direct", "adjacent"} or signal.get("detail_captured") or key in attempted or key in selected or not url.startswith(("http://", "https://")):
@@ -472,7 +509,7 @@ def record_detail_backfill(state: dict[str, Any], payload: Any) -> None:
             raw_path = (snapshot_path.parent / raw_path).resolve()
         if not raw_path.is_file():
             raise SystemExit("Every detail result raw_artifact must reference an existing file.")
-        target_index = next((index for index, item in enumerate(signals) if signal_key(item) == key), None)
+        target_index = next((index for index, item in enumerate(signals) if signal_key(item, state.get("platform", "")) == key), None)
         if target_index is None:
             raise SystemExit("Backfill target is missing from the canonical snapshot.")
         if success:
@@ -507,7 +544,7 @@ def record_detail_backfill(state: dict[str, Any], payload: Any) -> None:
             audits.append(audit_entry)
     unique = {}
     for signal in signals:
-        unique[signal_key(signal)] = signal
+        unique[signal_key(signal, state.get("platform", ""))] = signal
     counts = snapshot["collection"].setdefault("counts", {})
     counts["detail_open_count"] = sum(1 for signal in unique.values() if signal.get("detail_captured"))
     snapshot["signals"] = signals
@@ -519,7 +556,7 @@ def record_detail_backfill(state: dict[str, Any], payload: Any) -> None:
     if not hard_stop and isinstance(state.get("queries"), list) and all(contract_checks(state).values()):
         state["status"] = "complete"
         state["stop_reason"] = "sampling_contract_met"
-        set_snapshot_stop(state, "")
+        set_snapshot_stop(state, "sampling_contract_met")
     state["updated_at"] = now_iso()
 
 
@@ -540,7 +577,7 @@ def set_snapshot_stop(state: dict[str, Any], reason: str) -> None:
         and not as_text(item).startswith("sampling_contract_unmet:")
         and not as_text(item).startswith("observed_budget_guard:")
     ]
-    if reason and reason != "collection_in_progress" and reason not in limitations:
+    if reason and reason not in {"collection_in_progress", "sampling_contract_met"} and reason not in limitations:
         limitations.append(reason)
     write_json(str(target), snapshot)
 
@@ -568,12 +605,18 @@ def action(state: dict[str, Any]) -> dict[str, Any]:
     counts = snapshot_counts(state)
     checks = contract_checks(state)
     base = {"status": state["status"], "counts": counts, "contract_checks": checks}
+    if state["status"] == "complete" and all(checks.values()):
+        state["stop_reason"] = "sampling_contract_met"
+        set_snapshot_stop(state, "sampling_contract_met")
+        return {**base, "action": "complete", "stop_reason": "sampling_contract_met"}
     if state["status"] == "complete":
-        return {**base, "action": "complete", "stop_reason": state.get("stop_reason", "")}
+        state["status"] = "in_progress"
+        state["stop_reason"] = ""
+        set_snapshot_stop(state, "collection_in_progress")
     if state["status"] == "blocked" and all(checks.values()):
         state["status"] = "complete"
         state["stop_reason"] = "sampling_contract_met"
-        set_snapshot_stop(state, "")
+        set_snapshot_stop(state, "sampling_contract_met")
         return {**base, "status": "complete", "action": "complete", "stop_reason": "sampling_contract_met"}
     if state["status"] == "blocked":
         query_local_recoverable = (
@@ -586,11 +629,19 @@ def action(state: dict[str, Any]) -> dict[str, Any]:
             set_snapshot_stop(state, "collection_in_progress")
         else:
             missing_now = {name for name, passed in checks.items() if not passed}
-            recoverable = as_text(state.get("stop_reason")).startswith("sampling_contract_unmet:") and bool(detail_backfill_plan(state)["targets"])
-            if not recoverable:
+            sampling_block = as_text(state.get("stop_reason")).startswith("sampling_contract_unmet:")
+            detail_recoverable = sampling_block and bool(detail_backfill_plan(state)["targets"])
+            recovery_now = recovery_diagnostics(state)
+            query_recoverable = (
+                sampling_block
+                and int(recovery_now.get("query_budget_remaining") or 0) > 0
+                and bool((recovery_now.get("volume_recovery") or {}).get("recommended_terms"))
+                and search_budget(state)["may_start_search"]
+            )
+            if not detail_recoverable and not query_recoverable:
                 return {**base, "action": "blocked", "stop_reason": state.get("stop_reason", "")}
             state["status"] = "in_progress"
-            state["stop_reason"] = "detail_backfill_required"
+            state["stop_reason"] = "detail_backfill_required" if detail_recoverable else ""
             set_snapshot_stop(state, "collection_in_progress")
     active = state.get("active_query")
     if isinstance(active, dict):
@@ -613,7 +664,7 @@ def action(state: dict[str, Any]) -> dict[str, Any]:
     if all(checks.values()):
         state["status"] = "complete"
         state["stop_reason"] = "sampling_contract_met"
-        set_snapshot_stop(state, "")
+        set_snapshot_stop(state, "sampling_contract_met")
         return {**base, "status": "complete", "action": "complete", "stop_reason": "sampling_contract_met"}
     missing = [name for name, passed in checks.items() if not passed]
     budget = search_budget(state)
@@ -718,7 +769,7 @@ def finalize_active(state: dict[str, Any], state_path: Path, stop_reason: str = 
     else:
         outcome = "completed_with_zero_results" if not active["observed_result_keys"] else "completed_with_results"
     relevant_keys = {
-        signal_key(item) for item in active["signals"]
+        signal_key(item, state.get("platform", "")) for item in active["signals"]
         if item.get("semantic_relevance") in {"direct", "adjacent"}
     }
     observed_count = len(active["observed_result_keys"])
@@ -726,6 +777,7 @@ def finalize_active(state: dict[str, Any], state_path: Path, stop_reason: str = 
     query_result = {
         "query_term": active["term"],
         "query_layer": active["layer"],
+        "query_intent": active.get("query_intent", ""),
         "observed_result_count": observed_count,
         "relevant_signal_count": relevant_count,
         "retention_rate": round(len(active["signals"]) / max(observed_count, 1), 3),
@@ -819,9 +871,9 @@ def record_chunk(state: dict[str, Any], state_path: Path, chunk: Any) -> None:
         if key not in known_keys:
             active["observed_result_keys"].append(key)
             known_keys.add(key)
-    known_signals = {signal_key(item) for item in active["signals"]}
+    known_signals = {signal_key(item, state.get("platform", "")) for item in active["signals"]}
     for signal in signals:
-        key = signal_key(signal)
+        key = signal_key(signal, state.get("platform", ""))
         if key not in known_signals:
             active["signals"].append(signal)
             known_signals.add(key)
@@ -952,6 +1004,7 @@ def main() -> None:
     init.add_argument("--snapshot", required=True)
     init.add_argument("--plan", required=True)
     init.add_argument("--adapter-status", required=True)
+    init.add_argument("--research-context")
     init.add_argument("--platform", required=True)
     init.add_argument("--mode", choices=sorted(SAMPLING_CONTRACTS), default="standard")
     init.add_argument("--screens-per-chunk", type=int, default=1)
@@ -976,24 +1029,33 @@ def main() -> None:
     if args.command == "init":
         if args.screens_per_chunk < 1 or args.screens_per_chunk > 10:
             raise SystemExit("--screens-per-chunk must be between 1 and 10.")
-        queries = validate_plan(load_data(args.plan), args.mode)
+        research_context = load_context(Path(args.research_context).resolve()) if args.research_context else None
+        queries = validate_plan(load_data(args.plan), args.mode, research_context)
         adapter_status = load_data(args.adapter_status)
         adapter = as_text(adapter_status.get("adapter")) if isinstance(adapter_status, dict) else ""
-        if adapter not in {"dokobot", "opencli"} or adapter_status.get("status") != "ready" or adapter_status.get("ready") is not True:
+        if not isinstance(adapter_status, dict) or not status_supports(adapter_status, args.platform):
             raise SystemExit("The selected adapter preflight is not ready; do not initialize controlled collection.")
-        if adapter == "opencli":
-            capabilities = adapter_status.get("capabilities") if isinstance(adapter_status.get("capabilities"), dict) else {}
-            if normalized_platform(args.platform) != "xiaohongshu" or capabilities.get("xiaohongshu") is not True:
-                raise SystemExit("OpenCLI is only validated for Xiaohongshu in this Skill version.")
+        platform_key = normalized_platform(args.platform)
+        if research_context and research_context["platform"] != platform_key:
+            raise SystemExit("Research context platform does not match the collection platform.")
         state = {
             "schema_version": SCHEMA_VERSION,
+            "platform_adapter_contract": CONTRACT_VERSION,
+            "platform_adapter_registry": ADAPTER_REGISTRY_VERSION,
             "adapter": adapter,
-            "platform": normalized_platform(args.platform),
+            "platform": platform_key,
             "source_mode": "controlled_capture",
             "mode": args.mode,
             "snapshot": str(Path(args.snapshot).resolve()),
             "plan": str(Path(args.plan).resolve()),
             "adapter_status": str(Path(args.adapter_status).resolve()),
+            **({
+                "research_context": str(Path(args.research_context).resolve()),
+                "research_context_schema": research_context["schema_version"],
+                "research_intent": research_context["research_intent"],
+                "decision_profile_version": research_context["profile_version"],
+                "source_prompt_sha256": research_context["source_prompt_sha256"],
+            } if research_context else {}),
             "capture_dir": str((state_path.parent / "captures").resolve()),
             "screens_per_chunk": args.screens_per_chunk,
             "status": "in_progress",
@@ -1029,7 +1091,10 @@ def main() -> None:
     current_action = action(state)
     state["updated_at"] = now_iso()
     write_json(str(state_path), state)
-    print(__import__("json").dumps(current_action, ensure_ascii=False, indent=2))
+    # CLI stdout is a machine-readable contract. Escaping non-ASCII keeps the
+    # JSON portable on Windows consoles whose legacy code page cannot encode
+    # emoji or some platform text. json.loads restores the original Unicode.
+    print(__import__("json").dumps(current_action, ensure_ascii=True, indent=2))
 
 
 if __name__ == "__main__":

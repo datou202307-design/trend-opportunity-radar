@@ -255,23 +255,27 @@ def diagnose_opencli(
         base["remediation"] = remediation(status, "opencli")
         return base
     base["cli"]["version"] = version_probe["stdout"].splitlines()[0] if version_probe["stdout"] else "unknown"
-    identity_command = executable_command(cli_path, ["xiaohongshu", "whoami", "-f", "json", "--window", "background"], "@jackwener/opencli", ("dist", "src", "main.js"))
-    identity_probe = run_probe(identity_command, timeout, runner)
-    combined = f"{identity_probe['stdout']}\n{identity_probe['stderr']}\n{identity_probe['error']}".casefold()
-    base["diagnostics"]["identity_probe"] = {
-        "ok": identity_probe["ok"],
-        "returncode": identity_probe["returncode"],
-        "error": identity_probe["error"],
-        "session_state_redacted": True,
-    }
-    if not identity_probe["ok"] or any(marker in combined for marker in ("browser_connect", "not connected", "login_required", "not logged in")):
+    identity_probes = {}
+    for capability, site in (("xiaohongshu", "xiaohongshu"), ("x", "twitter")):
+        identity_command = executable_command(cli_path, [site, "whoami", "-f", "json", "--window", "background"], "@jackwener/opencli", ("dist", "src", "main.js"))
+        identity_probe = run_probe(identity_command, timeout, runner)
+        combined = f"{identity_probe['stdout']}\n{identity_probe['stderr']}\n{identity_probe['error']}".casefold()
+        rejected = any(marker in combined for marker in ("browser_connect", "not connected", "login_required", "not logged in"))
+        base["capabilities"][capability] = bool(identity_probe["ok"] and not rejected and identity_probe["stdout"].strip())
+        identity_probes[capability] = {
+            "ok": identity_probe["ok"],
+            "returncode": identity_probe["returncode"],
+            "error": identity_probe["error"],
+            "session_state_redacted": True,
+        }
+    base["diagnostics"]["identity_probes"] = identity_probes
+    if not any(base["capabilities"].values()):
         base["status"] = "browser_not_connected"
-        base["remediation"] = ["Enable the OpenCLI Chrome extension, keep the authorized Xiaohongshu session open, and rerun the preflight."]
+        base["remediation"] = ["Enable the OpenCLI Chrome extension, keep the authorized target-platform session open, and rerun the preflight."]
         return base
     base["status"] = "ready"
     base["ready"] = True
     base["browser"]["connected"] = True
-    base["capabilities"]["xiaohongshu"] = True
     base["remediation"] = []
     return base
 

@@ -18,12 +18,16 @@ import _common as common
 import generate_opportunities as opportunity_generator
 import orchestrate_dokobot_collection as orchestrator
 import parse_opencli_xhs_search as opencli_parser
+import parse_opencli_x_search as opencli_x_parser
+import run_opencli_detail_backfill as opencli_detail_runner
+import run_collection_capture as collection_capture_runner
 import parse_dokobot_x_search as x_parser
 import apply_semantic_review as semantic_reviewer
 import run_dokobot_capture as capture_runner
 import run_dokobot_detail_backfill as detail_runner
 import select_collection_adapter as adapter_selector
 import validate_report_artifacts as report_validator
+from generate_profile_report import visible_status
 
 
 def run_script(name: str, *args: str) -> None:
@@ -38,6 +42,39 @@ def run_script_json(name: str, *args: str) -> dict:
 
 
 class PipelineTest(unittest.TestCase):
+    def test_collection_capture_never_overwrites_existing_raw_attempts(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            requested = Path(temp_dir) / "category-1-001.json"
+            self.assertEqual(collection_capture_runner.immutable_raw_path(requested), requested)
+            requested.write_text("first", encoding="utf-8")
+            attempt_two = collection_capture_runner.immutable_raw_path(requested)
+            self.assertEqual(attempt_two.name, "category-1-001-attempt-2.json")
+            attempt_two.write_text("second", encoding="utf-8")
+            self.assertEqual(
+                collection_capture_runner.immutable_raw_path(requested).name,
+                "category-1-001-attempt-3.json",
+            )
+
+    def test_opencli_capture_uses_same_common_location_resolution_as_preflight(self) -> None:
+        from unittest.mock import patch
+
+        with patch.object(collection_capture_runner.shutil, "which", return_value=None), patch.object(
+            collection_capture_runner, "resolve_opencli", return_value=("C:/npm/opencli.cmd", "path_or_common_location", [])
+        ), patch.object(collection_capture_runner, "executable_command", return_value=["node", "opencli.js", "xiaohongshu", "search"]):
+            command = collection_capture_runner.resolve_opencli_command(["opencli", "xiaohongshu", "search"])
+        self.assertEqual(command, ["node", "opencli.js", "xiaohongshu", "search"])
+
+    def test_profile_statuses_are_reader_facing(self) -> None:
+        self.assertEqual(visible_status("candidate", "zh-CN"), "待验证")
+        self.assertEqual(visible_status("candidate", "en"), "Needs validation")
+        self.assertNotIn("candidate", visible_status("candidate", "zh-CN"))
+
+    def test_orchestrator_cli_output_is_legacy_console_safe(self) -> None:
+        payload = {"action": "start_query", "query": "meeting tasks 📢"}
+        rendered = json.dumps(payload, ensure_ascii=True, indent=2)
+        rendered.encode("gbk")
+        self.assertEqual(json.loads(rendered), payload)
+
     def test_dokobot_x_parser_is_mechanical_and_semantic_review_is_explicit(self) -> None:
         text = """# X
 > https://x.com/search?q=interview
@@ -190,7 +227,7 @@ An entertainment interview translation thread.
         updated = json.loads(snapshot.read_text(encoding="utf-8"))
         self.assertEqual(state["status"], "complete")
         self.assertEqual(state["stop_reason"], "sampling_contract_met")
-        self.assertEqual(updated["collection"]["stop_reason"], "")
+        self.assertEqual(updated["collection"]["stop_reason"], "sampling_contract_met")
         self.assertEqual(updated["collection"]["counts"]["detail_open_count"], 1)
         self.assertNotIn("sampling_contract_unmet:detail_opens", updated["collection"]["limitations"])
 
@@ -227,6 +264,41 @@ An entertainment interview translation thread.
         with self.assertRaises(SystemExit):
             report_validator.validate_collection_state_consistency(report, self.root)
 
+    def test_report_validator_counts_unique_counter_signals(self) -> None:
+        duplicate_counter = {
+            "platform": "xiaohongshu",
+            "content_id": "note-1",
+            "evidence_role": "counter",
+            "detail_captured": False,
+        }
+        self.write("raw-signals.json", {
+            "platform": "xiaohongshu",
+            "collection": {"counts": {"detail_open_count": 0, "counter_signal_count": 1}, "stop_reason": ""},
+            "signals": [duplicate_counter, dict(duplicate_counter)],
+        })
+        report = {"platform": "xiaohongshu", "collection": {
+            "contract_status": "blocked",
+            "counts": {"detail_open_count": 0, "counter_signal_count": 1},
+        }}
+        report_validator.validate_collection_state_consistency(report, self.root)
+
+    def test_report_validator_counts_duplicate_detail_rows_once(self) -> None:
+        duplicate_detail = {
+            "platform": "x", "content_id": "post-1", "detail_captured": True,
+            "semantic_relevance": "direct", "semantic_review": {"status": "reviewed"},
+            "evidence_role": "support", "topic_key": "topic-a",
+        }
+        self.write("raw-signals.json", {
+            "platform": "x",
+            "collection": {"counts": {"detail_open_count": 1, "counter_signal_count": 0}, "stop_reason": ""},
+            "signals": [duplicate_detail, dict(duplicate_detail)],
+        })
+        report = {"platform": "x", "collection": {
+            "contract_status": "blocked",
+            "counts": {"detail_open_count": 1, "counter_signal_count": 0},
+        }}
+        report_validator.validate_collection_state_consistency(report, self.root)
+
     def test_report_validator_rejects_overlapping_support_and_counter_refs(self) -> None:
         report = {
             "subject": {"name": "Test"},
@@ -256,7 +328,7 @@ An entertainment interview translation thread.
         self.assertEqual(result["action"], "complete")
         self.assertEqual(state["status"], "complete")
         self.assertEqual(state["stop_reason"], "sampling_contract_met")
-        self.assertEqual(updated["collection"]["stop_reason"], "")
+        self.assertEqual(updated["collection"]["stop_reason"], "sampling_contract_met")
         self.assertEqual(updated["collection"]["limitations"], [])
 
     def test_snapshot_counts_repairs_stale_detail_count_from_canonical_signals(self) -> None:
@@ -269,6 +341,54 @@ An entertainment interview translation thread.
         updated = json.loads(snapshot.read_text(encoding="utf-8"))
         self.assertEqual(counts["detail_open_count"], 1)
         self.assertEqual(updated["collection"]["counts"]["detail_open_count"], 1)
+
+    def test_orchestrator_uses_snapshot_platform_when_deduplicating_missing_platform_rows(self) -> None:
+        signals = [self.make_signal(index) for index in range(17)]
+        duplicate = dict(signals[0])
+        duplicate.pop("platform")
+        signals.append(duplicate)
+        runs = [
+            {"query_layer": layer, "observed_result_count": 20, "discarded_result_count": 0}
+            for layer in ("platform_baseline", "category", "subject_bridge")
+        ]
+        snapshot = self.write("platform-fallback-raw.json", {
+            "collection": {"query_runs": runs, "counts": {"unique_sample_count": 18}},
+            "signals": signals,
+        })
+        state = {
+            "snapshot": str(snapshot), "platform": "x", "mode": "standard",
+            "queries": [
+                {"status": "completed", "layer": layer}
+                for layer in ("platform_baseline", "category", "subject_bridge")
+            ],
+        }
+        counts = orchestrator.snapshot_counts(state)
+        checks = orchestrator.contract_checks(state)
+        self.assertEqual(counts["unique_sample_count"], 17)
+        self.assertFalse(checks["relevant_unique_signals"])
+
+    def test_search_budget_allows_exact_atomic_read_to_upper_bound(self) -> None:
+        original_counts = orchestrator.snapshot_counts
+        try:
+            orchestrator.snapshot_counts = lambda _state: {"observed_result_count": 80}
+            self.assertTrue(orchestrator.search_budget({"mode": "standard"})["may_start_search"])
+            orchestrator.snapshot_counts = lambda _state: {"observed_result_count": 81}
+            self.assertFalse(orchestrator.search_budget({"mode": "standard"})["may_start_search"])
+        finally:
+            orchestrator.snapshot_counts = original_counts
+
+    def test_xiaohongshu_detail_runner_applies_interval_and_batch_cooldown(self) -> None:
+        waits: list[int] = []
+        first = opencli_detail_runner.throttle_before_detail("xiaohongshu", 0, waits.append)
+        ordinary = opencli_detail_runner.throttle_before_detail("xiaohongshu", 1, waits.append)
+        after_batch = opencli_detail_runner.throttle_before_detail("xiaohongshu", 5, waits.append)
+        x_platform = opencli_detail_runner.throttle_before_detail("x", 5, waits.append)
+        self.assertEqual(first["waited_seconds"], 0)
+        self.assertEqual(ordinary["waited_seconds"], 20)
+        self.assertEqual(after_batch["waited_seconds"], 65)
+        self.assertEqual(after_batch["batch_cooldown_seconds"], 45)
+        self.assertEqual(x_platform["waited_seconds"], 0)
+        self.assertEqual(waits, [20, 65])
 
     def test_reader_titles_translate_internal_jargon_for_general_audience(self) -> None:
         profile = {"language": "zh-CN", "audience": "general"}
@@ -406,8 +526,9 @@ An entertainment interview translation thread.
         self.assertIn("observed_heat", scored_data["topics"][0])
         self.assertIn("evidence_confidence", scored_data["topics"][0])
         self.assertEqual(report["opportunities"][0]["evidence_status"], "review_ready")
-        self.assertIn("采集台账", page)
+        self.assertIn("查看采样与评分依据", page)
         self.assertIn("证据支撑", page)
+        self.assertLess(page.index("机会卡片"), page.index("重点话题"))
         self.assertNotIn("What was actually collected", page)
         self.assertNotIn("<script src=", page)
         self.assertNotIn("<link rel=", page)
@@ -1396,12 +1517,42 @@ An entertainment interview translation thread.
         opencli = adapter_check.diagnose_opencli("opencli", "test", runner=ready_runner)
         self.assertTrue(opencli["ready"])
         self.assertTrue(opencli["capabilities"]["xiaohongshu"])
-        self.assertFalse(opencli["capabilities"]["x"])
+        self.assertTrue(opencli["capabilities"]["x"])
         dokobot = {"adapter": "dokobot", "ready": True, "status": "ready"}
         xhs_route = adapter_selector.select_adapter("小红书", [dokobot, opencli])
         self.assertEqual(xhs_route["selected_adapter"], "opencli")
         x_route = adapter_selector.select_adapter("x", [dokobot, opencli])
-        self.assertEqual(x_route["selected_adapter"], "dokobot")
+        self.assertEqual(x_route["selected_adapter"], "opencli")
+
+    def test_opencli_x_parser_normalizes_metrics_and_keeps_search_evidence_unreviewed(self) -> None:
+        raw = self.write("opencli-x-search.json", [{
+            "id": "1234567890", "author": "builder", "text": "A long practical post about AI workflows.",
+            "created_at": "2026-08-12T10:00:00Z", "likes": 42, "views": "12.5K",
+            "url": "https://x.com/i/status/1234567890",
+        }])
+        parsed = opencli_x_parser.parse_file(raw, {"id": "q1", "term": "AI workflows", "layer": "category"})
+        self.assertEqual(parsed["query_id"], "q1")
+        self.assertEqual(parsed["observed_result_keys"], ["1234567890"])
+        signal = parsed["signals"][0]
+        self.assertEqual(signal["canonical_url"], "https://x.com/builder/status/1234567890")
+        self.assertEqual(signal["metrics"]["views"], 12500)
+        self.assertEqual(signal["summary"], "A long practical post about AI workflows.")
+        self.assertEqual(signal["semantic_relevance"], "unreviewed")
+
+    def test_text_integrity_accepts_valid_accented_languages(self) -> None:
+        self.assertEqual(common.text_integrity_issues("ADIÓS, ¿cómo está? Très bien. ação útil."), [])
+        self.assertTrue(common.text_integrity_issues("broken \ufffd text"))
+
+    def test_opencli_x_detail_selects_original_thread_row_and_allows_missing_views(self) -> None:
+        target = {"url": "https://x.com/builder/status/1234567890"}
+        detail = opencli_detail_runner.x_detail([
+            {"id": "999", "author": "reply", "text": "reply"},
+            {"id": "1234567890", "author": "builder", "text": "complete body", "likes": 5, "retweets": 2},
+        ], target)
+        self.assertIsNotNone(detail)
+        self.assertEqual(detail["summary"], "complete body")
+        self.assertIsNone(detail["metrics"]["views"])
+        self.assertEqual(detail["metrics"]["shares"], 2)
 
     def test_opencli_xhs_parser_preserves_signed_detail_and_requires_semantic_review(self) -> None:
         raw = self.write("opencli-search.json", [{
@@ -1420,10 +1571,10 @@ An entertainment interview translation thread.
         self.assertTrue(signal["detail_access"]["token_present"])
         self.assertEqual(signal["semantic_relevance"], "unreviewed")
 
-    def test_generic_orchestrator_uses_opencli_only_for_xiaohongshu(self) -> None:
+    def test_generic_orchestrator_routes_opencli_for_xiaohongshu_and_x(self) -> None:
         status = self.write("opencli-ready.json", {
             "schema_version": "collection-adapter-status-v0.2", "adapter": "opencli",
-            "ready": True, "status": "ready", "capabilities": {"xiaohongshu": True, "x": False},
+            "ready": True, "status": "ready", "capabilities": {"xiaohongshu": True, "x": True},
         })
         plan = self.write("xhs-plan.json", self.make_standard_query_plan())
         state = self.root / "xhs-state.json"
@@ -1433,13 +1584,16 @@ An entertainment interview translation thread.
         )
         self.assertEqual(action["opencli_command"][:3], ["opencli", "xiaohongshu", "search"])
         self.assertNotIn("dokobot_command", action)
-        rejected = subprocess.run(
-            [sys.executable, str(SCRIPTS / "orchestrate_collection.py"), "init", "--state", str(self.root / "x-state.json"),
-             "--snapshot", str(self.root / "x-raw.json"), "--plan", str(plan), "--adapter-status", str(status),
-             "--platform", "x", "--mode", "standard"], capture_output=True, text=True,
+        xhs_state = json.loads(state.read_text(encoding="utf-8"))
+        self.assertEqual(xhs_state["platform_adapter_contract"], "platform-adapter-contract-v0.1")
+        self.assertEqual(xhs_state["platform_adapter_registry"], "platform-adapter-registry-v0.1")
+        x_action = run_script_json(
+            "orchestrate_collection.py", "init", "--state", str(self.root / "x-state.json"),
+            "--snapshot", str(self.root / "x-raw.json"), "--plan", str(plan), "--adapter-status", str(status),
+            "--platform", "x", "--mode", "standard",
         )
-        self.assertNotEqual(rejected.returncode, 0)
-        self.assertIn("only validated for Xiaohongshu", rejected.stderr + rejected.stdout)
+        self.assertEqual(x_action["opencli_command"][:3], ["opencli", "twitter", "search"])
+        self.assertIn("--product", x_action["opencli_command"])
 
     def test_standard_contract_rejects_high_volume_layer_without_direct_relevance(self) -> None:
         signals = [self.make_signal(index) for index in range(30)]
@@ -1483,6 +1637,8 @@ An entertainment interview translation thread.
 
     def test_volume_only_recovery_uses_terms_derived_from_successful_queries(self) -> None:
         signals = [self.make_signal(index) for index in range(30)]
+        for signal in signals[-3:]:
+            signal["evidence_role"] = "counter"
         snapshot = self.write("volume-recovery-raw.json", {
             "collection": {
                 "counts": {"query_count": 3, "observed_result_count": 56, "unique_sample_count": 30, "detail_open_count": 12, "counter_signal_count": 3},
@@ -1507,6 +1663,8 @@ An entertainment interview translation thread.
 
     def test_volume_recovery_continues_with_shorter_proven_phrases(self) -> None:
         signals = [self.make_signal(index) for index in range(30)]
+        for signal in signals[-3:]:
+            signal["evidence_role"] = "counter"
         snapshot = self.write("progressive-volume-raw.json", {
             "collection": {
                 "counts": {"query_count": 4, "observed_result_count": 50, "unique_sample_count": 30, "detail_open_count": 12, "counter_signal_count": 3},
@@ -1530,6 +1688,41 @@ An entertainment interview translation thread.
             orchestrator.validate_recovery_plan({"queries": [{
                 "id": "invented", "term": "forgotten fridge food", "layer": "category", "url": "https://x.test/invented",
             }]}, state)
+
+    def test_volume_recovery_derives_contiguous_chinese_phrase(self) -> None:
+        signals = [self.make_signal(index) for index in range(30)]
+        for signal in signals[-3:]:
+            signal["evidence_role"] = "counter"
+        snapshot = self.write("chinese-volume-recovery.json", {
+            "collection": {
+                "counts": {"query_count": 3, "observed_result_count": 57, "unique_sample_count": 30, "detail_open_count": 12, "counter_signal_count": 3},
+                "query_runs": [
+                    {"query_term": "AI自动剪视频", "query_layer": "subject_bridge", "observed_result_count": 19, "relevant_signal_count": 19},
+                    {"query_term": "AI做视频", "query_layer": "platform_baseline", "observed_result_count": 19, "relevant_signal_count": 15},
+                    {"query_term": "手机素材剪辑", "query_layer": "category", "observed_result_count": 19, "relevant_signal_count": 14},
+                ],
+            },
+            "signals": signals,
+        })
+        state = {
+            "mode": "standard", "platform": "xiaohongshu", "snapshot": str(snapshot),
+            "queries": [
+                {"id": "q1", "term": "AI自动剪视频", "url": "https://xhs.test/1", "layer": "subject_bridge", "status": "completed"},
+                {"id": "q2", "term": "AI做视频", "url": "https://xhs.test/2", "layer": "platform_baseline", "status": "completed"},
+                {"id": "q3", "term": "手机素材剪辑", "url": "https://xhs.test/3", "layer": "category", "status": "completed"},
+            ],
+        }
+        diagnostics = orchestrator.recovery_diagnostics(state)
+        self.assertTrue(diagnostics["volume_recovery"]["required"])
+        self.assertIn("自动剪视频", diagnostics["volume_recovery"]["recommended_terms"])
+        state.update({
+            "status": "blocked",
+            "stop_reason": "sampling_contract_unmet:observed_results,evidence_recovery_exhausted",
+            "capture_dir": str(self.root / "captures"),
+        })
+        resumed = orchestrator.action(state)
+        self.assertEqual(resumed["action"], "replan_queries")
+        self.assertEqual(state["status"], "in_progress")
 
     def test_zero_result_query_is_low_yield(self) -> None:
         state = {"active_query": {

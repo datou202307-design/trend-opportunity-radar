@@ -1,0 +1,12 @@
+{
+  "platform": "x",
+  "collection": {
+    "mode": "standard",
+    "contract_status": "met",
+    "stop_reason": "sampling_contract_met",
+    "counts": {"query_count": 3, "observed_result_count": 42, "unique_sample_count": 24, "detail_open_count": 8, "counter_signal_count": 2}
+  },
+  "topics": [
+    {"topic_key": "photo-backlog", "title": "旅行后照片长期堆积", "cluster_audit": {"status": "passed"}}
+  ]
+}

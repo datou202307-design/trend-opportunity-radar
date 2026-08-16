@@ -7,8 +7,8 @@ from typing import Any
 from _common import SAMPLING_CONTRACTS, as_number, as_text, load_data, now_iso, stable_signal_identity, write_json
 
 
-def signal_key(signal: dict[str, Any]) -> str:
-    return stable_signal_identity(signal)
+def signal_key(signal: dict[str, Any], platform: str = "") -> str:
+    return stable_signal_identity(signal, platform)
 
 
 def resolve_artifact(value: str, base: Path) -> Path:
@@ -98,7 +98,7 @@ def append_query_result(
     snapshot.setdefault("signals", []).extend(signals)
 
     all_signals = snapshot["signals"]
-    unique_keys = {signal_key(item) for item in all_signals}
+    unique_keys = {signal_key(item, platform) for item in all_signals}
     counts = {
         "query_count": len(existing_runs),
         "observed_result_count": sum(int(item["observed_result_count"]) for item in existing_runs),
@@ -107,7 +107,7 @@ def append_query_result(
         "duplicate_count": len(all_signals) - len(unique_keys),
         "discarded_result_count": sum(int(item["discarded_result_count"]) for item in existing_runs),
         "detail_open_count": sum(int(item["detail_open_count"]) for item in existing_runs),
-        "counter_signal_count": sum(1 for item in all_signals if item.get("evidence_role") == "counter"),
+        "counter_signal_count": len({signal_key(item, platform) for item in all_signals if item.get("evidence_role") == "counter"}),
     }
     snapshot["collection"]["mode"] = mode
     snapshot["collection"]["counts"] = counts

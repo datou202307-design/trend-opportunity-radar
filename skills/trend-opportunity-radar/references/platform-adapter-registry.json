@@ -1,0 +1,86 @@
+{
+  "schema_version": "platform-adapter-registry-v0.1",
+  "contract_version": "platform-adapter-contract-v0.1",
+  "platforms": {
+    "x": {
+      "aliases": ["x", "twitter"],
+      "controlled_capture_preference": ["opencli", "dokobot"],
+      "metric_fields": ["likes", "comments", "shares", "bookmarks", "views"]
+    },
+    "xiaohongshu": {
+      "aliases": ["xiaohongshu", "xhs", "小红书"],
+      "controlled_capture_preference": ["opencli", "dokobot"],
+      "metric_fields": ["likes", "comments", "shares", "bookmarks"]
+    }
+  },
+  "adapters": {
+    "opencli": {
+      "source_mode": "controlled_capture",
+      "preflight_required": true,
+      "platforms": {
+        "x": {
+          "capability_key": "x",
+          "search_builder": "opencli_x_search_v1",
+          "detail_builder": "opencli_x_detail_v1",
+          "search_parser": "opencli_x_search_v1",
+          "detail_runner": "opencli",
+          "pagination": "bounded_result_set",
+          "terminal_evidence": ["success_empty_result", "adapter_error"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
+        },
+        "xiaohongshu": {
+          "capability_key": "xiaohongshu",
+          "search_builder": "opencli_xhs_search_v1",
+          "detail_builder": "opencli_xhs_detail_v1",
+          "search_parser": "opencli_xhs_search_v1",
+          "detail_runner": "opencli",
+          "pagination": "bounded_result_set",
+          "terminal_evidence": ["success_empty_result", "adapter_error"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
+        }
+      }
+    },
+    "dokobot": {
+      "source_mode": "controlled_capture",
+      "preflight_required": true,
+      "platforms": {
+        "x": {
+          "capability_key": null,
+          "search_builder": "dokobot_read_search_v1",
+          "detail_builder": "dokobot_read_detail_v1",
+          "search_parser": "dokobot_x_search_v1",
+          "detail_runner": "dokobot",
+          "pagination": "session_continuation",
+          "terminal_evidence": ["explicit_platform_end", "zero_results", "no_more_results"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
+        },
+        "xiaohongshu": {
+          "capability_key": null,
+          "search_builder": "dokobot_read_search_v1",
+          "detail_builder": "dokobot_read_detail_v1",
+          "search_parser": null,
+          "detail_runner": "dokobot",
+          "pagination": "session_continuation",
+          "terminal_evidence": ["explicit_platform_end", "zero_results", "no_more_results"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
+        }
+      }
+    },
+    "structured_import": {
+      "source_mode": "customer_export",
+      "preflight_required": false,
+      "platforms": {
+        "*": {
+          "capability_key": null,
+          "search_builder": null,
+          "detail_builder": null,
+          "search_parser": "normalized_import_v1",
+          "detail_runner": null,
+          "pagination": "provided_dataset",
+          "terminal_evidence": ["file_exhausted"],
+          "safety_stops": ["invalid_schema", "unreadable_source"]
+        }
+      }
+    }
+  }
+}

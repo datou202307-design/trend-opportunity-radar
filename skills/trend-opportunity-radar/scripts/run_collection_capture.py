@@ -9,15 +9,26 @@ from pathlib import Path
 from typing import Any
 
 from _common import now_iso, write_json
-from check_collection_adapter import executable_command
+from check_collection_adapter import executable_command, resolve_opencli
 from orchestrate_dokobot_collection import action, load_state
-from parse_opencli_xhs_search import parse_file
-from parse_dokobot_x_search import parse_file as parse_dokobot_x_file
+from platform_adapter_contract import parse_search_capture
 from run_dokobot_capture import build_metadata as build_dokobot_metadata
 from run_dokobot_capture import execution_artifact_paths, resolve_execution_command
 
 
 SCHEMA_VERSION = "collection-capture-execution-v0.2"
+
+
+def immutable_raw_path(requested: Path) -> Path:
+    """Return a fresh evidence path without overwriting an earlier attempt."""
+    if not requested.exists():
+        return requested
+    attempt = 2
+    while True:
+        candidate = requested.with_name(f"{requested.stem}-attempt-{attempt}{requested.suffix}")
+        if not candidate.exists():
+            return candidate
+        attempt += 1
 
 
 def command_hash(command: list[str]) -> str:
@@ -44,6 +55,8 @@ def classify_opencli_failure(text: str) -> tuple[str, str]:
 def resolve_opencli_command(requested: list[str]) -> list[str]:
     located = shutil.which(requested[0])
     if not located:
+        located, _, _ = resolve_opencli()
+    if not located:
         raise SystemExit("OpenCLI executable is not available to the collection wrapper.")
     return executable_command(located, requested[1:], "@jackwener/opencli", ("dist", "src", "main.js"))
 
@@ -68,7 +81,7 @@ def main() -> None:
     command = resolve_opencli_command(requested) if adapter == "opencli" else resolve_execution_command(requested)
     if adapter == "dokobot" and "--timeout" not in command:
         command.extend(["--timeout", str(args.timeout_seconds)])
-    raw_path = Path(next_action["raw_output"]).resolve()
+    raw_path = immutable_raw_path(Path(next_action["raw_output"]).resolve())
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     metadata_path = Path(args.metadata_output).resolve()
     capture_metadata_path, stdout_path, stderr_path = execution_artifact_paths(metadata_path, raw_path)
@@ -116,8 +129,9 @@ def main() -> None:
         metadata["schema_version"] = SCHEMA_VERSION
         metadata["adapter"] = adapter
     extraction_path = Path(args.extraction_output).resolve()
-    if metadata["read_status"] == "success" and (adapter == "opencli" or (adapter == "dokobot" and state.get("platform") == "x")):
-        extraction = parse_file(raw_path, next_action["query"]) if adapter == "opencli" else parse_dokobot_x_file(raw_path, next_action["query"])
+    extraction = parse_search_capture(adapter, state.get("platform", ""), raw_path, next_action["query"]) if metadata["read_status"] == "success" else None
+    if extraction is not None:
+        extraction["query_id"] = metadata["query_id"]
         if not extraction["observed_result_keys"]:
             metadata.update({"can_continue": False, "continuation_status": "exhausted", "terminal_evidence": "zero_results", "stop_reason": "zero_results"})
         write_json(str(extraction_path), extraction)

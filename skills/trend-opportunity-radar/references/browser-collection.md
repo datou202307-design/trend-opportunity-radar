@@ -1,6 +1,6 @@
 # Controlled browser collection
 
-Use this workflow after the user authorizes read-only collection and personally completes any required login. Chrome browser control, OpenCLI, and DokoBot are known implementations, not hard dependencies. Run `check_collection_adapter.py` and `select_collection_adapter.py`; a PATH lookup or one successful CLI read is never sufficient acceptance evidence. Follow [opencli-orchestration.md](opencli-orchestration.md) for OpenCLI Xiaohongshu or [dokobot-orchestration.md](dokobot-orchestration.md) for DokoBot.
+Use this workflow after the user authorizes read-only collection and personally completes any required login. Chrome browser control, OpenCLI, and DokoBot are known implementations, not hard dependencies. Run `check_collection_adapter.py` and `select_collection_adapter.py`; a PATH lookup or one successful CLI read is never sufficient acceptance evidence. Follow [opencli-orchestration.md](opencli-orchestration.md) for OpenCLI X or Xiaohongshu, or [dokobot-orchestration.md](dokobot-orchestration.md) for DokoBot.
 
 ## Prepare
 
@@ -27,7 +27,7 @@ Do not repeatedly refresh, scan concurrently, scroll without a bound, simulate h
 
 ## Bounded recovery
 
-Use the selected adapter only for capabilities validated on the target platform. On Xiaohongshu, use OpenCLI for structured search and detail reads and DokoBot or direct Chrome control to verify ambiguous rendering. On X, use DokoBot for rendered reads and continuation. After two repeated navigation or extraction timeouts across the selected path, stop retrying the same operation. Do not merge public-web discovery into controlled-capture counts.
+Use the selected adapter only for capabilities validated on the target platform. On Xiaohongshu, use OpenCLI for structured search and detail reads and DokoBot or direct Chrome control to verify ambiguous rendering. On X, use OpenCLI for structured Top/Latest search and thread detail, then DokoBot for rendered-page verification or fallback. After two repeated navigation or extraction timeouts across the selected path, stop retrying the same operation. Do not merge public-web discovery into controlled-capture counts.
 
 ## Stop immediately
 

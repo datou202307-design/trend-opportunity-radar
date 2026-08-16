@@ -4,15 +4,42 @@ import argparse
 import json
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from typing import Any
 
 from _common import load_data, now_iso, write_json
 from append_collection_result import signal_key
-from check_collection_adapter import executable_command
+from check_collection_adapter import executable_command, resolve_opencli
 from orchestrate_dokobot_collection import action, load_state, record_detail_backfill
 from parse_opencli_xhs_search import parse_count
+from parse_opencli_x_search import parse_count as parse_x_count
 from run_collection_capture import classify_opencli_failure, command_hash
+
+
+XHS_DETAIL_INTERVAL_SECONDS = 20
+XHS_DETAIL_BATCH_SIZE = 5
+XHS_DETAIL_BATCH_COOLDOWN_SECONDS = 45
+
+
+def throttle_before_detail(platform: str, request_index: int, sleeper=time.sleep) -> dict[str, Any]:
+    """Apply and describe the deterministic Xiaohongshu read cadence."""
+    if platform != "xiaohongshu" or request_index <= 0:
+        return {
+            "request_index": request_index,
+            "interval_seconds": 0,
+            "batch_cooldown_seconds": 0,
+            "waited_seconds": 0,
+        }
+    cooldown = XHS_DETAIL_BATCH_COOLDOWN_SECONDS if request_index % XHS_DETAIL_BATCH_SIZE == 0 else 0
+    waited = XHS_DETAIL_INTERVAL_SECONDS + cooldown
+    sleeper(waited)
+    return {
+        "request_index": request_index,
+        "interval_seconds": XHS_DETAIL_INTERVAL_SECONDS,
+        "batch_cooldown_seconds": cooldown,
+        "waited_seconds": waited,
+    }
 
 
 def fields_map(value: Any) -> dict[str, Any]:
@@ -27,8 +54,36 @@ def fields_map(value: Any) -> dict[str, Any]:
     }
 
 
+def x_detail(value: Any, target: dict[str, Any]) -> dict[str, Any] | None:
+    if not isinstance(value, list):
+        return None
+    match = __import__("re").search(r"/status/(\d+)", str(target.get("url") or ""))
+    target_id = match.group(1) if match else ""
+    record = next((item for item in value if isinstance(item, dict) and str(item.get("id") or "") == target_id), None)
+    if not isinstance(record, dict):
+        return None
+    body = str(record.get("text") or "").strip()
+    author = str(record.get("author") or "").strip().lstrip("@")
+    if not body or not author:
+        return None
+    return {
+        "title": " ".join(body.split())[:180],
+        "summary": body,
+        "published_at": str(record.get("created_at") or "").strip(),
+        "metrics": {
+            "views": parse_x_count(record.get("views")),
+            "likes": parse_x_count(record.get("likes")),
+            "comments": parse_x_count(record.get("replies")),
+            "shares": parse_x_count(record.get("retweets")),
+        },
+        "author": {"id": author, "name": author},
+    }
+
+
 def execute(requested: list[str], timeout: int) -> tuple[int | None, str, str, bool]:
     located = shutil.which(requested[0])
+    if not located:
+        located, _, _ = resolve_opencli()
     if not located:
         raise SystemExit("OpenCLI executable is not available for detail backfill.")
     command = executable_command(located, requested[1:], "@jackwener/opencli", ("dist", "src", "main.js"))
@@ -42,7 +97,7 @@ def execute(requested: list[str], timeout: int) -> tuple[int | None, str, str, b
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Execute eligible OpenCLI Xiaohongshu detail backfills and atomically update the canonical ledger.")
+    parser = argparse.ArgumentParser(description="Execute eligible OpenCLI detail backfills for validated X or Xiaohongshu runs and atomically update the canonical ledger.")
     parser.add_argument("--state", required=True)
     parser.add_argument("--results-output", required=True)
     parser.add_argument("--timeout-seconds", type=int, default=60)
@@ -53,8 +108,8 @@ def main() -> None:
         raise SystemExit("--timeout-seconds must be between 10 and 180.")
     state_path = Path(args.state).resolve()
     state = load_state(state_path)
-    if state.get("adapter") != "opencli" or state.get("platform") != "xiaohongshu":
-        raise SystemExit("This detail runner is limited to the validated OpenCLI Xiaohongshu adapter.")
+    if state.get("adapter") != "opencli" or state.get("platform") not in {"xiaohongshu", "x"}:
+        raise SystemExit("This detail runner requires a validated OpenCLI X or Xiaohongshu run.")
     next_action = action(state)
     if next_action.get("action") != "backfill_details":
         raise SystemExit("The collection orchestrator does not currently request detail backfill.")
@@ -65,6 +120,7 @@ def main() -> None:
     by_key = {signal_key(item): item for item in snapshot.get("signals", []) if isinstance(item, dict)}
     results: list[dict[str, Any]] = []
     hard_stop = ""
+    detail_request_index = 0
     for target in targets:
         attempts = 2
         accepted: dict[str, Any] | None = None
@@ -73,6 +129,8 @@ def main() -> None:
         last_stop = ""
         for attempt in range(1, attempts + 1):
             requested = [str(item) for item in target["capture_command"]]
+            throttle = throttle_before_detail(str(state.get("platform") or ""), detail_request_index)
+            detail_request_index += 1
             started_at = now_iso()
             code, stdout, stderr, timed_out = execute(requested, args.timeout_seconds)
             finished_at = now_iso()
@@ -93,6 +151,7 @@ def main() -> None:
                 "requested_command_sha256": command_hash(requested),
                 "exit_code": code,
                 "timed_out": timed_out,
+                "throttle": throttle,
                 "started_at": started_at,
                 "finished_at": finished_at,
                 "raw_artifact": str(raw_path.resolve()),
@@ -112,10 +171,22 @@ def main() -> None:
                 last_stop = hard_stop or stop_reason
                 break
             try:
-                fields = fields_map(json.loads(stdout))
+                decoded = json.loads(stdout)
             except json.JSONDecodeError:
                 last_stop = "cli_error"
                 break
+            if state.get("platform") == "x":
+                accepted = x_detail(decoded, target)
+                if accepted:
+                    accepted.update({
+                        "evidence_refs": [str(raw_path.resolve()), str(metadata_path.resolve()), target["url"]],
+                        "raw_artifacts": [str(raw_path.resolve()), str(stdout_path.resolve()), str(metadata_path.resolve()), str(stderr_path.resolve())],
+                        "captured_at": now_iso(), "metrics_captured_at": now_iso(),
+                    })
+                    break
+                last_stop = "cli_error"
+                break
+            fields = fields_map(decoded)
             likes = parse_count(fields.get("likes"))
             saves = parse_count(fields.get("collects") or fields.get("saves"))
             comments = parse_count(fields.get("comments"))
@@ -148,6 +219,7 @@ def main() -> None:
             "execution": {
                 "requested_command_sha256": command_hash(requested), "exit_code": code,
                 "started_at": started_at, "finished_at": finished_at,
+                "throttle": throttle,
                 "stdout_artifact": str(stdout_path.resolve()), "stderr_artifact": str(stderr_path.resolve()),
                 "metadata_artifact": str(metadata_path.resolve()),
             },
@@ -155,7 +227,19 @@ def main() -> None:
         })
         if hard_stop:
             break
-    payload = {"schema_version": "opencli-detail-backfill-v0.2", "adapter": "opencli", "status": "blocked" if hard_stop else "complete", "results": results}
+    payload = {
+        "schema_version": "opencli-detail-backfill-v0.2",
+        "adapter": "opencli",
+        "platform": state.get("platform"),
+        "status": "blocked" if hard_stop else "complete",
+        "throttle_policy": {
+            "detail_interval_seconds": XHS_DETAIL_INTERVAL_SECONDS if state.get("platform") == "xiaohongshu" else 0,
+            "batch_size": XHS_DETAIL_BATCH_SIZE if state.get("platform") == "xiaohongshu" else 0,
+            "batch_cooldown_seconds": XHS_DETAIL_BATCH_COOLDOWN_SECONDS if state.get("platform") == "xiaohongshu" else 0,
+            "request_count": detail_request_index,
+        },
+        "results": results,
+    }
     write_json(args.results_output, payload)
     if not args.no_record:
         record_detail_backfill(state, payload)
