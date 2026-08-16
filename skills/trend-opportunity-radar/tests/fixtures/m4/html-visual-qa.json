@@ -1,0 +1,14 @@
+{
+  "schema_version": "trend-html-visual-qa-v0.1",
+  "status": "passed",
+  "inspected_at": "2026-08-13T15:40:38.196001Z",
+  "url": "http://127.0.0.1:8876/profile-report.html",
+  "title": "产品需求验证 · 帮助普通人整理手机照片的 AI 工具",
+  "html_sha256": "b4e22b883e72de136eac190a7ecc05b2dfd69482362249e549a496a3a43aaf81",
+  "checks": {
+    "subject_visible": true,
+    "first_screen_readable": true,
+    "evidence_sections_readable": true,
+    "console_error_count": 0
+  }
+}

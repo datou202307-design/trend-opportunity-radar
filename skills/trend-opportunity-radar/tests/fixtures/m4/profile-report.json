@@ -1,0 +1,171 @@
+{
+  "schema_version": "profile-research-report-v0.2",
+  "generated_at": "2026-08-14T08:03:06.964005Z",
+  "research_context": {
+    "research_intent": "product_demand",
+    "profile_version": "product_demand_v1",
+    "decision_question": "哪些真实任务、替代办法和采用阻力决定产品需求？",
+    "analysis_unit": "workflow_or_adoption_friction",
+    "report_sections": [
+      "decision_answer",
+      "user_tasks",
+      "workarounds_and_failures",
+      "mvp_scope",
+      "validation_metrics",
+      "stop_conditions",
+      "evidence_boundary"
+    ],
+    "source_prompt_sha256": "2b48cea35446bb542728760a25a041ea6260ff044df3476bd0dce54665ff6a2a"
+  },
+  "subject": {
+    "name": "帮助普通人整理手机照片的 AI 工具",
+    "subject_type": "idea",
+    "summary": "验证用户是否需要自动筛选重复照片、按事件整理并生成可分享相册。",
+    "facts": [],
+    "hypotheses": [
+      "大量未整理照片可能形成持续任务"
+    ],
+    "audiences": [
+      "照片很多但没有时间整理的手机用户"
+    ],
+    "scenarios": [
+      "旅行后整理照片",
+      "家庭照片归档"
+    ],
+    "constraints": [
+      "不宣称已经验证付费意愿"
+    ],
+    "source_refs": [],
+    "communication": {
+      "language": "zh-CN",
+      "goal": "validate_product_demand",
+      "audience": "general"
+    }
+  },
+  "platform": "x",
+  "language": "zh-CN",
+  "collection": {
+    "mode": "standard",
+    "contract_status": "met",
+    "stop_reason": "sampling_contract_met",
+    "counts": {
+      "query_count": 3,
+      "observed_result_count": 42,
+      "unique_sample_count": 24,
+      "detail_open_count": 8,
+      "counter_signal_count": 2
+    }
+  },
+  "decision_answer": "优先验证旅行照片的一次性自动整理，而不是先开发完整照片管理产品。",
+  "decision_readiness": {
+    "ready_findings": 1,
+    "total_findings": 1,
+    "status": "actionable_test"
+  },
+  "findings": [
+    {
+      "id": "photo-backlog-demand",
+      "title": "先验证“旅行结束后自动整理照片”",
+      "topic_key": "photo-backlog",
+      "analysis_unit_statement": "用户旅行结束后想分享照片，但筛选重复照片和重新分组耗时。",
+      "decision_summary": "当前最值得验证的不是完整照片管理工具，而是旅行结束后自动筛选和分组这一项具体任务。",
+      "audience": "旅行后积累数百张照片、想分享但不愿逐张筛选的手机用户",
+      "profile_evidence_roles": [
+        "task",
+        "workaround",
+        "friction"
+      ],
+      "support_refs": [
+        "https://example.invalid/synthetic-post-001",
+        "https://example.invalid/synthetic-post-002"
+      ],
+      "counter_refs": [
+        "https://example.invalid/synthetic-post-003"
+      ],
+      "counter_search_status": "found",
+      "direct_source_present": true,
+      "conclusion_status": "review_ready",
+      "evidence_boundary": "现有证据支持开展小范围需求测试，但不能据此判断市场规模、长期留存或付费意愿。",
+      "temporal_claim": "current_snapshot",
+      "compatible_snapshot_count": 1,
+      "recommended_actions": [
+        {
+          "action": "用可点击原型测试“导入一次旅行照片后自动去重并按地点分组”",
+          "intensity": "低成本、5—8 人",
+          "condition": "只测试旅行结束后的第一次整理，不扩展到长期图库管理",
+          "validation_metric": "至少 5 人中有 3 人愿意导入真实照片并完成分享",
+          "stop_condition": "多数用户只想保留现有系统相册，或不愿授予照片访问权限",
+          "human_boundary": "真实照片导入、删除和对外分享必须由用户确认"
+        }
+      ],
+      "report_sections": {
+        "decision_answer": "优先验证旅行照片的一次性自动整理，而不是先开发完整照片管理产品。",
+        "user_tasks": "从大量旅行照片中快速选出值得保留和分享的内容。",
+        "workarounds_and_failures": "用户目前依赖系统相册、手动收藏或一直不整理；主要失败点是重复照片多、选择成本高。",
+        "mvp_scope": "导入一个旅行相册、识别明显重复照片、按时间地点分组、生成待确认相册。",
+        "validation_metrics": "观察真实照片导入率、整理完成率、用户主动分享率和保留结果的比例。",
+        "stop_conditions": "若用户不愿授权真实照片、现有系统相册已足够，或自动分组没有减少整理时间，则停止扩大功能。",
+        "evidence_boundary": "单个平台快照只能支持设计需求实验，不能证明整体市场需求。"
+      }
+    }
+  ],
+  "excluded_topics": [],
+  "temporal_status": {
+    "claim": "current_snapshot",
+    "label": "signal_snapshot",
+    "compatible_snapshot_count": 1
+  },
+  "follow_up_recommendation": {
+    "recommended": true,
+    "created": false,
+    "requires_explicit_confirmation": true,
+    "cadence": {
+      "initial": "7 天",
+      "comparison": "两周",
+      "runs": 2
+    },
+    "observe": [
+      "finding status",
+      "profile evidence roles",
+      "counterevidence",
+      "recommended action outcome"
+    ],
+    "trigger": "after_first_delivery",
+    "automation_prompt": "使用 trend-opportunity-radar，按本次“帮助普通人整理手机照片的 AI 工具”的 product_demand_v1、x 平台、市场、语言、查询意图和采样合同执行第 {run_number} 次只读复采；追加快照，不覆盖历史。达到至少两个兼容快照后，只比较新增、持续、减弱和消失的信号，并重新生成同一决策模式报告。",
+    "feedback_contract": {
+      "schema_version": "decision-action-feedback-v0.1",
+      "fields": [
+        "finding_id",
+        "action_id",
+        "adopted",
+        "outcome",
+        "observed_at",
+        "human_notes"
+      ],
+      "rule": "Feedback is audit evidence and never rewrites scoring weights automatically."
+    }
+  },
+  "audit": {
+    "eligible_topic_count": 1,
+    "finding_count": 1,
+    "unused_eligible_topics": [],
+    "profile_evidence_roles": [
+      "task",
+      "workaround",
+      "failure",
+      "friction",
+      "adoption_signal"
+    ],
+    "counterevidence_targets": [
+      "adequate_workaround",
+      "low_frequency",
+      "low_adoption_intent"
+    ],
+    "decision_thresholds": {
+      "minimum_support_refs": 2,
+      "minimum_counter_refs_or_searched_none": 1,
+      "minimum_profile_roles": 2,
+      "requires_direct_source": true
+    }
+  }
+}

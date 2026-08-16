@@ -96,7 +96,7 @@ def build_decision_support(subject: dict, collection: dict, topics: list[dict], 
             purpose = "根据证据设计并选择下一步验证实验"
         else:
             headline = "本次研究尚未形成可测试的机会方向，但已经定位到下一轮采集应验证的具体问题。"
-        boundary = "暂时不要据此判断机会优先级、趋势升降、需求强度、市场规模或真实付费意愿；这些结论需要完整采样、重复快照或用户验证。"
+        boundary = "暂时不要据此判断趋势升降、市场规模或真实付费意愿；这些结论需要重复快照或真实用户验证。" if contract_met else "当前可先设计验证实验，但不要判断趋势升降、市场规模或真实付费意愿；先完成采样，再用重复快照或真实用户验证。"
         resolution = first_action or "先补充当前缺口最大的证据层，再围绕首要机会执行一次小规模用户验证。"
         return {"headline": headline, "useful_now": purpose, "boundary": boundary, "resolution": resolution}
     purpose = {
@@ -114,7 +114,7 @@ def build_decision_support(subject: dict, collection: dict, topics: list[dict], 
         purpose = "design and choose the next validation experiment"
     else:
         headline = "This study did not yet produce a testable opportunity, but it identified the specific question the next collection round should answer."
-    boundary = "Do not use this snapshot alone to rank opportunities or infer trend direction, demand strength, market size, or willingness to pay; those require complete sampling, repeated snapshots, or user validation."
+    boundary = "Do not use this snapshot alone to infer trend direction, market size, or willingness to pay; those require repeated snapshots or real-user validation." if contract_met else "Use this evidence to design a test, but not to infer trend direction, market size, or willingness to pay; complete sampling first, then use repeated snapshots or real-user validation."
     resolution = first_action or "Fill the most consequential evidence gap, then run one small user test around the primary opportunity."
     return {"headline": headline, "useful_now": purpose, "boundary": boundary, "resolution": resolution}
 
@@ -185,7 +185,7 @@ def display_value(value: object, lang: str, kind: str) -> str:
         "mode": {"quick": "快速", "standard": "标准", "deep": "深度", "untracked": "未追踪"},
         "contract": {"met": "证据较完整", "blocked": "初步证据", "partial": "初步证据", "in_progress": "采集中", "untracked": "证据未追踪"},
         "topic_status": {"snapshot": "单次快照", "comparable": "可比较快照"},
-        "opportunity_status": {"candidate": "候选", "review_ready": "待审核", "confirmed": "已确认", "rejected": "已排除"},
+        "opportunity_status": {"candidate": "初步方向", "review_ready": "值得验证", "confirmed": "已确认", "rejected": "已排除"},
         "layer": {"platform_baseline": "平台基线", "category": "品类任务", "subject_bridge": "主题桥接"},
         "dimension": {"velocity": "时间变化", "search_demand": "搜索需求", "freshness": "新鲜度", "engagement": "互动", "diffusion": "扩散"},
         "gate": {
@@ -326,7 +326,7 @@ def render_markdown(result: dict) -> str:
     zh = communication_profile(subject)["language"] == "zh-CN"
     status_labels = {
         "met": "采样达标", "partial": "采样未完成", "blocked": "采集受阻", "untracked": "未记录采样过程",
-        "review_ready": "可进入人工评审", "candidate": "候选方向", "confirmed": "已人工确认",
+        "review_ready": "值得进入下一步验证", "candidate": "初步方向", "confirmed": "已人工确认",
         "quick": "快速扫描", "standard": "标准研究", "deep": "深度研究",
         "product": "产品", "opportunity": "商机", "idea": "想法", "problem": "问题", "project": "项目",
         "snapshot": "单次快照", "comparable": "可比较快照",
@@ -465,9 +465,18 @@ def confidence_audit(topic: dict, lang: str) -> str:
 
 
 def refs_html(refs: list[str], evidence_label: str = "Evidence", none_label: str = "None listed") -> str:
-    if not refs:
+    unique: list[str] = []
+    seen: set[str] = set()
+    for ref in refs:
+        text = str(ref).strip()
+        match = __import__("re").search(r"/status/(\d+)", text)
+        key = f"status:{match.group(1)}" if match else text.rstrip("/").casefold()
+        if text and key not in seen:
+            seen.add(key)
+            unique.append(text)
+    if not unique:
         return f'<span class="muted">{html.escape(none_label)}</span>'
-    return "".join(f'<a href="{html.escape(ref, quote=True)}" target="_blank" rel="noreferrer">{html.escape(evidence_label)} {index + 1}</a>' for index, ref in enumerate(refs))
+    return "".join(f'<a href="{html.escape(ref, quote=True)}" target="_blank" rel="noreferrer">{html.escape(evidence_label)} {index + 1}</a>' for index, ref in enumerate(unique))
 
 
 def html_labels(subject: dict) -> tuple[str, dict[str, str]]:
@@ -529,7 +538,7 @@ def render_html(result: dict) -> str:
         status = item.get("evidence_status", "candidate")
         failed_gates = display_list(item.get("failed_gates", []), lang, "gate") or label["none"]
         opportunity_cards.append(f'''<article class="opportunity-card {'extra' if index >= 1 else ''}">
-          <div class="row"><span class="status {status}">{html.escape(display_value(status, lang, 'opportunity_status'))}</span><span class="eyebrow">{html.escape(str(item.get('topic_key', '')))}</span></div>
+          <div class="row"><span class="status {status}">{html.escape(display_value(status, lang, 'opportunity_status'))}</span></div>
           <h3>{html.escape(str(item.get('reader_title') or item.get('title', 'Untitled opportunity')))}</h3>
           <dl><dt>{label['who']}</dt><dd>{html.escape(str(item.get('audience', '')))}</dd><dt>{label['task_gap']}</dt><dd>{html.escape(str(item.get('task_gap', '')))}</dd><dt>{label['entry']}</dt><dd>{html.escape(str(item.get('subject_entry', '')))}</dd><dt>{label['next']}</dt><dd>{html.escape(str(item.get('expected_action', '')))}</dd></dl>
           <details><summary>{label['evidence_gates']}</summary><p><b>{label['support']}</b></p><div class="links">{refs_html(item.get('support_refs', []), label['evidence'], label['none_listed'])}</div><p><b>{label['counter']}</b> {html.escape(str(item.get('counter_review', '')))}</p><div class="links">{refs_html(item.get('counter_refs', []), label['evidence'], label['none_listed'])}</div><p><b>{label['failed']}</b> {html.escape(failed_gates)}</p></details>
@@ -553,6 +562,7 @@ def render_html(result: dict) -> str:
       <div><b>{'商业验证' if is_zh else 'Commercial validation'}</b><span>{'尚未开始，除非另有数据' if is_zh else 'Not started unless separately supplied'}</span></div>
     </div></div></section>'''
     layer_table = f'''<section><div class="section-head"><div><div class="eyebrow">{'分层质量' if is_zh else 'Layer quality'}</div><h2>{'各层采集情况' if is_zh else 'Per-layer collection health'}</h2></div></div><div class="panel table-wrap"><table><thead><tr><th>{'层级' if is_zh else 'Layer'}</th><th>{'查询' if is_zh else 'Queries'}</th><th>{'观察结果' if is_zh else 'Observed'}</th><th>{'去重信号' if is_zh else 'Unique'}</th><th>{'详情页' if is_zh else 'Details'}</th><th>{'直接相关' if is_zh else 'Direct relevance'}</th></tr></thead><tbody>{layer_rows}</tbody></table></div></section>''' if layer_rows else ""
+    audit_section = f'''<section data-research-audit><details class="panel audit-details"><summary>{'查看采样与评分依据' if is_zh else 'View sampling and scoring audit'}</summary><p class="muted">{'这里保留采集数量、分层覆盖和评分依据，供复核时查看。' if is_zh else 'Collection volume, layer coverage, and scoring evidence are retained here for audit.'}</p><div class="contract"><div><strong>{counts.get('query_count', 0)}</strong>{label['queries']}</div><div><strong>{counts.get('observed_result_count', '—')}</strong>{label['observed']}</div><div><strong>{counts.get('retained_sample_count', 0)}</strong>{label['retained']}</div><div><strong>{counts.get('unique_sample_count', 0)}</strong>{label['unique']}</div><div><strong>{counts.get('detail_open_count', 0)}</strong>{label['details']}</div><div><strong>{counts.get('counter_signal_count', 0)}</strong>{label['counters']}</div></div>{layer_table}</details></section>'''
     payload = html.escape(json.dumps(result, ensure_ascii=False), quote=False)
     return f'''<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(subject_name(subject))} · {label['snapshot']}</title>
 <style>
@@ -560,13 +570,11 @@ def render_html(result: dict) -> str:
 </style><style>.decision-headline{{font-size:20px;line-height:1.5;margin:0 0 16px;max-width:920px}}.decision-grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}}.decision-grid div,.readiness-grid div{{background:#f8f8fb;border-radius:12px;padding:12px}}.decision-grid span,.readiness-grid span{{display:block;color:var(--muted);margin-top:5px}}.readiness-grid{{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}}.table-wrap{{overflow:auto}}table{{width:100%;border-collapse:collapse}}th,td{{padding:10px;text-align:left;border-bottom:1px solid var(--line)}}.monitoring{{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:18px;align-items:start}}.monitoring strong{{display:block;font-size:18px;margin-top:10px}}.monitoring details{{margin-top:0}}.task-prompt{{background:#f8f8fb;border-radius:12px;padding:12px;margin-bottom:0}}@media(max-width:900px){{.decision-grid{{grid-template-columns:1fr}}.readiness-grid{{grid-template-columns:1fr 1fr}}.monitoring{{grid-template-columns:1fr}}}}</style></head><body><main>
 <header><div class="eyebrow">{label['snapshot']} · {html.escape(str(result.get('platform', 'unspecified')))}</div><h1>{html.escape(subject_name(subject))}</h1><p>{html.escape(str(subject.get('summary', '')))}</p><div class="metrics">{pill(display_value(collection.get('mode', 'untracked'), lang, 'mode'), label['collection_mode'])}{pill(display_value(collection.get('contract_status', 'untracked'), lang, 'contract'), '证据状态' if is_zh else label['contract_status'])}{pill(len(topics), label['topics'])}{pill(len(opportunities), label['opportunities'])}</div></header>
 {decision_section}
-{readiness}
-<section><div class="section-head"><div><div class="eyebrow">{label['ledger']}</div><h2>{label['collected']}</h2></div></div><div class="panel contract"><div><strong>{counts.get('query_count', 0)}</strong>{label['queries']}</div><div><strong>{counts.get('observed_result_count', '—')}</strong>{label['observed']}</div><div><strong>{counts.get('retained_sample_count', 0)}</strong>{label['retained']}</div><div><strong>{counts.get('unique_sample_count', 0)}</strong>{label['unique']}</div><div><strong>{counts.get('detail_open_count', 0)}</strong>{label['details']}</div><div><strong>{counts.get('counter_signal_count', 0)}</strong>{label['counters']}</div></div></section>
-{layer_table}
-<section><div class="section-head"><div><div class="eyebrow">{label['platform_evidence']}</div><h2>{label['top_topics']}</h2></div><button data-toggle data-all="{label['view_topics']}" data-primary="{label['primary']}">{label['view_topics']}</button></div><div class="grid">{''.join(topic_cards) or f'<div class="panel muted">{label["none"]}</div>'}</div></section>
 <section><div class="section-head"><div><div class="eyebrow">{label['topic_subject']}</div><h2>{label['opportunity_cards']}</h2></div><button data-toggle data-all="{label['view_opportunities']}" data-primary="{label['primary']}">{label['view_opportunities']}</button></div><div class="opportunity-grid">{''.join(opportunity_cards) or f'<div class="panel muted">{label["none"]}</div>'}</div></section>
-<section data-decision-boundaries><div class="section-head"><div><div class="eyebrow">{label['boundaries']}</div><h2>{label['limitations']}</h2></div></div><div class="panel"><p class="muted">{label['limitation_intro']}</p><ul class="summary-list">{limitations}</ul></div></section>
+<section><div class="section-head"><div><div class="eyebrow">{label['platform_evidence']}</div><h2>{label['top_topics']}</h2></div><button data-toggle data-all="{label['view_topics']}" data-primary="{label['primary']}">{label['view_topics']}</button></div><div class="grid">{''.join(topic_cards) or f'<div class="panel muted">{label["none"]}</div>'}</div></section>
 {monitoring_section}
+<section data-decision-boundaries><div class="section-head"><div><div class="eyebrow">{label['boundaries']}</div><h2>{label['limitations']}</h2></div></div><div class="panel"><p class="muted">{label['limitation_intro']}</p><ul class="summary-list">{limitations}</ul></div></section>
+{audit_section}
 <section><details class="panel"><summary>{label['machine']}</summary><pre id="raw">{payload}</pre></details></section>
 </main><script>document.querySelectorAll('[data-toggle]').forEach(b=>b.addEventListener('click',()=>{{document.body.classList.toggle('show-all');document.querySelectorAll('[data-toggle]').forEach(x=>x.textContent=document.body.classList.contains('show-all')?x.dataset.primary:x.dataset.all)}}));</script></body></html>'''
 

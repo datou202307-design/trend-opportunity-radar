@@ -1,5 +1,7 @@
 # Platform adapters
 
+Read [platform-adapter-contract.md](platform-adapter-contract.md) before adding or changing an adapter. `platform-adapter-registry.json` is the executable capability registry; validate it with `python scripts/validate_platform_adapters.py`. Decision Profiles declare needed signals and evidence, never adapter commands.
+
 Choose the strongest lawful source available. Preserve the selected source mode in every signal.
 
 ## Authorized API
@@ -14,7 +16,7 @@ Accept JSON or CSV exported by the user. Preserve the original file and import t
 
 Use a user-authorized logged-in Chrome session, OpenCLI, DokoBot, an in-app browser, or an equivalent dynamic browser capability. Treat tool names as optional adapters, not required dependencies. Follow [browser-collection.md](browser-collection.md).
 
-Run a non-mutating preflight for every considered adapter and select by recorded platform capability. For Xiaohongshu, prefer validated OpenCLI for structured search and signed details, then DokoBot for rendered-page verification; follow [opencli-orchestration.md](opencli-orchestration.md). For X, use DokoBot unless another adapter has separate X acceptance evidence. The neutral orchestrator, not any single CLI call, owns query progression, raw-output retention, atomic ledger writes, detail recovery, and contract completion.
+Run a non-mutating preflight for every considered adapter and select by recorded platform capability. For Xiaohongshu and X, prefer validated OpenCLI for structured search and retained details, then DokoBot for rendered-page verification; follow [opencli-orchestration.md](opencli-orchestration.md). The neutral orchestrator, not any single CLI call, owns query progression, raw-output retention, atomic ledger writes, detail recovery, and contract completion.
 
 Browser capture may collect Xiaohongshu, X, or another platform the user can lawfully access. It remains `controlled_capture`, not an official API. Personalized ranking, incomplete metrics, access limits, and capture depth must be disclosed.
 

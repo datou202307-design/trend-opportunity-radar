@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import argparse
 from collections import Counter, defaultdict
+from pathlib import Path
 from typing import Any
 
 from _common import as_text, load_data, now_iso, write_json
+from research_context import load_context
 
 
 VALID_FITS = {"core", "supporting", "counter"}
@@ -15,10 +17,12 @@ def main() -> None:
     parser.add_argument("--input", required=True)
     parser.add_argument("--plan", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--research-context")
     args = parser.parse_args()
 
     snapshot = load_data(args.input)
     plan = load_data(args.plan)
+    context = load_context(Path(args.research_context).resolve()) if args.research_context else None
     signals = snapshot.get("signals", []) if isinstance(snapshot, dict) else []
     clusters = plan.get("clusters", []) if isinstance(plan, dict) else []
     if not isinstance(signals, list) or not isinstance(clusters, list) or not clusters:
@@ -32,7 +36,7 @@ def main() -> None:
             raise SystemExit("Each cluster must be an object.")
         key = as_text(cluster.get("topic_key"))
         title = as_text(cluster.get("title"))
-        transition = as_text(cluster.get("task_transition"))
+        transition = as_text(cluster.get("analysis_unit_statement") or cluster.get("task_transition"))
         inclusion = as_text(cluster.get("inclusion_rule"))
         exclusion = as_text(cluster.get("exclusion_rule"))
         assignments = cluster.get("assignments", [])
@@ -64,10 +68,16 @@ def main() -> None:
             "task_transition_match": match_count / max(len(members), 1) >= 0.8,
             "subject_bridge_member": subject_bridge_count >= 1,
         }
+        profile_roles = sorted({as_text(item.get("profile_evidence_role")) for item, _ in members if as_text(item.get("profile_evidence_role"))})
+        if context:
+            checks["profile_role_coverage"] = len(profile_roles) >= int(context["decision_thresholds"]["minimum_profile_roles"])
         audits.append({
             "topic_key": key,
             "title": title,
             "task_transition": transition,
+            "analysis_unit": context["analysis_unit"] if context else "user_task_or_unmet_need",
+            "analysis_unit_statement": transition,
+            "profile_evidence_roles": profile_roles,
             "inclusion_rule": inclusion,
             "exclusion_rule": exclusion,
             "status": "passed" if all(checks.values()) else "failed",

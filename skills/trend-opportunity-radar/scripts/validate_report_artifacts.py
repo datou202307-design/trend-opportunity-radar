@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from _common import load_data, require_text_integrity
+from append_collection_result import signal_key
 
 
 RAW_PATTERN = re.compile(r'<pre id="raw">(.*?)</pre>', re.DOTALL)
@@ -79,7 +80,7 @@ def validate_collection_state_consistency(result: dict[str, Any], base: Path) ->
     collection = result.get("collection") or {}
     report_status = str(collection.get("contract_status") or "")
     report_stop = str(collection.get("stop_reason") or "")
-    if report_status == "met" and report_stop not in {"", "sampling_contract_met"}:
+    if report_status == "met" and report_stop != "sampling_contract_met":
         raise SystemExit("A report cannot claim sampling met while retaining a blocked collection stop reason.")
 
     raw_path = base / "raw-signals.json"
@@ -89,12 +90,21 @@ def validate_collection_state_consistency(result: dict[str, Any], base: Path) ->
         raw_stop = str(raw_collection.get("stop_reason") or "")
         raw_signals = raw.get("signals") or [] if isinstance(raw, dict) else []
         raw_counts = raw_collection.get("counts") or {}
-        raw_detail_count = sum(1 for item in raw_signals if isinstance(item, dict) and item.get("detail_captured"))
+        platform = str(raw.get("platform") or result.get("platform") or "")
+        raw_detail_count = len({
+            signal_key(item, platform)
+            for item in raw_signals
+            if isinstance(item, dict) and item.get("detail_captured")
+        })
         stored_raw_details = int(raw_counts.get("detail_open_count") or 0)
         report_details = int((collection.get("counts") or {}).get("detail_open_count") or 0)
         if stored_raw_details != raw_detail_count or report_details != raw_detail_count:
             raise SystemExit("Raw ledger and report disagree on successful detail capture count.")
-        actual_counters = sum(1 for item in raw_signals if isinstance(item, dict) and item.get("evidence_role") == "counter")
+        actual_counters = len({
+            signal_key(item, platform)
+            for item in raw_signals
+            if isinstance(item, dict) and item.get("evidence_role") == "counter"
+        })
         stored_counters = int(raw_counts.get("counter_signal_count") or 0)
         report_counters = int((collection.get("counts") or {}).get("counter_signal_count") or 0)
         if stored_counters != actual_counters or report_counters != actual_counters:
@@ -109,7 +119,7 @@ def validate_collection_state_consistency(result: dict[str, Any], base: Path) ->
         ]
         if invalid_details:
             raise SystemExit("Detail backfill lost semantic review, evidence role, or topic assignment.")
-        if report_status == "met" and raw_stop not in {"", "sampling_contract_met"}:
+        if report_status == "met" and raw_stop != "sampling_contract_met":
             raise SystemExit("Raw ledger remains blocked while the report claims sampling met.")
 
     state_path = base / "collection-state.json"
@@ -145,12 +155,12 @@ def validate_report_contents(result: dict[str, Any], markdown: str, page: str | 
     name = str((result.get("subject") or {}).get("name") or "").strip()
     if name and name not in markdown:
         raise SystemExit("Report Markdown does not contain the exact UTF-8 subject name.")
-    for item in result.get("opportunities", []) or []:
+    for item in [*(result.get("opportunities", []) or []), *(result.get("findings", []) or [])]:
         if not isinstance(item, dict):
             continue
         overlap = normalized_refs(item.get("support_refs")) & normalized_refs(item.get("counter_refs"))
         if overlap:
-            raise SystemExit("An opportunity cannot use the same evidence as both support and counterevidence.")
+            raise SystemExit("A decision item cannot use the same evidence as both support and counterevidence.")
     if page is None:
         return
     require_text_integrity(page, "Report HTML")

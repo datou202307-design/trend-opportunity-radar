@@ -6,15 +6,12 @@ from pathlib import Path
 from typing import Any
 
 from _common import load_data, now_iso, write_json
+from platform_adapter_contract import controlled_capture_preference, normalize_platform, status_supports
 
 
 SCHEMA_VERSION = "collection-adapter-selection-v0.1"
-XHS_ALIASES = {"xiaohongshu", "xhs", "小红书"}
-
-
 def normalized_platform(value: str) -> str:
-    key = value.strip().casefold()
-    return "xiaohongshu" if key in XHS_ALIASES else key
+    return normalize_platform(value)
 
 
 def select_adapter(platform: str, statuses: list[dict[str, Any]]) -> dict[str, Any]:
@@ -24,7 +21,7 @@ def select_adapter(platform: str, statuses: list[dict[str, Any]]) -> dict[str, A
         for item in statuses
         if isinstance(item, dict)
     }
-    preference = ["opencli", "dokobot"] if platform_key == "xiaohongshu" else ["dokobot"]
+    preference = controlled_capture_preference(platform_key)
     rejected: list[dict[str, str]] = []
     selected = ""
     selected_status: dict[str, Any] = {}
@@ -36,8 +33,7 @@ def select_adapter(platform: str, statuses: list[dict[str, Any]]) -> dict[str, A
         if status.get("ready") is not True or status.get("status") != "ready":
             rejected.append({"adapter": adapter, "reason": str(status.get("status") or "not_ready")})
             continue
-        capabilities = status.get("capabilities")
-        if adapter == "opencli" and (not isinstance(capabilities, dict) or capabilities.get(platform_key) is not True):
+        if not status_supports(status, platform_key):
             rejected.append({"adapter": adapter, "reason": "platform_not_validated"})
             continue
         selected = adapter

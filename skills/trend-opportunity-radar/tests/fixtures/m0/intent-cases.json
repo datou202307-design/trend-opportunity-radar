@@ -1,0 +1,145 @@
+{
+  "schema_version": "trend-intent-eval-v0.1",
+  "cases": [
+    {
+      "id": "business-zh-explicit",
+      "prompt": "使用 trend-opportunity-radar，分析帮助普通家庭减少食物浪费在小红书的商业机会。",
+      "expected_intent": "business_opportunity",
+      "expected_platform": "xiaohongshu",
+      "clarification_required": false
+    },
+    {
+      "id": "business-en-explicit",
+      "prompt": "Find business opportunities around AI meeting follow-up tools on X.",
+      "expected_intent": "business_opportunity",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "business-natural",
+      "prompt": "研究上班族自动记账这个想法在 X 上有没有值得验证的生意。",
+      "expected_intent": "business_opportunity",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "sentiment-zh-explicit",
+      "prompt": "监测小红书上用户对 ChatGPT 语音功能准确性和隐私的舆情。",
+      "expected_intent": "brand_sentiment",
+      "expected_platform": "xiaohongshu",
+      "clarification_required": false
+    },
+    {
+      "id": "sentiment-en-explicit",
+      "prompt": "Monitor Notion AI pricing sentiment on X and tell me which issues need a response.",
+      "expected_intent": "brand_sentiment",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "sentiment-natural",
+      "prompt": "看看大家最近在 X 上怎么评价 Duolingo 的 AI 功能，有没有正在扩大的负面问题。",
+      "expected_intent": "brand_sentiment",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "competitor-zh-explicit",
+      "prompt": "研究小红书上的 Notion 和 Obsidian 用户，找出切换原因和未满足需求。",
+      "expected_intent": "competitor_users",
+      "expected_platform": "xiaohongshu",
+      "clarification_required": false
+    },
+    {
+      "id": "competitor-en-explicit",
+      "prompt": "Study Canva versus Adobe Express users on X and identify switching triggers.",
+      "expected_intent": "competitor_users",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "competitor-natural",
+      "prompt": "Claude 和 ChatGPT 的用户分别喜欢和抱怨什么？只看 X。",
+      "expected_intent": "competitor_users",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "content-zh-explicit",
+      "prompt": "帮我找小红书上普通人整理手机照片的内容机会。",
+      "expected_intent": "content_opportunity",
+      "expected_platform": "xiaohongshu",
+      "clarification_required": false
+    },
+    {
+      "id": "content-en-explicit",
+      "prompt": "Find content opportunities for beginner home fitness on X.",
+      "expected_intent": "content_opportunity",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "content-natural",
+      "prompt": "研究小红书上的省钱备餐讨论，告诉我哪些问题值得持续做内容。",
+      "expected_intent": "content_opportunity",
+      "expected_platform": "xiaohongshu",
+      "clarification_required": false
+    },
+    {
+      "id": "demand-zh-explicit",
+      "prompt": "验证家庭共同记账工具在小红书上是否存在真实产品需求。",
+      "expected_intent": "product_demand",
+      "expected_platform": "xiaohongshu",
+      "clarification_required": false
+    },
+    {
+      "id": "demand-en-explicit",
+      "prompt": "Validate demand on X for a tool that turns meeting notes into assigned follow-up tasks.",
+      "expected_intent": "product_demand",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "demand-natural",
+      "prompt": "我想做一个多人旅行计划应用，只看 X，判断大家现在的替代办法和采用阻力。",
+      "expected_intent": "product_demand",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "backward-compatible-default",
+      "prompt": "分析帮助普通人整理手机照片在小红书的趋势机会。",
+      "expected_intent": "business_opportunity",
+      "expected_platform": "xiaohongshu",
+      "clarification_required": false
+    },
+    {
+      "id": "explicit-mode-overrides-opportunity-word",
+      "prompt": "研究 X 上 ChatGPT 与 Claude 的用户，寻找竞品用户切换机会。",
+      "expected_intent": "competitor_users",
+      "expected_platform": "x",
+      "clarification_required": false
+    },
+    {
+      "id": "ambiguous-goal",
+      "prompt": "研究 Notion AI 在 X 上的情况。",
+      "expected_intent": null,
+      "expected_platform": "x",
+      "clarification_required": true
+    },
+    {
+      "id": "missing-platform",
+      "prompt": "寻找普通家庭减少食物浪费的商业机会。",
+      "expected_intent": "business_opportunity",
+      "expected_platform": null,
+      "clarification_required": true
+    },
+    {
+      "id": "ambiguous-brand-purpose",
+      "prompt": "分析 Duolingo AI 最近的讨论，看看有什么可以做。",
+      "expected_intent": null,
+      "expected_platform": null,
+      "clarification_required": true
+    }
+  ]
+}

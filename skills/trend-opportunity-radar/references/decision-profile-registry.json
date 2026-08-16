@@ -1,0 +1,76 @@
+{
+  "schema_version": "decision-profile-registry-v0.2",
+  "profiles": {
+    "business_opportunity": {
+      "version": "business_opportunity_v1",
+      "implementation_status": "available",
+      "decision_question": {"zh-CN": "哪些未满足任务值得进一步商业验证？", "en": "Which unmet tasks merit further commercial validation?"},
+      "analysis_unit": "user_task_or_unmet_need",
+      "evidence_roles": ["unmet_need", "workaround", "demand_signal", "supply_signal"],
+      "counterevidence_targets": ["need_already_satisfied", "low_problem_frequency", "weak_willingness_to_pay"],
+      "query_profile": "business_opportunity_queries_v1",
+      "query_intents": ["problem", "workaround", "desired_outcome", "alternative", "objection", "adoption"],
+      "decision_thresholds": {"minimum_support_refs": 2, "minimum_counter_refs_or_searched_none": 1, "minimum_profile_roles": 2, "requires_direct_source": true},
+      "action_contract": {"primary_action": "validation_experiment", "required_fields": ["action", "intensity", "condition", "success_metric", "stop_condition", "human_boundary"]},
+      "report_profile": "business_opportunity_report_v1",
+      "report_sections": ["decision_answer", "opportunity_hypotheses", "audience_and_task", "validation_actions", "evidence_boundary"]
+    },
+    "brand_sentiment": {
+      "version": "brand_sentiment_v1",
+      "implementation_status": "available",
+      "decision_question": {"zh-CN": "当前有哪些品牌议题需要关注或回应？", "en": "Which current brand issues need attention or a response?"},
+      "analysis_unit": "issue_or_risk_event",
+      "evidence_roles": ["direct_experience", "help_request", "doubt", "official_response", "retransmission"],
+      "counterevidence_targets": ["isolated_complaint", "resolved_issue", "unsupported_retransmission"],
+      "query_profile": "brand_sentiment_queries_v1",
+      "query_intents": ["direct_experience", "complaint", "help_request", "doubt", "official_response", "resolution"],
+      "decision_thresholds": {"minimum_support_refs": 2, "minimum_counter_refs_or_searched_none": 1, "minimum_profile_roles": 2, "requires_direct_source": true},
+      "action_contract": {"primary_action": "response_or_observation", "required_fields": ["action", "intensity", "condition", "response_level", "stop_condition", "human_boundary"]},
+      "report_profile": "brand_sentiment_report_v1",
+      "report_sections": ["decision_answer", "issue_priority", "affected_audience", "response_recommendation", "observation_status", "evidence_boundary"],
+      "temporal_contract": {"single_snapshot_label": "current_issue_snapshot", "history_required_for": ["spreading", "rising", "falling", "resolved_over_time"]}
+    },
+    "competitor_users": {
+      "version": "competitor_users_v1",
+      "implementation_status": "available",
+      "decision_question": {"zh-CN": "竞品用户为何满意、抱怨、留下或切换？", "en": "Why do competitor users stay, complain, or switch?"},
+      "analysis_unit": "experience_or_switching_event",
+      "evidence_roles": ["satisfaction", "complaint", "switch_trigger", "alternative"],
+      "counterevidence_targets": ["feature_parity", "high_switching_cost", "strong_satisfaction"],
+      "query_profile": "competitor_users_queries_v1",
+      "query_intents": ["satisfaction", "complaint", "switching", "migration", "alternative", "retention"],
+      "decision_thresholds": {"minimum_support_refs": 2, "minimum_counter_refs_or_searched_none": 1, "minimum_profile_roles": 2, "requires_direct_source": true},
+      "action_contract": {"primary_action": "wedge_validation", "required_fields": ["action", "intensity", "condition", "target_segment", "stop_condition", "human_boundary"]},
+      "report_profile": "competitor_users_report_v1",
+      "report_sections": ["decision_answer", "retained_strengths", "user_complaints", "switching_triggers", "product_wedge", "evidence_boundary"]
+    },
+    "content_opportunity": {
+      "version": "content_opportunity_v1",
+      "implementation_status": "available",
+      "decision_question": {"zh-CN": "哪些受众问题和表达缺口值得持续做内容？", "en": "Which audience questions and expression gaps merit content?"},
+      "analysis_unit": "audience_question_or_content_gap",
+      "evidence_roles": ["resonance", "controversy", "question", "content_supply"],
+      "counterevidence_targets": ["saturated_supply", "weak_audience_fit", "low_actionability"],
+      "query_profile": "content_opportunity_queries_v1",
+      "query_intents": ["question", "resonance", "controversy", "misconception", "content_supply", "follow_up"],
+      "decision_thresholds": {"minimum_support_refs": 2, "minimum_counter_refs_or_searched_none": 1, "minimum_profile_roles": 2, "requires_direct_source": true},
+      "action_contract": {"primary_action": "content_test", "required_fields": ["action", "intensity", "condition", "audience_response_metric", "stop_condition", "human_boundary"]},
+      "report_profile": "content_opportunity_report_v1",
+      "report_sections": ["decision_answer", "audience_questions", "content_angles", "audience_handoff", "content_test", "evidence_boundary"]
+    },
+    "product_demand": {
+      "version": "product_demand_v1",
+      "implementation_status": "available",
+      "decision_question": {"zh-CN": "哪些真实任务、替代办法和采用阻力决定产品需求？", "en": "Which real tasks, workarounds, and adoption barriers determine product demand?"},
+      "analysis_unit": "workflow_or_adoption_friction",
+      "evidence_roles": ["task", "workaround", "failure", "friction", "adoption_signal"],
+      "counterevidence_targets": ["adequate_workaround", "low_frequency", "low_adoption_intent"],
+      "query_profile": "product_demand_queries_v1",
+      "query_intents": ["task", "workflow", "workaround", "failure", "friction", "adoption"],
+      "decision_thresholds": {"minimum_support_refs": 2, "minimum_counter_refs_or_searched_none": 1, "minimum_profile_roles": 2, "requires_direct_source": true},
+      "action_contract": {"primary_action": "mvp_demand_test", "required_fields": ["action", "intensity", "condition", "validation_metric", "stop_condition", "human_boundary"]},
+      "report_profile": "product_demand_report_v1",
+      "report_sections": ["decision_answer", "user_tasks", "workarounds_and_failures", "mvp_scope", "validation_metrics", "stop_conditions", "evidence_boundary"]
+    }
+  }
+}

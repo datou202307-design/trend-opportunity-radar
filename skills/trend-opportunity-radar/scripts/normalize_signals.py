@@ -13,6 +13,7 @@ from _common import (
     now_iso,
     write_json,
 )
+from platform_adapter_contract import CONTRACT_VERSION as ADAPTER_CONTRACT_VERSION, SCHEMA_VERSION as ADAPTER_REGISTRY_VERSION, adapter_capability
 
 
 def main() -> None:
@@ -38,6 +39,18 @@ def main() -> None:
     if len(platforms) > 1:
         raise SystemExit("A snapshot must contain exactly one platform. Split multi-platform input before analysis.")
     collection = normalize_collection(raw, len(rows), len(deduped), deduped)
+    adapter_audit = None
+    if args.source_mode == "customer_export":
+        capability = adapter_capability("structured_import", platforms[0] if platforms else platform)
+        if capability is None:
+            raise SystemExit("Structured import is not registered for this platform.")
+        adapter_audit = {
+            "adapter": "structured_import",
+            "source_mode": capability["source_mode"],
+            "contract_version": ADAPTER_CONTRACT_VERSION,
+            "registry_version": ADAPTER_REGISTRY_VERSION,
+            "live_collection": False,
+        }
     result = {
         "schema_version": SCHEMA_VERSION,
         "generated_at": captured_at,
@@ -46,6 +59,7 @@ def main() -> None:
         "retained_sample_count": len(rows),
         "unique_sample_count": len(deduped),
         "collection": collection,
+        **({"platform_adapter": adapter_audit} if adapter_audit else {}),
         "signals": deduped,
     }
     write_json(args.output, result)

@@ -1,0 +1,74 @@
+{
+  "schema_version": "trend-profile-platform-matrix-v0.1",
+  "release_target": "v0.7.0-candidate",
+  "platforms": ["x", "xiaohongshu"],
+  "profiles": [
+    "business_opportunity",
+    "brand_sentiment",
+    "competitor_users",
+    "content_opportunity",
+    "product_demand"
+  ],
+  "execution_policy": {
+    "topics_per_profile_platform": 3,
+    "live_e2e_per_profile_platform": 1,
+    "snapshot_replay_per_profile_platform": 2,
+    "live_source_required": true,
+    "fresh_context_required": true
+  },
+  "cases": [
+    {"id":"bo-x-01","intent":"business_opportunity","platform":"x","topic":"帮助小团队把会议行动项持续跟进到完成","execution":"live_e2e","status":"completed_bounded","acceptance_result":{"collection_terminal":"blocked","stop_class":"observed_budget_guard","observed_result_count":80,"unique_sample_count":77,"detail_open_count":7,"relevant_signal_count":7,"counter_signal_count":0,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bo-x-02","intent":"business_opportunity","platform":"x","topic":"helping households reduce food waste","execution":"snapshot_replay","status":"completed_bounded","acceptance_result":{"collection_terminal":"blocked","stop_class":"observed_budget_guard","observed_result_count":90,"unique_sample_count":90,"detail_open_count":16,"relevant_signal_count":25,"counter_signal_count":0,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bo-x-03","intent":"business_opportunity","platform":"x","topic":"帮助家庭成员共同记录和分摊日常费用","execution":"snapshot_replay","status":"completed_bounded","acceptance_result":{"collection_terminal":"blocked","stop_class":"observed_budget_guard","observed_result_count":100,"unique_sample_count":100,"detail_open_count":15,"relevant_signal_count":18,"counter_signal_count":6,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bo-xhs-01","intent":"business_opportunity","platform":"xiaohongshu","topic":"帮助普通人用 AI 把手机素材做成短视频","execution":"live_e2e","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":77,"unique_sample_count":60,"detail_open_count":12,"relevant_signal_count":51,"counter_signal_count":33,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bo-xhs-02","intent":"business_opportunity","platform":"xiaohongshu","topic":"家庭成员共同记录和分摊日常费用","execution":"snapshot_replay","status":"completed_bounded","acceptance_result":{"collection_terminal":"blocked","stop_class":"sampling_contract_unmet","observed_result_count":55,"unique_sample_count":43,"detail_open_count":12,"relevant_signal_count":40,"counter_signal_count":22,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bo-xhs-03","intent":"business_opportunity","platform":"xiaohongshu","topic":"普通人整理手机照片","execution":"snapshot_replay","status":"completed_bounded","acceptance_result":{"collection_terminal":"blocked","stop_class":"sampling_contract_unmet","observed_result_count":55,"unique_sample_count":45,"detail_open_count":12,"relevant_signal_count":41,"counter_signal_count":29,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+
+    {"id":"bs-x-01","intent":"brand_sentiment","platform":"x","topic":"ChatGPT voice accuracy and privacy","execution":"live_e2e","status":"completed_bounded","acceptance_result":{"collection_terminal":"blocked","stop_class":"observed_budget_guard","observed_result_count":80,"unique_sample_count":76,"detail_open_count":8,"relevant_signal_count":8,"counter_signal_count":2,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bs-x-02","intent":"brand_sentiment","platform":"x","topic":"Notion AI pricing","execution":"snapshot_replay","status":"completed_bounded","acceptance_result":{"collection_terminal":"blocked","stop_class":"observed_budget_guard","observed_result_count":100,"unique_sample_count":75,"detail_open_count":13,"relevant_signal_count":13,"counter_signal_count":4,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bs-x-03","intent":"brand_sentiment","platform":"x","topic":"Duolingo AI features","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":80,"unique_sample_count":76,"detail_open_count":12,"relevant_signal_count":22,"counter_signal_count":7,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bs-xhs-01","intent":"brand_sentiment","platform":"xiaohongshu","topic":"剪映 AI 剪辑功能","execution":"live_e2e","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":71,"unique_sample_count":57,"detail_open_count":12,"relevant_signal_count":49,"counter_signal_count":13,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bs-xhs-02","intent":"brand_sentiment","platform":"xiaohongshu","topic":"Notion AI 价格反馈","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":77,"unique_sample_count":57,"detail_open_count":20,"relevant_signal_count":34,"counter_signal_count":9,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"bs-xhs-03","intent":"brand_sentiment","platform":"xiaohongshu","topic":"多邻国 AI 功能反馈","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":74,"unique_sample_count":68,"detail_open_count":12,"relevant_signal_count":35,"counter_signal_count":4,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+
+    {"id":"cu-x-01","intent":"competitor_users","platform":"x","topic":"ChatGPT versus Claude users","execution":"live_e2e","status":"completed_bounded","acceptance_result":{"collection_terminal":"blocked","stop_class":"observed_budget_guard","observed_result_count":80,"unique_sample_count":80,"detail_open_count":14,"relevant_signal_count":15,"counter_signal_count":3,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"cu-x-02","intent":"competitor_users","platform":"x","topic":"Notion versus Obsidian users","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":80,"unique_sample_count":75,"detail_open_count":14,"relevant_signal_count":29,"counter_signal_count":11,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"cu-x-03","intent":"competitor_users","platform":"x","topic":"Canva versus Adobe Express users","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":79,"unique_sample_count":75,"detail_open_count":14,"relevant_signal_count":19,"counter_signal_count":7,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"cu-xhs-01","intent":"competitor_users","platform":"xiaohongshu","topic":"豆包用户的留存、抱怨与切换原因","execution":"live_e2e","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":66,"unique_sample_count":61,"detail_open_count":12,"relevant_signal_count":52,"counter_signal_count":8,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"cu-xhs-02","intent":"competitor_users","platform":"xiaohongshu","topic":"Notion 与 Obsidian 用户","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":74,"unique_sample_count":62,"detail_open_count":12,"relevant_signal_count":58,"counter_signal_count":13,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"cu-xhs-03","intent":"competitor_users","platform":"xiaohongshu","topic":"Canva 与 Adobe Express 用户","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":94,"unique_sample_count":88,"detail_open_count":17,"relevant_signal_count":63,"counter_signal_count":32,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+
+    {"id":"co-x-01","intent":"content_opportunity","platform":"x","topic":"普通人用 AI 练习英语口语","execution":"live_e2e","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":100,"unique_sample_count":89,"detail_open_count":12,"relevant_signal_count":23,"counter_signal_count":11,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"co-x-02","intent":"content_opportunity","platform":"x","topic":"beginner home fitness","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":80,"unique_sample_count":80,"detail_open_count":16,"relevant_signal_count":38,"counter_signal_count":23,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"co-x-03","intent":"content_opportunity","platform":"x","topic":"budget meal preparation","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":60,"unique_sample_count":60,"detail_open_count":12,"relevant_signal_count":40,"counter_signal_count":16,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"co-xhs-01","intent":"content_opportunity","platform":"xiaohongshu","topic":"普通人用 AI 制作可执行旅行攻略","execution":"live_e2e","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":77,"unique_sample_count":69,"detail_open_count":18,"relevant_signal_count":50,"counter_signal_count":20,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"co-xhs-02","intent":"content_opportunity","platform":"xiaohongshu","topic":"新手居家健身","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":69,"unique_sample_count":66,"detail_open_count":12,"relevant_signal_count":61,"counter_signal_count":33,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"co-xhs-03","intent":"content_opportunity","platform":"xiaohongshu","topic":"省钱备餐","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":71,"unique_sample_count":57,"detail_open_count":14,"relevant_signal_count":50,"counter_signal_count":23,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+
+    {
+      "id":"pd-x-01",
+      "intent":"product_demand",
+      "platform":"x",
+      "topic":"把会议记录转成负责人和跟进任务的 AI 工具",
+      "execution":"live_e2e",
+      "status":"completed_bounded",
+      "acceptance_result": {
+        "collection_terminal":"blocked",
+        "stop_class":"observed_budget_guard",
+        "observed_result_count":80,
+        "unique_sample_count":75,
+        "detail_open_count":12,
+        "relevant_signal_count":19,
+        "counter_signal_count":1,
+        "report_generated":true,
+        "decision_profile_validated":true,
+        "visual_qa":"passed"
+      }
+    },
+    {"id":"pd-x-02","intent":"product_demand","platform":"x","topic":"shared family expense tracker","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":100,"unique_sample_count":97,"detail_open_count":16,"relevant_signal_count":33,"counter_signal_count":8,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"pd-x-03","intent":"product_demand","platform":"x","topic":"collaborative trip planning app","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":60,"unique_sample_count":58,"detail_open_count":12,"relevant_signal_count":28,"counter_signal_count":12,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"pd-xhs-01","intent":"product_demand","platform":"xiaohongshu","topic":"自动整理多平台账单并生成消费分析的 AI 记账助手","execution":"live_e2e","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":76,"unique_sample_count":64,"detail_open_count":12,"relevant_signal_count":62,"counter_signal_count":47,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"pd-xhs-02","intent":"product_demand","platform":"xiaohongshu","topic":"家庭共同记账工具","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":76,"unique_sample_count":69,"detail_open_count":12,"relevant_signal_count":64,"counter_signal_count":22,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}},
+    {"id":"pd-xhs-03","intent":"product_demand","platform":"xiaohongshu","topic":"多人旅行计划应用","execution":"snapshot_replay","status":"passed","acceptance_result":{"collection_terminal":"complete","stop_class":"sampling_contract_met","observed_result_count":77,"unique_sample_count":73,"detail_open_count":12,"relevant_signal_count":53,"counter_signal_count":21,"report_generated":true,"decision_profile_validated":true,"visual_qa":"passed"}}
+  ]
+}
