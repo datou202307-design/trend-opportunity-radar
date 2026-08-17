@@ -176,7 +176,14 @@ class DecisionProfilesM3Test(unittest.TestCase):
         self.assertIn("affected_audience", report["findings"][0]["report_sections"])
 
     def test_m4_visual_contract_changes_labels_and_exposes_follow_up_without_creating_it(self) -> None:
-        snapshot = {"platform": "x", "collection": {"contract_status": "met"}, "topics": [{
+        snapshot = {"platform": "x", "collection": {"contract_status": "met", "stop_reason": "sampling_contract_met", "counts": {
+            "query_count": 4, "observed_result_count": 77, "unique_sample_count": 73,
+            "detail_open_count": 12, "counter_signal_count": 21,
+        }}, "signals": [
+            {"semantic_relevance": "direct", "evidence_role": "support"},
+            {"semantic_relevance": "adjacent", "evidence_role": "counter"},
+            {"semantic_relevance": "weak", "evidence_role": "neutral"},
+        ], "topics": [{
             "topic_key": "topic-1", "cluster_audit": {"status": "passed"},
             "observed_heat": 32, "evidence_confidence": 54,
         }]}
@@ -193,6 +200,18 @@ class DecisionProfilesM3Test(unittest.TestCase):
             self.assertIn("这项判断的可靠度 54/100", page)
             self.assertIn("较弱", page)
             self.assertIn("中等", page)
+            self.assertIn("本次研究基础", page)
+            self.assertIn("本轮通过 4 个搜索主题，在X观察到 77 条可见结果", page)
+            self.assertIn("其中 2 条与研究主题相关", page)
+            self.assertIn("打开并核验 12 条详情", page)
+            self.assertIn("检查 1 条不同意见或相反情况", page)
+            self.assertIn("标准采样已完成", page)
+            self.assertEqual(report["schema_version"], "profile-research-report-v0.3")
+            self.assertEqual(report["collection_summary"], {
+                "query_count": 4, "observed_result_count": 77, "unique_signal_count": 3,
+                "relevant_signal_count": 2, "detail_open_count": 12,
+                "counter_signal_count": 1, "sampling_status": "complete",
+            })
             self.assertEqual(report["findings"][0]["score_summary"], {"observed_heat": 32, "evidence_confidence": 54})
             self.assertFalse(report["follow_up_recommendation"]["created"])
             self.assertTrue(report["follow_up_recommendation"]["requires_explicit_confirmation"])
@@ -202,6 +221,7 @@ class DecisionProfilesM3Test(unittest.TestCase):
                 self.assertNotIn(f"<dt>{raw_key}</dt>", visible_page)
             markdown = generate_profile_report.render_markdown(report)
             self.assertIn(ui["question"], markdown)
+            self.assertIn("## 本次研究基础", markdown)
             self.assertIn("支持依据 1", markdown)
             action_keys = report["findings"][0]["recommended_actions"][0]
             for key in action_keys:
@@ -212,6 +232,37 @@ class DecisionProfilesM3Test(unittest.TestCase):
         self.assertIn("值得回应的受众问题", pages["content_opportunity"])
         self.assertIn("需要验证的真实任务", pages["product_demand"])
         self.assertNotEqual(pages["brand_sentiment"], pages["business_opportunity"])
+
+    def test_collection_summary_uses_plain_bounded_snapshot_language(self) -> None:
+        context = self.context("business_opportunity")
+        context["platform"] = "xiaohongshu"
+        snapshot = {"platform": "xiaohongshu", "collection": {"contract_status": "blocked", "counts": {
+            "query_count": 3, "observed_result_count": 48, "unique_sample_count": 31,
+            "detail_open_count": 8, "counter_signal_count": 3,
+        }}, "topics": [{"topic_key": "topic-1", "cluster_audit": {"status": "passed"}}]}
+        report = generate_profile_report.build_report(context, snapshot, self.finding(context))
+        visible_page = generate_profile_report.render_html(report).split('<pre id="raw">', 1)[0]
+        self.assertIn("在小红书观察到", visible_page)
+        self.assertIn("本轮为有限快照", visible_page)
+        self.assertNotIn("blocked", visible_page)
+
+    def test_collection_summary_is_localized_in_english(self) -> None:
+        context = research_context.compile_context(
+            "Find a business opportunity in a clear topic.", intent="business_opportunity",
+            platform="x", language="en",
+            subject={"name": "Test topic", "subject_type": "idea", "summary": "English report test"},
+        )
+        snapshot = {"platform": "x", "collection": {"contract_status": "met", "stop_reason": "sampling_contract_met", "counts": {
+            "query_count": 4, "observed_result_count": 72, "unique_sample_count": 60,
+            "detail_open_count": 12, "counter_signal_count": 5,
+        }}, "topics": [{"topic_key": "topic-1", "cluster_audit": {"status": "passed"}}]}
+        report = generate_profile_report.build_report(context, snapshot, self.finding(context))
+        page = generate_profile_report.render_html(report)
+        self.assertIn("Research basis", page)
+        self.assertIn("This run used 4 search themes and observed 72 visible results on X", page)
+        self.assertIn("60 remained after deduplication", page)
+        self.assertIn("12 detail pages were opened and verified", page)
+        self.assertIn("The standard sampling requirement was met", page)
 
     def test_profile_report_never_invents_scores_when_topic_scores_are_missing(self) -> None:
         context = self.context("business_opportunity")
