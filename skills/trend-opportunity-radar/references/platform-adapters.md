@@ -16,7 +16,7 @@ Accept JSON or CSV exported by the user. Preserve the original file and import t
 
 Use a user-authorized logged-in Chrome session, OpenCLI, DokoBot, an in-app browser, or an equivalent dynamic browser capability. Treat tool names as optional adapters, not required dependencies. Follow [browser-collection.md](browser-collection.md).
 
-Run a non-mutating preflight for every considered adapter and select by recorded platform capability. For Xiaohongshu and X, prefer validated OpenCLI for structured search and retained details, then DokoBot for rendered-page verification; follow [opencli-orchestration.md](opencli-orchestration.md). The neutral orchestrator, not any single CLI call, owns query progression, raw-output retention, atomic ledger writes, detail recovery, and contract completion.
+Run a non-mutating preflight for every considered adapter and select by recorded platform capability. For Xiaohongshu and X, prefer validated OpenCLI for structured search and retained details, then DokoBot for rendered-page verification. For YouTube, use OpenCLI only after its independent probe succeeds. Follow [opencli-orchestration.md](opencli-orchestration.md). The neutral orchestrator, not any single CLI call, owns query progression, raw-output retention, atomic ledger writes, detail recovery, and contract completion.
 
 Browser capture may collect Xiaohongshu, X, or another platform the user can lawfully access. It remains `controlled_capture`, not an official API. Personalized ranking, incomplete metrics, access limits, and capture depth must be disclosed.
 

@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/releases"><img alt="发布版本" src="https://img.shields.io/github/v/release/datou202307-design/trend-opportunity-radar?include_prereleases&style=flat-square&label=release"></a>
   <img alt="5 个决策模式" src="https://img.shields.io/badge/decision_profiles-5-14b8a6?style=flat-square">
-  <img alt="平台：X 和小红书" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu-0f766e?style=flat-square">
+  <img alt="平台：X、小红书和 YouTube" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu_%2B_YouTube-0f766e?style=flat-square">
   <img alt="输出：HTML、Markdown 和 JSON" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
   <a href="LICENSE"><img alt="MIT 许可证" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square"></a>
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/datou202307-design/trend-opportunity-radar?style=flat-square"></a>
@@ -23,14 +23,14 @@
 
 这是一个独立、去品牌化的 Agent Skill，用于在单个平台上围绕一个研究主题完成有证据边界的趋势机会研究。
 
-当前状态：**v0.7.0 candidate**。它是一套受约束的平台研究工作流，不是爆款、流量、需求或收入预测系统。候选版支持在 X 和小红书上使用五种决策模式，并支持经过验证的 OpenCLI 只读采集，以及 DokoBot 渲染页面核验或回退。
+当前状态：**v0.8.0 candidate**。它是一套受约束的平台研究工作流，不是爆款、流量、需求或收入预测系统。候选版支持在 X、小红书和 YouTube 上使用五种决策模式，并支持经过验证的 OpenCLI 只读采集，以及在适用平台上使用 DokoBot 进行渲染页面核验或回退。
 
 ## 它能做什么
 
 - 接受产品、商机、想法、用户问题、受众需求或项目作为研究主题。
 - 支持五类决策目标：发现商业机会、监测品牌舆情、研究竞品用户、寻找内容机会和验证产品需求。
 - 把简短自然语言请求编译成带版本的研究上下文，用户无需填写内部证据角色或采样门槛。
-- 每次只分析一个平台，包括 X、小红书及符合适配器契约的其他平台。
+- 每次只分析一个平台，包括 X、小红书、YouTube 及符合适配器契约的其他平台。
 - 导入用户提供的数据，或采集已授权的只读浏览器和 API 信号。
 - 规范化证据、来源链接、采集时间、指标和局限。
 - 使用明确的快速、标准和深度采样契约，并保留采集账本。
@@ -104,6 +104,8 @@ skills/trend-opportunity-radar/
 
 Chrome、OpenCLI、DokoBot 或等效受控浏览器均为可选项。适配器选择器只使用经过验证的只读能力；当采样量不足时会阻止交付，而不是静默降级。用户需要自行遵守平台条款、账号权限和合法数据访问要求。任何凭据、Cookie 或 Token 都不得写入 Skill 的输入或输出。
 
+在 YouTube 上，已验证路径覆盖有限搜索、视频详情补充和单独发起的有限评论读取。每个符合条件的视频最多保留 10 条代表性评论；字幕只在需要核验视频主张时打开。支持某个平台不代表评论、字幕或当前浏览器登录状态一定可用，每次运行仍必须先通过本次只读能力探测。
+
 ## 重要边界
 
 - 不混合不同平台的热度评分。
@@ -119,7 +121,7 @@ Chrome、OpenCLI、DokoBot 或等效受控浏览器均为可选项。适配器�
 
 ## 第三方兼容性
 
-DokoBot、OpenCLI、Chrome、X 和小红书都是可选的第三方工具或平台，不随本仓库分发。名称仅用于说明兼容目标，不代表关联、背书、账号访问或授权。只在具有合法访问权限并遵守适用条款时使用相应集成。
+DokoBot、OpenCLI、Chrome、X、小红书和 YouTube 都是可选的第三方工具或平台，不随本仓库分发。名称仅用于说明兼容目标，不代表关联、背书、账号访问或授权。只在具有合法访问权限并遵守适用条款时使用相应集成。
 
 ## 仓库结构
 

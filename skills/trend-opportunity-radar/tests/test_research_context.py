@@ -48,6 +48,16 @@ class ResearchContextTest(unittest.TestCase):
         self.assertEqual(compiled["profile_version"], "competitor_users_v1")
         self.assertEqual(compiled["profile_implementation_status"], "available")
 
+    def test_youtube_platform_is_inferred_without_confusing_the_business_intent(self) -> None:
+        compiled = research_context.compile_context("分析 AI Agent 教程在 YouTube 的内容机会。")
+        self.assertEqual(compiled["status"], "ready")
+        self.assertEqual(compiled["platform"], "youtube")
+        self.assertEqual(compiled["research_intent"], "content_opportunity")
+
+    def test_explicit_english_market_is_frozen(self) -> None:
+        compiled = research_context.compile_context("分析小企业 AI Agent 在 YouTube 英语市场的商业机会。")
+        self.assertEqual(compiled["market"], "英语市场")
+
     def test_context_hash_is_stable_and_profile_version_is_validated(self) -> None:
         first = research_context.compile_context("分析整理手机照片在小红书的趋势机会。")
         second = research_context.compile_context("分析整理手机照片在小红书的趋势机会。")

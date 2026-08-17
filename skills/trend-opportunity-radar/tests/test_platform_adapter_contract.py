@@ -23,11 +23,19 @@ class PlatformAdapterContractTest(unittest.TestCase):
         self.assertEqual(registry["contract_version"], "platform-adapter-contract-v0.1")
         self.assertEqual(contract.normalize_platform("小红书", registry), "xiaohongshu")
         self.assertEqual(contract.normalize_platform("Twitter", registry), "x")
+        self.assertEqual(contract.normalize_platform("油管", registry), "youtube")
 
     def test_invalid_capability_shape_is_rejected(self) -> None:
         registry = contract.load_registry()
         broken = copy.deepcopy(registry)
         del broken["adapters"]["opencli"]["platforms"]["x"]["safety_stops"]
+        with self.assertRaises(ValueError):
+            contract.validate_registry(broken)
+
+    def test_comment_capability_requires_a_bounded_limit(self) -> None:
+        registry = contract.load_registry()
+        broken = copy.deepcopy(registry)
+        broken["adapters"]["opencli"]["platforms"]["xiaohongshu"]["comment_sample_limit"] = 50
         with self.assertRaises(ValueError):
             contract.validate_registry(broken)
 
@@ -52,6 +60,16 @@ class PlatformAdapterContractTest(unittest.TestCase):
             xhs_state = {"adapter": "opencli", "platform": "xiaohongshu", "mode": "standard"}
             self.assertEqual(contract.build_search_command(xhs_state, query, output, 1)[:3], ["opencli", "xiaohongshu", "search"])
             self.assertEqual(contract.build_detail_command(xhs_state, "https://www.xiaohongshu.com/explore/1", output)[:3], ["opencli", "xiaohongshu", "note"])
+
+            youtube_state = {"adapter": "opencli", "platform": "youtube", "mode": "standard"}
+            youtube_query = {**query, "url": "https://www.youtube.com/results?search_query=meeting&sort=views&upload=month&type=video"}
+            youtube_search = contract.build_search_command(youtube_state, youtube_query, output, 1)
+            self.assertEqual(youtube_search[:3], ["opencli", "youtube", "search"])
+            self.assertIn("--sort", youtube_search)
+            self.assertIn("views", youtube_search)
+            self.assertIn("--upload", youtube_search)
+            self.assertIn("month", youtube_search)
+            self.assertEqual(contract.build_detail_command(youtube_state, "https://www.youtube.com/watch?v=abc123", output)[:3], ["opencli", "youtube", "video"])
 
             doko_state = {"adapter": "dokobot", "platform": "x", "mode": "standard"}
             doko_search = contract.build_search_command(doko_state, {**query, "session_id": "abc"}, output, 1)

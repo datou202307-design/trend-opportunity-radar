@@ -19,15 +19,18 @@ import generate_opportunities as opportunity_generator
 import orchestrate_dokobot_collection as orchestrator
 import parse_opencli_xhs_search as opencli_parser
 import parse_opencli_x_search as opencli_x_parser
+import parse_opencli_youtube_search as opencli_youtube_parser
 import run_opencli_detail_backfill as opencli_detail_runner
 import run_collection_capture as collection_capture_runner
 import parse_dokobot_x_search as x_parser
 import apply_semantic_review as semantic_reviewer
+import apply_comment_review as comment_reviewer
+import prepare_comment_review as comment_queue
 import run_dokobot_capture as capture_runner
 import run_dokobot_detail_backfill as detail_runner
 import select_collection_adapter as adapter_selector
 import validate_report_artifacts as report_validator
-from generate_profile_report import visible_status
+from generate_profile_report import collection_summary, finding_comment_evidence, visible_status
 
 
 def run_script(name: str, *args: str) -> None:
@@ -42,6 +45,48 @@ def run_script_json(name: str, *args: str) -> dict:
 
 
 class PipelineTest(unittest.TestCase):
+    def test_comment_review_is_complete_auditable_and_does_not_change_trend_volume(self) -> None:
+        snapshot = {
+            "platform": "x",
+            "raw_sample_count": 20,
+            "signals": [{
+                "signal_id": "signal-1", "topic_key": "shared-expense", "canonical_url": "https://x.com/a/status/1",
+                "platform_facts": {"representative_comments": [
+                    {"text": "We need a simpler way to split recurring bills", "likes": 3},
+                    {"text": "A spreadsheet already works for us", "likes": 1},
+                ]},
+            }],
+        }
+        queue = comment_queue.build_queue(snapshot)
+        self.assertEqual(queue["comment_count"], 2)
+        review = {
+            "schema_version": comment_reviewer.SCHEMA_VERSION,
+            "queue_sha256": queue["queue_sha256"],
+            "reviews": [
+                {"comment_key": queue["comments"][0]["comment_key"], "category": "need", "semantic_relevance": "direct", "evidence_role": "support", "insight": "Users ask for simpler recurring-bill splitting.", "reason": "The commenter states the need directly."},
+                {"comment_key": queue["comments"][1]["comment_key"], "category": "workaround", "semantic_relevance": "direct", "evidence_role": "counter", "insight": "Some users consider a spreadsheet sufficient.", "reason": "The commenter names an existing workaround."},
+            ],
+        }
+        enriched = comment_reviewer.apply(snapshot, queue, review)
+        self.assertEqual(enriched["raw_sample_count"], 20)
+        self.assertEqual(enriched["comment_evidence"]["reviewed_count"], 2)
+        self.assertEqual(enriched["comment_evidence"]["counter_count"], 1)
+        topic = finding_comment_evidence(enriched, "shared-expense")
+        self.assertEqual(topic["relevant_count"], 2)
+        self.assertEqual(len(topic["insights"]), 2)
+        basis = collection_summary(enriched)
+        self.assertEqual(basis["reviewed_comment_count"], 2)
+
+    def test_comment_review_rejects_missing_labels(self) -> None:
+        snapshot = {"platform": "x", "signals": [{"signal_id": "s1", "platform_facts": {"representative_comments": [{"text": "Useful"}]}}]}
+        queue = comment_queue.build_queue(snapshot)
+        with self.assertRaises(SystemExit):
+            comment_reviewer.apply(snapshot, queue, {
+                "schema_version": comment_reviewer.SCHEMA_VERSION,
+                "queue_sha256": queue["queue_sha256"],
+                "reviews": [],
+            })
+
     def test_collection_capture_never_overwrites_existing_raw_attempts(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             requested = Path(temp_dir) / "category-1-001.json"
@@ -230,6 +275,39 @@ An entertainment interview translation thread.
         self.assertEqual(updated["collection"]["stop_reason"], "sampling_contract_met")
         self.assertEqual(updated["collection"]["counts"]["detail_open_count"], 1)
         self.assertNotIn("sampling_contract_unmet:detail_opens", updated["collection"]["limitations"])
+
+    def test_detail_backfill_plan_deduplicates_a_signal_seen_in_multiple_layers(self) -> None:
+        shared = self.make_signal(123)
+        shared.update({
+            "platform": "youtube", "content_id": "shared", "query_layer": "category",
+            "semantic_relevance": "direct", "evidence_role": "support", "detail_captured": False,
+        })
+        shared["query_layers"] = ["category", "subject_bridge"]
+        shared["canonical_url"] = "https://www.youtube.com/watch?v=shared"
+        snapshot = self.write("raw-shared-detail.json", {
+            "platform": "youtube",
+            "signals": [shared],
+            "collection": {"mode": "standard", "query_runs": [], "counts": {}},
+        })
+        state = {
+            "snapshot": str(snapshot), "platform": "youtube", "mode": "standard",
+            "detail_backfill_attempts": [],
+        }
+        original_recovery = orchestrator.recovery_diagnostics
+        orchestrator.recovery_diagnostics = lambda _state: {
+            "layer_deficits": {
+                "platform_baseline": {"details": 0, "direct": 0},
+                "category": {"details": 1, "direct": 0},
+                "subject_bridge": {"details": 1, "direct": 1},
+            },
+            "global_deficits": {"details": 1},
+        }
+        try:
+            plan = orchestrator.detail_backfill_plan(state)
+        finally:
+            orchestrator.recovery_diagnostics = original_recovery
+        self.assertEqual(len(plan["targets"]), 1)
+        self.assertEqual(plan["targets"][0]["signal_key"], orchestrator.signal_key(shared, "youtube"))
 
     def test_normalization_does_not_override_stale_blocked_stop_reason(self) -> None:
         signals = [self.make_signal(index) for index in range(30)]
@@ -1518,6 +1596,7 @@ An entertainment interview translation thread.
         self.assertTrue(opencli["ready"])
         self.assertTrue(opencli["capabilities"]["xiaohongshu"])
         self.assertTrue(opencli["capabilities"]["x"])
+        self.assertTrue(opencli["capabilities"]["youtube"])
         dokobot = {"adapter": "dokobot", "ready": True, "status": "ready"}
         xhs_route = adapter_selector.select_adapter("小红书", [dokobot, opencli])
         self.assertEqual(xhs_route["selected_adapter"], "opencli")
@@ -1553,6 +1632,152 @@ An entertainment interview translation thread.
         self.assertEqual(detail["summary"], "complete body")
         self.assertIsNone(detail["metrics"]["views"])
         self.assertEqual(detail["metrics"]["shares"], 2)
+        self.assertEqual(detail["platform_facts"]["representative_comment_count"], 1)
+        self.assertEqual(detail["platform_facts"]["representative_comments"][0]["text"], "reply")
+
+    def test_platform_specific_engagement_weights_are_versioned_and_not_shared(self) -> None:
+        x_signal = {"platform": "x", "metrics": {"views": 1000, "comments": 10}}
+        xhs_signal = {"platform": "xiaohongshu", "metrics": {"views": 1000, "comments": 10}}
+        self.assertEqual(common.engagement_weights("x")["comments"], 2.0)
+        self.assertEqual(common.engagement_weights("xiaohongshu")["comments"], 3.0)
+        self.assertLess(
+            common.signal_dimensions(x_signal)["engagement"],
+            common.signal_dimensions(xhs_signal)["engagement"],
+        )
+        scored = common.calculate_index(x_signal)
+        self.assertEqual(scored["engagement_weight_version"], "platform-engagement-weights-v0.1-candidate")
+        self.assertEqual(scored["engagement_weights"]["shares"], 3.0)
+
+    def test_opencli_youtube_search_and_detail_preserve_platform_facts(self) -> None:
+        raw = self.write("opencli-youtube-search.json", [{
+            "rank": 1,
+            "title": "AI agents for small business",
+            "channel": "Practical AI",
+            "views": "56,423次观看",
+            "duration": "24:52",
+            "published": "5天前",
+            "url": "https://www.youtube.com/watch?v=LVAHYV4Xrto",
+        }])
+        parsed = opencli_youtube_parser.parse_file(raw, {"id": "q1", "term": "AI agents", "layer": "category"})
+        self.assertEqual(parsed["observed_result_keys"], ["LVAHYV4Xrto"])
+        signal = parsed["signals"][0]
+        self.assertEqual(signal["metrics"]["views"], 56423)
+        self.assertEqual(signal["author"]["name"], "Practical AI")
+        self.assertEqual(signal["platform_facts"]["duration"], "24:52")
+        detail = opencli_detail_runner.youtube_detail([
+            {"field": "title", "value": "AI agents for small business"},
+            {"field": "channel", "value": "Practical AI"},
+            {"field": "channelId", "value": "UC123"},
+            {"field": "description", "value": "A detailed walkthrough."},
+            {"field": "publishDate", "value": "2026-08-11T06:31:57-07:00"},
+            {"field": "views", "value": "56423"},
+            {"field": "likes", "value": "2000"},
+            {"field": "subscribers", "value": "94.3万位订阅者"},
+            {"field": "duration", "value": "1492s"},
+        ])
+        self.assertIsNotNone(detail)
+        self.assertEqual(detail["metrics"]["likes"], 2000)
+        self.assertEqual(detail["author"]["follower_count"], 943000)
+        self.assertEqual(detail["platform_facts"]["duration_seconds"], 1492)
+        self.assertNotIn("transcript", detail)
+
+    def test_opencli_safety_stop_classifier_covers_platform_access_failures(self) -> None:
+        cases = {
+            "captcha challenge": "captcha",
+            "429 too many requests": "rate_limit",
+            "login_required": "login_expired",
+            "403 access denied": "permission_prompt",
+            "abnormal redirect loop": "abnormal_redirect",
+        }
+        for message, expected in cases.items():
+            with self.subTest(message=message):
+                stop_reason, hard_stop = collection_capture_runner.classify_opencli_failure(message)
+                self.assertEqual(stop_reason, "")
+                self.assertEqual(hard_stop, expected)
+
+    def test_opencli_youtube_comments_are_bounded_and_normalized(self) -> None:
+        rows = [{
+            "author": {"name": f"Viewer {index}"},
+            "text": f"Comment {index}",
+            "likes": "1.2K" if index == 0 else index,
+            "replies": "3" if index == 0 else 0,
+            "time": "2 days ago",
+        } for index in range(14)]
+        comments = opencli_detail_runner.youtube_comments(rows)
+        self.assertEqual(len(comments), 10)
+        self.assertEqual(comments[0]["author_name"], "Viewer 0")
+        self.assertEqual(comments[0]["likes"], 1200)
+        self.assertEqual(comments[0]["reply_count"], 3)
+        self.assertEqual(comments[0]["observed_time_label"], "2 days ago")
+
+    def test_opencli_xhs_comments_are_bounded_top_level_and_normalized(self) -> None:
+        rows = [{
+            "author": f"Reader {index}", "text": f"Comment {index}", "likes": "1.2万" if index == 0 else index,
+            "time": "昨天", "is_reply": index == 2,
+        } for index in range(8)]
+        comments = opencli_detail_runner.xhs_comments(rows)
+        self.assertEqual(len(comments), 5)
+        self.assertEqual(comments[0]["likes"], 12000)
+        self.assertNotIn("Comment 2", [item["text"] for item in comments])
+
+    def test_opencli_xhs_comment_capture_preserves_limit_throttle_and_artifacts(self) -> None:
+        detail_raw = self.root / "xhs-detail.json"
+        target = {"signal_key": "xiaohongshu:abc", "url": "https://www.xiaohongshu.com/explore/abc?xsec_token=signed"}
+        original_execute = opencli_detail_runner.execute
+        opencli_detail_runner.execute = lambda _requested, _timeout: (
+            0, json.dumps([{"author": "Reader", "text": "Useful", "likes": 3, "time": "1小时前"}]), "", False
+        )
+        throttle = {"request_index": 1, "interval_seconds": 20, "batch_cooldown_seconds": 0, "waited_seconds": 20}
+        try:
+            result = opencli_detail_runner.capture_xhs_comments(target, detail_raw, 30, throttle)
+        finally:
+            opencli_detail_runner.execute = original_execute
+        self.assertEqual(result["sample_limit"], 5)
+        self.assertEqual(result["comments"][0]["text"], "Useful")
+        self.assertTrue(all(Path(item).is_file() for item in result["artifacts"]))
+        metadata = json.loads(Path(result["metadata_artifact"]).read_text(encoding="utf-8"))
+        self.assertEqual(metadata["throttle"]["waited_seconds"], 20)
+
+    def test_normalization_preserves_bounded_youtube_platform_facts(self) -> None:
+        signal = self.make_signal(1701)
+        signal.update({
+            "platform": "youtube",
+            "platform_facts": {
+                "representative_comments": [{"author_name": "Viewer", "text": "Useful", "likes": 2}],
+                "representative_comment_count": 1,
+                "comment_sample_limit": 10,
+                "comment_capture_status": "complete",
+            },
+        })
+        normalized = common.normalize_signal(signal, "youtube", "controlled_capture", self.now.isoformat())
+        self.assertEqual(normalized["platform_facts"]["representative_comment_count"], 1)
+        self.assertEqual(normalized["platform_facts"]["representative_comments"][0]["text"], "Useful")
+
+    def test_normalization_preserves_author_name_for_platforms_without_search_author_id(self) -> None:
+        signal = self.make_signal(1702)
+        signal["author"] = {"name": "Practical AI"}
+        signal.pop("author_id", None)
+        normalized = common.normalize_signal(signal, "youtube", "controlled_capture", self.now.isoformat())
+        self.assertEqual(normalized["author"]["name"], "Practical AI")
+
+    def test_opencli_youtube_comment_capture_preserves_artifacts_and_hard_stop(self) -> None:
+        detail_raw = self.root / "detail.json"
+        target = {"signal_key": "youtube:abc", "url": "https://www.youtube.com/watch?v=abc"}
+        original_execute = opencli_detail_runner.execute
+        opencli_detail_runner.execute = lambda _requested, _timeout: (
+            1, "", "429 too many requests", False
+        )
+        try:
+            result = opencli_detail_runner.capture_youtube_comments(target, detail_raw, 30)
+        finally:
+            opencli_detail_runner.execute = original_execute
+        self.assertEqual(result["hard_stop"], "rate_limit")
+        self.assertEqual(result["comments"], [])
+        self.assertEqual(len(result["artifacts"]), 4)
+        self.assertTrue(all(Path(item).is_file() for item in result["artifacts"]))
+        metadata = json.loads(Path(result["metadata_artifact"]).read_text(encoding="utf-8"))
+        self.assertEqual(metadata["sample_limit"], 10)
+        self.assertEqual(metadata["hard_stop"], "rate_limit")
 
     def test_opencli_xhs_parser_preserves_signed_detail_and_requires_semantic_review(self) -> None:
         raw = self.write("opencli-search.json", [{

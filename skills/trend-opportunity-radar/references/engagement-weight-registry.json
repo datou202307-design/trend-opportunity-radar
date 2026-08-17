@@ -1,0 +1,19 @@
+{
+  "schema_version": "platform-engagement-weights-v0.1-candidate",
+  "scope": "within_platform_only",
+  "default": {"likes": 1.0, "comments": 1.0, "shares": 1.0, "saves": 1.0},
+  "platforms": {
+    "x": {
+      "likes": 1.0, "comments": 2.0, "shares": 3.0, "saves": 5.0,
+      "rationale": "A reply requires more effort than a like; reposts distribute the post; bookmarks express durable private intent."
+    },
+    "xiaohongshu": {
+      "likes": 1.0, "comments": 3.0, "shares": 4.0, "saves": 4.0,
+      "rationale": "Comments express active discussion while shares and collections indicate reuse or decision intent on a utility-oriented content platform."
+    },
+    "youtube": {
+      "likes": 1.0, "comments": 3.0, "shares": 4.0, "saves": 1.0,
+      "rationale": "Comments require stronger participation than likes; visible shares, when available, represent distribution."
+    }
+  }
+}

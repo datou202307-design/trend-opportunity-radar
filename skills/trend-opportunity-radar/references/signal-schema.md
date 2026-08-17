@@ -40,6 +40,7 @@ Use one platform per snapshot. Read [sampling-contract.md](sampling-contract.md)
       },
       "author": {
         "id": "",
+        "name": "public display name when a stable id is unavailable",
         "type": "",
         "follower_count": null,
         "verified": null
@@ -55,6 +56,31 @@ Use one platform per snapshot. Read [sampling-contract.md](sampling-contract.md)
         "previous_window_count": null,
         "comparison_count": null
       },
+      "platform_facts": {
+        "representative_comments": [
+          {
+            "author_name": "public display name or empty",
+            "text": "bounded public comment text",
+            "likes": null,
+            "reply_count": null,
+            "observed_time_label": "platform label or empty"
+          }
+        ],
+        "representative_comment_count": 0,
+        "comment_sample_limit": 10,
+        "comment_capture_status": "complete|unavailable",
+        "comment_analysis": {
+          "status": "reviewed",
+          "review_version": "comment-evidence-review-v0.1",
+          "reviewed_count": 5,
+          "relevant_count": 3,
+          "support_count": 2,
+          "counter_count": 1,
+          "category_counts": {"pain": 1, "question": 1, "objection": 1},
+          "insights": ["short fact-bound user feedback insight"],
+          "comment_keys": ["comment-..."]
+        }
+      },
       "evidence_refs": ["https://..."],
       "limitations": [],
       "permission_scope": "public|user_authorized|exported|unspecified",
@@ -65,6 +91,10 @@ Use one platform per snapshot. Read [sampling-contract.md](sampling-contract.md)
 ```
 
 `raw_sample_count` means every observed result card, not only selected evidence. `retained_sample_count` is the number selected before deduplication. Use `null` for unavailable metrics; zero means the platform explicitly displayed zero. Preserve source-specific raw exports separately when available.
+
+Representative comments are a bounded qualitative sample attached to a selected detail. They do not increase `raw_sample_count`, do not populate the content's total comment metric, and must preserve capture provenance. X keeps at most 5 replies from the already-opened thread; Xiaohongshu performs a separately throttled read of at most 5 top-level comments; YouTube keeps at most 10 comments. Missing comments remain unavailable and never invalidate an otherwise usable detail unless the read encounters a platform-wide safety stop.
+
+When comments exist, [comment-evidence-contract.md](comment-evidence-contract.md) governs their complete review and merge. `comment_analysis` summarizes only reviewed visible text, preserves the original comment sample, and may inform a topic's qualitative decision reasoning without changing sample counts or observed heat.
 
 For `controlled_capture`, a post visible only in search results is `search_card` with `detail_captured: false`. Do not manually force it to `direct_post`; normalization will downgrade that combination.
 

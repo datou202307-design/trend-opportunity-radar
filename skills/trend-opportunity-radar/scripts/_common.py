@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 
-SCORE_VERSION = "trend-evidence-v0.4.0"
+SCORE_VERSION = "trend-evidence-v0.5.0-candidate"
 SCHEMA_VERSION = "trend-signal-snapshot-v0.4"
 QUERY_LAYERS = ("platform_baseline", "category", "subject_bridge")
 SOURCE_MODES = {"authorized_api", "customer_export", "controlled_capture", "public_web", "historical_snapshot"}
@@ -41,6 +41,18 @@ SOURCE_QUALITY = {
     "historical_item": 40,
     "unknown": 20,
 }
+ENGAGEMENT_WEIGHT_REGISTRY_PATH = Path(__file__).resolve().parent.parent / "references" / "engagement-weight-registry.json"
+
+
+def load_engagement_weight_registry() -> dict[str, Any]:
+    with ENGAGEMENT_WEIGHT_REGISTRY_PATH.open("r", encoding="utf-8") as handle:
+        payload = json.load(handle)
+    if payload.get("schema_version") != "platform-engagement-weights-v0.1-candidate":
+        raise ValueError("Unsupported engagement weight registry version.")
+    return payload
+
+
+ENGAGEMENT_WEIGHT_REGISTRY = load_engagement_weight_registry()
 SAMPLING_CONTRACTS = {
     "quick": {
         "query_target": [3, 5],
@@ -228,9 +240,17 @@ def normalize_platform(value: Any) -> str:
     aliases = {
         "小红书": "xiaohongshu", "rednote": "xiaohongshu", "red": "xiaohongshu", "xhs": "xiaohongshu",
         "twitter": "x", "推特": "x", "抖音": "douyin", "tiktok": "douyin",
+        "yt": "youtube", "油管": "youtube",
         "视频号": "wechat_channels", "wechat channels": "wechat_channels",
     }
     return aliases.get(text, re.sub(r"[^a-z0-9_\-\u4e00-\u9fff]+", "_", text).strip("_"))
+
+
+def engagement_weights(platform: Any) -> dict[str, float]:
+    normalized = normalize_platform(platform)
+    configured = (ENGAGEMENT_WEIGHT_REGISTRY.get("platforms") or {}).get(normalized)
+    source = configured if isinstance(configured, dict) else ENGAGEMENT_WEIGHT_REGISTRY["default"]
+    return {key: float(source.get(key, 1.0)) for key in ("likes", "comments", "shares", "saves")}
 
 
 def normalize_url(value: Any) -> str:
@@ -295,6 +315,7 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
     metrics = {key: int(value) if value is not None else None for key, value in metrics.items()}
     author = row.get("author") if isinstance(row.get("author"), dict) else {}
     discovery = row.get("discovery") if isinstance(row.get("discovery"), dict) else {}
+    platform_facts = row.get("platform_facts") if isinstance(row.get("platform_facts"), dict) else {}
     url = normalize_url(first(row, "canonical_url", "canonicalUrl", "url", "link", "source_url"))
     title = as_text(first(row, "title", "name", "text", "body"))[:500]
     author_id = as_text(first(author, "id", "author_id") or first(row, "author_id", "authorId", "username"))
@@ -336,6 +357,7 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
         "metrics": metrics,
         "author": {
             "id": author_id,
+            "name": as_text(first(author, "name", "display_name") or first(row, "author_name", "authorName")),
             "type": as_text(first(author, "type", "author_type") or first(row, "author_type", "authorType")),
             "follower_count": as_number(first(author, "follower_count", "followerCount") or first(row, "follower_count", "followerCount")),
             "verified": first(author, "verified") if "verified" in author else first(row, "verified", "author_verified"),
@@ -351,6 +373,7 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
             "previous_window_count": as_number(first(row, "previous_window_count", "previousWindowCount")),
             "comparison_count": as_number(first(row, "comparison_count", "comparisonCount")),
         },
+        "platform_facts": platform_facts,
         "evidence_refs": list(dict.fromkeys(item for item in evidence_refs if item)),
         "limitations": limitations,
         "permission_scope": as_text(first(row, "permission_scope", "permissionScope")) or "unspecified",
@@ -369,7 +392,7 @@ def merge_signals(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]
     for field in ("canonical_url", "content_id", "title", "summary", "published_at", "captured_at", "metrics_captured_at", "permission_scope"):
         if not merged.get(field) and secondary.get(field):
             merged[field] = secondary[field]
-    for section in ("metrics", "author", "discovery", "time_series"):
+    for section in ("metrics", "author", "discovery", "time_series", "platform_facts"):
         combined = dict(secondary.get(section) or {})
         combined.update({key: value for key, value in (primary.get(section) or {}).items() if value not in (None, "")})
         merged[section] = combined
@@ -441,8 +464,12 @@ def signal_dimensions(signal: dict[str, Any], as_of: datetime | None = None) -> 
     if count is not None:
         dimensions["content_volume"] = _log_score(count, 1000)
     views = as_number(metrics.get("views"))
-    interactions = [as_number(metrics.get(key)) for key in ("likes", "saves", "comments", "shares")]
-    interactions = [value for value in interactions if value is not None]
+    weights = engagement_weights(signal.get("platform"))
+    interactions = [
+        value * weights[key]
+        for key in ("likes", "saves", "comments", "shares")
+        if (value := as_number(metrics.get(key))) is not None
+    ]
     if views is not None or interactions:
         total = sum(interactions)
         dimensions["engagement"] = min(100.0, total / max(views or 0, 1) * 1000) if views is not None and interactions else _log_score(total or views or 0, 100000)
@@ -476,6 +503,8 @@ def calculate_index(signal: dict[str, Any], as_of: datetime | None = None) -> di
         "data_coverage": coverage,
         "score_status": "complete" if coverage >= 75 else "partial" if coverage >= 40 else "sparse",
         "score_version": SCORE_VERSION,
+        "engagement_weight_version": ENGAGEMENT_WEIGHT_REGISTRY["schema_version"],
+        "engagement_weights": engagement_weights(signal.get("platform")),
         "dimensions": {key: round(value, 2) for key, value in dimensions.items()},
         "source_quality": source_quality,
         "missing_fields": missing,
@@ -497,9 +526,9 @@ def calculate_topic_index(
         if values:
             dimensions[name] = statistics.median(values)
     author_ids = {
-        as_text((member.get("author") or {}).get("id"))
+        as_text((member.get("author") or {}).get("id") or (member.get("author") or {}).get("name")).casefold()
         for member in members
-        if as_text((member.get("author") or {}).get("id"))
+        if as_text((member.get("author") or {}).get("id") or (member.get("author") or {}).get("name"))
         and member.get("source_type") not in {"platform_summary", "search_snippet"}
     }
     if author_ids:
@@ -545,6 +574,8 @@ def calculate_topic_index(
         "data_coverage": coverage,
         "score_status": "complete" if coverage >= 75 else "partial" if coverage >= 40 else "sparse",
         "score_version": SCORE_VERSION,
+        "engagement_weight_version": ENGAGEMENT_WEIGHT_REGISTRY["schema_version"],
+        "engagement_weights": engagement_weights(members[0].get("platform") if members else ""),
         "dimensions": {key: round(value, 2) for key, value in dimensions.items()},
         "confidence_dimensions": {key: round(value, 2) for key, value in confidence_dimensions.items()},
         "raw_evidence_confidence": raw_confidence,

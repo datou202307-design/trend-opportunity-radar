@@ -432,7 +432,7 @@ def detail_backfill_plan(state: dict[str, Any]) -> dict[str, Any]:
             key = signal_key(signal, state.get("platform", ""))
             detail_access = signal.get("detail_access") if isinstance(signal.get("detail_access"), dict) else {}
             url = as_text(detail_access.get("url") or signal.get("source_url") or signal.get("canonical_url") or signal.get("url"))
-            if layer not in layers or signal.get("semantic_relevance") not in {"direct", "adjacent"} or signal.get("detail_captured") or key in attempted or not url.startswith(("http://", "https://")):
+            if layer not in layers or signal.get("semantic_relevance") not in {"direct", "adjacent"} or signal.get("detail_captured") or key in attempted or key in selected or not url.startswith(("http://", "https://")):
                 continue
             relevance = {"direct": 3, "adjacent": 2, "weak": 1}.get(as_text(signal.get("semantic_relevance")), 0)
             role = {"counter": 2, "support": 1, "neutral": 0}.get(as_text(signal.get("evidence_role")), 0)
@@ -480,7 +480,9 @@ def record_detail_backfill(state: dict[str, Any], payload: Any) -> None:
         raise SystemExit("The canonical snapshot signals field must be an array.")
     attempts = state.setdefault("detail_backfill_attempts", [])
     audits = snapshot.setdefault("collection", {}).setdefault("detail_backfills", [])
-    hard_stop = ""
+    hard_stop = as_text(payload.get("hard_stop"))
+    if hard_stop and hard_stop not in HARD_STOPS:
+        raise SystemExit("Detail payload contains an unsupported hard stop.")
     audited_payload = as_text(payload.get("schema_version")).endswith("v0.2")
     for result in payload["results"]:
         if not isinstance(result, dict):
