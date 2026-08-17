@@ -1,4 +1,25 @@
-# Trend Opportunity Radar
+<p align="center">
+  <img src="assets/github-hero.svg" alt="Trend Opportunity Radar — evidence-backed platform research for AI agents" width="100%">
+</p>
+
+<h1 align="center">Trend Opportunity Radar</h1>
+
+<p align="center">
+  Turn platform signals into auditable business, brand, competitor-user, content, and product-demand decisions.
+</p>
+
+<p align="center">
+  <a href="https://github.com/datou202307-design/trend-opportunity-radar/releases"><img alt="Release" src="https://img.shields.io/github/v/release/datou202307-design/trend-opportunity-radar?include_prereleases&style=flat-square&label=release"></a>
+  <img alt="Five decision profiles" src="https://img.shields.io/badge/decision_profiles-5-14b8a6?style=flat-square">
+  <img alt="Platforms: X and Xiaohongshu" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu-0f766e?style=flat-square">
+  <img alt="Outputs: HTML, Markdown and JSON" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square"></a>
+  <a href="https://github.com/datou202307-design/trend-opportunity-radar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/datou202307-design/trend-opportunity-radar?style=flat-square"></a>
+</p>
+
+<p align="center">
+  <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
+</p>
 
 An independent, brand-neutral agent Skill for analyzing evidence-backed trend opportunities for a research topic on one platform.
 
