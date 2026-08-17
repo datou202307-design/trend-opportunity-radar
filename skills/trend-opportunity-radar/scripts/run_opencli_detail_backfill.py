@@ -14,12 +14,16 @@ from check_collection_adapter import executable_command, resolve_opencli
 from orchestrate_dokobot_collection import action, load_state, record_detail_backfill
 from parse_opencli_xhs_search import parse_count
 from parse_opencli_x_search import parse_count as parse_x_count
+from parse_opencli_youtube_search import parse_count as parse_youtube_count
 from run_collection_capture import classify_opencli_failure, command_hash
 
 
 XHS_DETAIL_INTERVAL_SECONDS = 20
 XHS_DETAIL_BATCH_SIZE = 5
 XHS_DETAIL_BATCH_COOLDOWN_SECONDS = 45
+YOUTUBE_COMMENT_SAMPLE_LIMIT = 10
+X_COMMENT_SAMPLE_LIMIT = 5
+XHS_COMMENT_SAMPLE_LIMIT = 5
 
 
 def throttle_before_detail(platform: str, request_index: int, sleeper=time.sleep) -> dict[str, Any]:
@@ -66,6 +70,7 @@ def x_detail(value: Any, target: dict[str, Any]) -> dict[str, Any] | None:
     author = str(record.get("author") or "").strip().lstrip("@")
     if not body or not author:
         return None
+    representative_comments = x_thread_comments(value, target_id)
     return {
         "title": " ".join(body.split())[:180],
         "summary": body,
@@ -77,6 +82,252 @@ def x_detail(value: Any, target: dict[str, Any]) -> dict[str, Any] | None:
             "shares": parse_x_count(record.get("retweets")),
         },
         "author": {"id": author, "name": author},
+        "platform_facts": {
+            "representative_comments": representative_comments,
+            "representative_comment_count": len(representative_comments),
+            "comment_sample_limit": X_COMMENT_SAMPLE_LIMIT,
+            "comment_capture_status": "complete",
+        },
+    }
+
+
+def x_thread_comments(value: Any, target_id: str, limit: int = X_COMMENT_SAMPLE_LIMIT) -> list[dict[str, Any]]:
+    """Keep a bounded reply sample from the already-opened X thread."""
+    if not isinstance(value, list):
+        return []
+    comments: list[dict[str, Any]] = []
+    for row in value:
+        if not isinstance(row, dict) or str(row.get("id") or "") == target_id:
+            continue
+        text = str(row.get("text") or "").strip()
+        if not text:
+            continue
+        comments.append({
+            "author_name": str(row.get("author") or "").strip().lstrip("@"),
+            "text": text,
+            "likes": parse_x_count(row.get("likes")),
+            "reply_count": parse_x_count(row.get("replies")),
+            "observed_time_label": str(row.get("created_at") or "").strip(),
+        })
+        if len(comments) >= limit:
+            break
+    return comments
+
+
+def youtube_detail(value: Any) -> dict[str, Any] | None:
+    fields = fields_map(value)
+    title = str(fields.get("title") or "").strip()
+    channel = str(fields.get("channel") or "").strip()
+    description = str(fields.get("description") or "").strip()
+    if not title or not channel or not description:
+        return None
+    return {
+        "title": title,
+        "summary": description,
+        "published_at": str(fields.get("publishDate") or fields.get("published_at") or "").strip(),
+        "metrics": {
+            "views": parse_youtube_count(fields.get("views")),
+            "likes": parse_youtube_count(fields.get("likes")),
+            "comments": None,
+            "shares": None,
+        },
+        "author": {
+            "id": str(fields.get("channelId") or "").strip(),
+            "name": channel,
+            "follower_count": parse_youtube_count(fields.get("subscribers")),
+        },
+        "platform_facts": {
+            "category": str(fields.get("category") or "").strip(),
+            "duration_seconds": parse_youtube_count(str(fields.get("duration") or "").rstrip("s")),
+            "thumbnail": str(fields.get("thumbnail") or "").strip(),
+        },
+    }
+
+
+def youtube_comments(value: Any, limit: int = YOUTUBE_COMMENT_SAMPLE_LIMIT) -> list[dict[str, Any]]:
+    """Normalize a bounded comment sample without treating it as trend volume."""
+    if not isinstance(value, list):
+        return []
+    comments: list[dict[str, Any]] = []
+    for row in value:
+        if not isinstance(row, dict):
+            continue
+        text = str(row.get("text") or row.get("content") or row.get("comment") or "").strip()
+        if not text:
+            continue
+        author_value = row.get("author")
+        if isinstance(author_value, dict):
+            author = str(author_value.get("name") or author_value.get("handle") or "").strip()
+        else:
+            author = str(author_value or row.get("authorName") or "").strip()
+        comments.append({
+            "author_name": author,
+            "text": text,
+            "likes": parse_youtube_count(row.get("likes")),
+            "reply_count": parse_youtube_count(row.get("replies") or row.get("replyCount")),
+            "observed_time_label": str(row.get("time") or row.get("published") or row.get("publishedAt") or "").strip(),
+        })
+        if len(comments) >= limit:
+            break
+    return comments
+
+
+def xhs_comments(value: Any, limit: int = XHS_COMMENT_SAMPLE_LIMIT) -> list[dict[str, Any]]:
+    """Normalize a bounded top-level Xiaohongshu comment sample."""
+    if not isinstance(value, list):
+        return []
+    comments: list[dict[str, Any]] = []
+    for row in value:
+        if not isinstance(row, dict) or row.get("is_reply") is True:
+            continue
+        text = str(row.get("text") or "").strip()
+        if not text:
+            continue
+        comments.append({
+            "author_name": str(row.get("author") or "").strip(),
+            "text": text,
+            "likes": parse_count(row.get("likes")),
+            "reply_count": None,
+            "observed_time_label": str(row.get("time") or "").strip(),
+        })
+        if len(comments) >= limit:
+            break
+    return comments
+
+
+def immutable_attempt_path(path: Path) -> Path:
+    if not path.exists():
+        return path
+    index = 2
+    while True:
+        candidate = path.with_name(f"{path.stem}-run-{index}{path.suffix}")
+        if not candidate.exists():
+            return candidate
+        index += 1
+
+
+def capture_youtube_comments(target: dict[str, Any], detail_raw_path: Path, timeout: int) -> dict[str, Any]:
+    requested = [
+        "opencli", "youtube", "comments", str(target["url"]),
+        "--limit", str(YOUTUBE_COMMENT_SAMPLE_LIMIT), "-f", "json",
+        "--window", "background", "--trace", "retain-on-failure",
+    ]
+    started_at = now_iso()
+    code, stdout, stderr, timed_out = execute(requested, timeout)
+    finished_at = now_iso()
+    raw_path = immutable_attempt_path(detail_raw_path.with_name(f"{detail_raw_path.stem}-comments.json"))
+    raw_path.write_text(stdout, encoding="utf-8")
+    stdout_path = raw_path.with_suffix(raw_path.suffix + ".stdout.txt")
+    stderr_path = raw_path.with_suffix(raw_path.suffix + ".stderr.txt")
+    metadata_path = raw_path.with_suffix(raw_path.suffix + ".capture.json")
+    stdout_path.write_text(stdout, encoding="utf-8")
+    stderr_path.write_text(stderr, encoding="utf-8")
+    stop_reason = ""
+    hard_stop = ""
+    normalized: list[dict[str, Any]] = []
+    if timed_out:
+        stop_reason = "timeout"
+    elif code != 0:
+        stop_reason, hard_stop = classify_opencli_failure(f"{stdout}\n{stderr}")
+    else:
+        try:
+            normalized = youtube_comments(json.loads(stdout))
+        except json.JSONDecodeError:
+            stop_reason = "cli_error"
+    write_json(str(metadata_path), {
+        "schema_version": "collection-comment-execution-v0.1",
+        "adapter": "opencli",
+        "platform": "youtube",
+        "signal_key": target["signal_key"],
+        "sample_limit": YOUTUBE_COMMENT_SAMPLE_LIMIT,
+        "sample_count": len(normalized),
+        "requested_command": requested,
+        "requested_command_sha256": command_hash(requested),
+        "exit_code": code,
+        "timed_out": timed_out,
+        "stop_reason": stop_reason,
+        "hard_stop": hard_stop,
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "raw_artifact": str(raw_path.resolve()),
+        "stdout_artifact": str(stdout_path.resolve()),
+        "stderr_artifact": str(stderr_path.resolve()),
+        "metadata_artifact": str(metadata_path.resolve()),
+    })
+    return {
+        "comments": normalized,
+        "sample_limit": YOUTUBE_COMMENT_SAMPLE_LIMIT,
+        "stop_reason": stop_reason,
+        "hard_stop": hard_stop,
+        "artifacts": [
+            str(raw_path.resolve()), str(stdout_path.resolve()),
+            str(stderr_path.resolve()), str(metadata_path.resolve()),
+        ],
+        "metadata_artifact": str(metadata_path.resolve()),
+    }
+
+
+def capture_xhs_comments(
+    target: dict[str, Any], detail_raw_path: Path, timeout: int, throttle: dict[str, Any]
+) -> dict[str, Any]:
+    requested = [
+        "opencli", "xiaohongshu", "comments", str(target["url"]),
+        "--limit", str(XHS_COMMENT_SAMPLE_LIMIT), "--with-replies", "false", "-f", "json",
+        "--window", "background", "--trace", "retain-on-failure",
+    ]
+    started_at = now_iso()
+    code, stdout, stderr, timed_out = execute(requested, timeout)
+    finished_at = now_iso()
+    raw_path = immutable_attempt_path(detail_raw_path.with_name(f"{detail_raw_path.stem}-comments.json"))
+    raw_path.write_text(stdout, encoding="utf-8")
+    stdout_path = raw_path.with_suffix(raw_path.suffix + ".stdout.txt")
+    stderr_path = raw_path.with_suffix(raw_path.suffix + ".stderr.txt")
+    metadata_path = raw_path.with_suffix(raw_path.suffix + ".capture.json")
+    stdout_path.write_text(stdout, encoding="utf-8")
+    stderr_path.write_text(stderr, encoding="utf-8")
+    stop_reason = ""
+    hard_stop = ""
+    normalized: list[dict[str, Any]] = []
+    if timed_out:
+        stop_reason = "timeout"
+    elif code != 0:
+        stop_reason, hard_stop = classify_opencli_failure(f"{stdout}\n{stderr}")
+    else:
+        try:
+            normalized = xhs_comments(json.loads(stdout))
+        except json.JSONDecodeError:
+            stop_reason = "cli_error"
+    write_json(str(metadata_path), {
+        "schema_version": "collection-comment-execution-v0.1",
+        "adapter": "opencli",
+        "platform": "xiaohongshu",
+        "signal_key": target["signal_key"],
+        "sample_limit": XHS_COMMENT_SAMPLE_LIMIT,
+        "sample_count": len(normalized),
+        "requested_command": requested,
+        "requested_command_sha256": command_hash(requested),
+        "exit_code": code,
+        "timed_out": timed_out,
+        "stop_reason": stop_reason,
+        "hard_stop": hard_stop,
+        "throttle": throttle,
+        "started_at": started_at,
+        "finished_at": finished_at,
+        "raw_artifact": str(raw_path.resolve()),
+        "stdout_artifact": str(stdout_path.resolve()),
+        "stderr_artifact": str(stderr_path.resolve()),
+        "metadata_artifact": str(metadata_path.resolve()),
+    })
+    return {
+        "comments": normalized,
+        "sample_limit": XHS_COMMENT_SAMPLE_LIMIT,
+        "stop_reason": stop_reason,
+        "hard_stop": hard_stop,
+        "artifacts": [
+            str(raw_path.resolve()), str(stdout_path.resolve()),
+            str(stderr_path.resolve()), str(metadata_path.resolve()),
+        ],
+        "metadata_artifact": str(metadata_path.resolve()),
     }
 
 
@@ -97,7 +348,7 @@ def execute(requested: list[str], timeout: int) -> tuple[int | None, str, str, b
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Execute eligible OpenCLI detail backfills for validated X or Xiaohongshu runs and atomically update the canonical ledger.")
+    parser = argparse.ArgumentParser(description="Execute eligible OpenCLI detail backfills for validated X, Xiaohongshu, or YouTube runs and atomically update the canonical ledger.")
     parser.add_argument("--state", required=True)
     parser.add_argument("--results-output", required=True)
     parser.add_argument("--timeout-seconds", type=int, default=60)
@@ -108,8 +359,8 @@ def main() -> None:
         raise SystemExit("--timeout-seconds must be between 10 and 180.")
     state_path = Path(args.state).resolve()
     state = load_state(state_path)
-    if state.get("adapter") != "opencli" or state.get("platform") not in {"xiaohongshu", "x"}:
-        raise SystemExit("This detail runner requires a validated OpenCLI X or Xiaohongshu run.")
+    if state.get("adapter") != "opencli" or state.get("platform") not in {"xiaohongshu", "x", "youtube"}:
+        raise SystemExit("This detail runner requires a validated OpenCLI X, Xiaohongshu, or YouTube run.")
     next_action = action(state)
     if next_action.get("action") != "backfill_details":
         raise SystemExit("The collection orchestrator does not currently request detail backfill.")
@@ -186,6 +437,31 @@ def main() -> None:
                     break
                 last_stop = "cli_error"
                 break
+            if state.get("platform") == "youtube":
+                accepted = youtube_detail(decoded)
+                if accepted:
+                    comment_capture = capture_youtube_comments(target, raw_path, args.timeout_seconds)
+                    platform_facts = accepted.setdefault("platform_facts", {})
+                    platform_facts["representative_comments"] = comment_capture["comments"]
+                    platform_facts["representative_comment_count"] = len(comment_capture["comments"])
+                    platform_facts["comment_sample_limit"] = comment_capture["sample_limit"]
+                    platform_facts["comment_capture_status"] = (
+                        "complete" if not comment_capture["stop_reason"] and not comment_capture["hard_stop"] else "unavailable"
+                    )
+                    if comment_capture["stop_reason"]:
+                        accepted.setdefault("limitations", []).append(
+                            "Bounded representative comments were unavailable; video detail remains usable."
+                        )
+                    if comment_capture["hard_stop"]:
+                        hard_stop = comment_capture["hard_stop"]
+                    accepted.update({
+                        "evidence_refs": [str(raw_path.resolve()), str(metadata_path.resolve()), comment_capture["metadata_artifact"], target["url"]],
+                        "raw_artifacts": [str(raw_path.resolve()), str(stdout_path.resolve()), str(metadata_path.resolve()), str(stderr_path.resolve()), *comment_capture["artifacts"]],
+                        "captured_at": now_iso(), "metrics_captured_at": now_iso(),
+                    })
+                    break
+                last_stop = "cli_error"
+                break
             fields = fields_map(decoded)
             likes = parse_count(fields.get("likes"))
             saves = parse_count(fields.get("collects") or fields.get("saves"))
@@ -206,6 +482,25 @@ def main() -> None:
                     "captured_at": now_iso(),
                     "metrics_captured_at": now_iso(),
                 }
+                comment_throttle = throttle_before_detail("xiaohongshu", detail_request_index)
+                detail_request_index += 1
+                comment_capture = capture_xhs_comments(target, raw_path, args.timeout_seconds, comment_throttle)
+                accepted["platform_facts"] = {
+                    "representative_comments": comment_capture["comments"],
+                    "representative_comment_count": len(comment_capture["comments"]),
+                    "comment_sample_limit": comment_capture["sample_limit"],
+                    "comment_capture_status": (
+                        "complete" if not comment_capture["stop_reason"] and not comment_capture["hard_stop"] else "unavailable"
+                    ),
+                }
+                accepted["evidence_refs"].append(comment_capture["metadata_artifact"])
+                accepted["raw_artifacts"].extend(comment_capture["artifacts"])
+                if comment_capture["stop_reason"]:
+                    accepted.setdefault("limitations", []).append(
+                        "Bounded representative comments were unavailable; note detail remains usable."
+                    )
+                if comment_capture["hard_stop"]:
+                    hard_stop = comment_capture["hard_stop"]
                 break
             last_stop = "cli_error"
             if not all_zero:
@@ -232,6 +527,7 @@ def main() -> None:
         "adapter": "opencli",
         "platform": state.get("platform"),
         "status": "blocked" if hard_stop else "complete",
+        "hard_stop": hard_stop,
         "throttle_policy": {
             "detail_interval_seconds": XHS_DETAIL_INTERVAL_SECONDS if state.get("platform") == "xiaohongshu" else 0,
             "batch_size": XHS_DETAIL_BATCH_SIZE if state.get("platform") == "xiaohongshu" else 0,

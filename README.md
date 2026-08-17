@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/releases"><img alt="Release" src="https://img.shields.io/github/v/release/datou202307-design/trend-opportunity-radar?include_prereleases&style=flat-square&label=release"></a>
   <img alt="Five decision profiles" src="https://img.shields.io/badge/decision_profiles-5-14b8a6?style=flat-square">
-  <img alt="Platforms: X and Xiaohongshu" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu-0f766e?style=flat-square">
+  <img alt="Platforms: X, Xiaohongshu and YouTube" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu_%2B_YouTube-0f766e?style=flat-square">
   <img alt="Outputs: HTML, Markdown and JSON" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square"></a>
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/datou202307-design/trend-opportunity-radar?style=flat-square"></a>
@@ -23,14 +23,14 @@
 
 An independent, brand-neutral agent Skill for analyzing evidence-backed trend opportunities for a research topic on one platform.
 
-Current status: **v0.7.0 candidate**. This is a constrained platform-research workflow, not a viral-content, traffic, demand, or revenue prediction system. The candidate supports five decision profiles on X and Xiaohongshu, with validated optional OpenCLI read-only collection and DokoBot rendered-page verification or fallback.
+Current status: **v0.8.0 candidate**. This is a constrained platform-research workflow, not a viral-content, traffic, demand, or revenue prediction system. The candidate supports five decision profiles on X, Xiaohongshu, and YouTube, with validated optional OpenCLI read-only collection and DokoBot rendered-page verification or fallback where supported.
 
 ## What it does
 
 - Accepts a product, business opportunity, idea, user problem, audience need, or project as the research topic.
 - Supports five decision goals: business opportunities, brand sentiment, competitor users, content opportunities, and product-demand validation.
 - Compiles a short natural-language request into a versioned research context, so users do not need to specify internal evidence roles or sampling gates.
-- Analyzes one platform at a time, including X, Xiaohongshu, and adapter-defined platforms.
+- Analyzes one platform at a time, including X, Xiaohongshu, YouTube, and adapter-defined platforms.
 - Imports user-provided data or collects authorized, read-only browser and API signals.
 - Normalizes evidence, source links, capture times, metrics, and limitations.
 - Uses explicit quick, standard, and deep sampling contracts with a collection ledger.
@@ -104,6 +104,8 @@ No live-data connector is required. The workflow supports:
 
 Chrome, OpenCLI, DokoBot, or an equivalent controlled browser is optional. The adapter selector uses only validated read-only capabilities and blocks rather than silently downgrading an undersized run. Users are responsible for platform terms, account permissions, and lawful data access. Credentials, cookies, and tokens must never be included in Skill inputs or outputs.
 
+On YouTube, the validated path covers bounded search, video-detail enrichment, and separately requested bounded comments. Comment reads are capped at 10 representative items per eligible video, and transcripts are opened only when needed to verify a claim. Platform support does not guarantee that comments, transcripts, or a current browser session are available; every run must pass its own read-only capability probe.
+
 ## Important boundaries
 
 - Do not mix heat scores from different platforms.
@@ -119,7 +121,7 @@ Chrome, OpenCLI, DokoBot, or an equivalent controlled browser is optional. The a
 
 ## Third-party compatibility
 
-DokoBot, OpenCLI, Chrome, X, and Xiaohongshu are optional third-party tools or platforms and are not bundled with this repository. Their names identify compatibility targets only; no affiliation, endorsement, account access, or permission is implied. Use each integration only with lawful access and in accordance with its applicable terms.
+DokoBot, OpenCLI, Chrome, X, Xiaohongshu, and YouTube are optional third-party tools or platforms and are not bundled with this repository. Their names identify compatibility targets only; no affiliation, endorsement, account access, or permission is implied. Use each integration only with lawful access and in accordance with its applicable terms.
 
 ## Repository layout
 

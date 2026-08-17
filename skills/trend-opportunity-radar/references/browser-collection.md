@@ -1,6 +1,6 @@
 # Controlled browser collection
 
-Use this workflow after the user authorizes read-only collection and personally completes any required login. Chrome browser control, OpenCLI, and DokoBot are known implementations, not hard dependencies. Run `check_collection_adapter.py` and `select_collection_adapter.py`; a PATH lookup or one successful CLI read is never sufficient acceptance evidence. Follow [opencli-orchestration.md](opencli-orchestration.md) for OpenCLI X or Xiaohongshu, or [dokobot-orchestration.md](dokobot-orchestration.md) for DokoBot.
+Use this workflow after the user authorizes read-only collection and personally completes any required login. Chrome browser control, OpenCLI, and DokoBot are known implementations, not hard dependencies. Run `check_collection_adapter.py` and `select_collection_adapter.py`; a PATH lookup or one successful CLI read is never sufficient acceptance evidence. Follow [opencli-orchestration.md](opencli-orchestration.md) for OpenCLI X, Xiaohongshu, or YouTube collection, or [dokobot-orchestration.md](dokobot-orchestration.md) for DokoBot.
 
 ## Prepare
 
@@ -27,7 +27,7 @@ Do not repeatedly refresh, scan concurrently, scroll without a bound, simulate h
 
 ## Bounded recovery
 
-Use the selected adapter only for capabilities validated on the target platform. On Xiaohongshu, use OpenCLI for structured search and detail reads and DokoBot or direct Chrome control to verify ambiguous rendering. On X, use OpenCLI for structured Top/Latest search and thread detail, then DokoBot for rendered-page verification or fallback. After two repeated navigation or extraction timeouts across the selected path, stop retrying the same operation. Do not merge public-web discovery into controlled-capture counts.
+Use the selected adapter only for capabilities validated on the target platform. On Xiaohongshu, use OpenCLI for structured search and detail reads and DokoBot or direct Chrome control to verify ambiguous rendering. On X, use OpenCLI for structured Top/Latest search and thread detail, then DokoBot for rendered-page verification or fallback. On YouTube, use OpenCLI for bounded search and video detail; comments are capped and transcripts are opened only for claim verification. After two repeated navigation or extraction timeouts across the selected path, stop retrying the same operation. Do not merge public-web discovery into controlled-capture counts.
 
 ## Stop immediately
 
@@ -36,4 +36,5 @@ Stop on captcha, rate limits, login expiry, permission requests, abnormal redire
 ## Platform notes
 
 - Xiaohongshu: separate search cards, details, comments, account conditions, and media availability. A public search page does not prove complete platform coverage.
+- YouTube: separate search cards, video details, bounded comments, transcript availability, channel facts, and localized ranking conditions. A successful transcript read does not prove audience agreement or product demand.
 - X: preserve the query operator, post URL, full visible text, author, publish time, and visible metrics. Label an unopened result as `search_card`; only an opened post detail or authorized API/export item qualifies as direct evidence. A profile or Grok trend summary is not a direct post. Browser results can be personalized and must not be labeled as Recent Search API data.

@@ -55,7 +55,11 @@ def main() -> None:
             seen.add(signal_id)
             by_id[signal_id]["topic_key"] = key
             members.append((by_id[signal_id], assignment))
-        author_ids = {as_text((item[0].get("author") or {}).get("id")) for item in members if as_text((item[0].get("author") or {}).get("id"))}
+        author_ids = {
+            as_text((item[0].get("author") or {}).get("id") or (item[0].get("author") or {}).get("name")).casefold()
+            for item in members
+            if as_text((item[0].get("author") or {}).get("id") or (item[0].get("author") or {}).get("name"))
+        }
         direct_count = sum(1 for item, _ in members if item.get("detail_captured") or item.get("source_type") in {"direct_post", "exported_item"})
         core_count = sum(1 for _, assignment in members if assignment["fit"] == "core")
         match_count = sum(1 for _, assignment in members if assignment["task_transition_match"])

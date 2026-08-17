@@ -11,6 +11,11 @@
       "aliases": ["xiaohongshu", "xhs", "小红书"],
       "controlled_capture_preference": ["opencli", "dokobot"],
       "metric_fields": ["likes", "comments", "shares", "bookmarks"]
+    },
+    "youtube": {
+      "aliases": ["youtube", "yt", "油管"],
+      "controlled_capture_preference": ["opencli"],
+      "metric_fields": ["views", "likes", "comments"]
     }
   },
   "adapters": {
@@ -22,6 +27,8 @@
           "capability_key": "x",
           "search_builder": "opencli_x_search_v1",
           "detail_builder": "opencli_x_detail_v1",
+          "comment_builder": "embedded_in_detail",
+          "comment_sample_limit": 5,
           "search_parser": "opencli_x_search_v1",
           "detail_runner": "opencli",
           "pagination": "bounded_result_set",
@@ -32,7 +39,21 @@
           "capability_key": "xiaohongshu",
           "search_builder": "opencli_xhs_search_v1",
           "detail_builder": "opencli_xhs_detail_v1",
+          "comment_builder": "opencli_xhs_comments_v1",
+          "comment_sample_limit": 5,
           "search_parser": "opencli_xhs_search_v1",
+          "detail_runner": "opencli",
+          "pagination": "bounded_result_set",
+          "terminal_evidence": ["success_empty_result", "adapter_error"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
+        },
+        "youtube": {
+          "capability_key": "youtube",
+          "search_builder": "opencli_youtube_search_v1",
+          "detail_builder": "opencli_youtube_detail_v1",
+          "comment_builder": "opencli_youtube_comments_v1",
+          "comment_sample_limit": 10,
+          "search_parser": "opencli_youtube_search_v1",
           "detail_runner": "opencli",
           "pagination": "bounded_result_set",
           "terminal_evidence": ["success_empty_result", "adapter_error"],

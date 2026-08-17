@@ -1,6 +1,6 @@
 # Trend evidence scoring contract
 
-Version: `trend-evidence-v0.2.1`
+Version: `trend-evidence-v0.5.0-candidate`
 
 Report two separate values. Neither predicts virality, revenue, market size, product-market fit, or future demand.
 
@@ -14,6 +14,8 @@ Report two separate values. Neither predicts virality, revenue, market size, pro
 | Diffusion | 15 | Unique direct-post authors at topic level |
 | Search demand | 10 | Visible result count, rank, or authorized search measure |
 | Freshness | 5 | Content publication time, never metrics capture time |
+
+Calculate the engagement dimension with the versioned, platform-specific behavior weights in `engagement-weight-registry.json`. Do not use one platform's behavior weights for another platform. The initial values are candidate calibration rules, not proven causal values: X weights durable private intent and distribution more than likes; Xiaohongshu weights comments, collections, and shares more than likes; YouTube weights comments more than likes. Preserve the registry version in scored output. Compare engagement only within the same platform and compatible capture contract.
 
 ## Evidence confidence
 

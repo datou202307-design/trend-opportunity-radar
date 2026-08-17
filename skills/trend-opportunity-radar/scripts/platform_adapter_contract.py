@@ -4,6 +4,7 @@ import json
 import math
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 from _common import SAMPLING_CONTRACTS, as_text
 
@@ -15,6 +16,7 @@ REQUIRED_CAPABILITY_FIELDS = {
     "capability_key", "search_builder", "detail_builder", "search_parser",
     "detail_runner", "pagination", "terminal_evidence", "safety_stops",
 }
+OPTIONAL_CAPABILITY_FIELDS = {"comment_builder", "comment_sample_limit"}
 
 
 def load_registry(path: Path | None = None) -> dict[str, Any]:
@@ -55,10 +57,22 @@ def validate_registry(registry: Any) -> None:
         for platform, capability in capabilities.items():
             if platform != "*" and platform not in platforms:
                 raise ValueError(f"Adapter {adapter} references unknown platform {platform}.")
-            if not isinstance(capability, dict) or set(capability) != REQUIRED_CAPABILITY_FIELDS:
+            if (
+                not isinstance(capability, dict)
+                or not REQUIRED_CAPABILITY_FIELDS.issubset(capability)
+                or not set(capability).issubset(REQUIRED_CAPABILITY_FIELDS | OPTIONAL_CAPABILITY_FIELDS)
+            ):
                 raise ValueError(f"Adapter {adapter}/{platform} does not match the capability contract.")
             if not isinstance(capability["terminal_evidence"], list) or not isinstance(capability["safety_stops"], list):
                 raise ValueError(f"Adapter {adapter}/{platform} terminal and safety fields must be arrays.")
+            has_comment_builder = "comment_builder" in capability
+            has_comment_limit = "comment_sample_limit" in capability
+            if has_comment_builder != has_comment_limit:
+                raise ValueError(f"Adapter {adapter}/{platform} must declare comment builder and limit together.")
+            if has_comment_builder:
+                limit = capability["comment_sample_limit"]
+                if not as_text(capability["comment_builder"]) or not isinstance(limit, int) or not 1 <= limit <= 10:
+                    raise ValueError(f"Adapter {adapter}/{platform} has an invalid bounded comment capability.")
 
 
 def normalize_platform(value: str, registry: dict[str, Any] | None = None) -> str:
@@ -107,13 +121,26 @@ def build_search_command(state: dict[str, Any], active: dict[str, Any], raw_outp
     if not capability or not capability.get("search_builder"):
         raise ValueError(f"No search builder for {state.get('adapter')}/{state.get('platform')}.")
     builder = capability["search_builder"]
-    if builder in {"opencli_x_search_v1", "opencli_xhs_search_v1"}:
+    if builder in {"opencli_x_search_v1", "opencli_xhs_search_v1", "opencli_youtube_search_v1"}:
         contract = SAMPLING_CONTRACTS[state["mode"]]
         per_query_target = math.ceil(contract["observed_result_target"][0] / contract["query_target"][0])
         limit = min(20, max(per_query_target, 10))
         if builder == "opencli_x_search_v1":
             product = "live" if "f=live" in as_text(active.get("url")).casefold() else "top"
             return ["opencli", "twitter", "search", active["term"], "--product", product, "--exclude", "retweets", "--limit", str(limit), "-f", "json", "--window", "background", "--trace", "retain-on-failure"]
+        if builder == "opencli_youtube_search_v1":
+            command = ["opencli", "youtube", "search", active["term"], "--limit", str(limit)]
+            params = parse_qs(urlparse(as_text(active.get("url"))).query)
+            for option, allowed in {
+                "sort": {"relevance", "date", "views", "rating"},
+                "upload": {"hour", "today", "week", "month", "year"},
+                "type": {"shorts", "video", "channel", "playlist"},
+            }.items():
+                value = as_text((params.get(option) or [""])[0]).casefold()
+                if value in allowed:
+                    command.extend([f"--{option}", value])
+            command.extend(["-f", "json", "--window", "background", "--trace", "retain-on-failure"])
+            return command
         return ["opencli", "xiaohongshu", "search", active["term"], "--limit", str(limit), "-f", "json", "--window", "background", "--trace", "retain-on-failure"]
     if builder == "dokobot_read_search_v1":
         command = ["dokobot", "read", active["url"], "--local", "--reuse-tab", "--format", "chunks", "--screens", str(screens)]
@@ -133,6 +160,8 @@ def build_detail_command(state: dict[str, Any], url: str, output: Path) -> list[
         return ["opencli", "twitter", "thread", url, "--limit", "10", "-f", "json", "--window", "background", "--trace", "retain-on-failure"]
     if builder == "opencli_xhs_detail_v1":
         return ["opencli", "xiaohongshu", "note", url, "-f", "json", "--window", "background", "--trace", "retain-on-failure"]
+    if builder == "opencli_youtube_detail_v1":
+        return ["opencli", "youtube", "video", url, "-f", "json", "--window", "background", "--trace", "retain-on-failure"]
     if builder == "dokobot_read_detail_v1":
         return ["dokobot", "read", url, "--local", "--reuse-tab", "--format", "text", "--output", str(output.resolve())]
     raise ValueError(f"Unknown detail builder: {builder}")
@@ -146,6 +175,9 @@ def parse_search_capture(adapter: str, platform: str, raw_path: Path, query: dic
         return parse_file(raw_path, query)
     if parser == "opencli_xhs_search_v1":
         from parse_opencli_xhs_search import parse_file
+        return parse_file(raw_path, query)
+    if parser == "opencli_youtube_search_v1":
+        from parse_opencli_youtube_search import parse_file
         return parse_file(raw_path, query)
     if parser == "dokobot_x_search_v1":
         from parse_dokobot_x_search import parse_file
