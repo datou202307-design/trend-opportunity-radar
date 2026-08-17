@@ -237,7 +237,7 @@ def diagnose_opencli(
         "status": "",
         "cli": {"path": cli_path, "resolution": resolution, "version": ""},
         "browser": {"connected": False},
-        "capabilities": {"xiaohongshu": False, "x": False},
+        "capabilities": {"xiaohongshu": False, "x": False, "youtube": False},
         "diagnostics": {"resolution_errors": errors},
     }
     if not cli_path:
@@ -256,7 +256,7 @@ def diagnose_opencli(
         return base
     base["cli"]["version"] = version_probe["stdout"].splitlines()[0] if version_probe["stdout"] else "unknown"
     identity_probes = {}
-    for capability, site in (("xiaohongshu", "xiaohongshu"), ("x", "twitter")):
+    for capability, site in (("xiaohongshu", "xiaohongshu"), ("x", "twitter"), ("youtube", "youtube")):
         identity_command = executable_command(cli_path, [site, "whoami", "-f", "json", "--window", "background"], "@jackwener/opencli", ("dist", "src", "main.js"))
         identity_probe = run_probe(identity_command, timeout, runner)
         combined = f"{identity_probe['stdout']}\n{identity_probe['stderr']}\n{identity_probe['error']}".casefold()

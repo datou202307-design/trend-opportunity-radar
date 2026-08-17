@@ -12,7 +12,10 @@ from _common import load_data, require_text_integrity
 from append_collection_result import signal_key
 
 
-RAW_PATTERN = re.compile(r'<pre id="raw">(.*?)</pre>', re.DOTALL)
+RAW_PATTERNS = (
+    re.compile(r'<pre id=["\']raw["\']>(.*?)</pre>', re.DOTALL),
+    re.compile(r'<script type=["\']application/json["\'] id=["\']comparison-data["\']>(.*?)</script>', re.DOTALL),
+)
 FORBIDDEN_RUN_REPAIRS = {
     "extract_x_capture.py", "sanitize_signals.py", "dedupe_audit_execution.py",
     "repair_signals.py", "patch_orchestrator.py",
@@ -152,7 +155,8 @@ def validate_visual_qa(receipt_path: str, html_path: Path) -> None:
 def validate_report_contents(result: dict[str, Any], markdown: str, page: str | None = None) -> None:
     require_text_integrity(result, "Report JSON")
     require_text_integrity(markdown, "Report Markdown")
-    name = str((result.get("subject") or {}).get("name") or "").strip()
+    subject = result.get("subject") or {}
+    name = str(subject.get("name") if isinstance(subject, dict) else subject).strip()
     if name and name not in markdown:
         raise SystemExit("Report Markdown does not contain the exact UTF-8 subject name.")
     for item in [*(result.get("opportunities", []) or []), *(result.get("findings", []) or [])]:
@@ -164,11 +168,11 @@ def validate_report_contents(result: dict[str, Any], markdown: str, page: str | 
     if page is None:
         return
     require_text_integrity(page, "Report HTML")
-    if '<meta charset="utf-8">' not in page.lower():
+    if not re.search(r'<meta\s+charset=["\']utf-8["\']\s*/?>', page, re.IGNORECASE):
         raise SystemExit("Report HTML must declare UTF-8.")
     if name and name not in page:
         raise SystemExit("Report HTML does not contain the exact UTF-8 subject name.")
-    match = RAW_PATTERN.search(page)
+    match = next((candidate.search(page) for candidate in RAW_PATTERNS if candidate.search(page)), None)
     if not match:
         raise SystemExit("Report HTML is missing the machine-readable raw payload.")
     try:

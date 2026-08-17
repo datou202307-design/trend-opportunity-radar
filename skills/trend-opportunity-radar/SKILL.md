@@ -47,7 +47,7 @@ Treat [platform-adapter-registry.json](references/platform-adapter-registry.json
 
 Read [sampling-contract.md](references/sampling-contract.md) before collecting. Default to `standard`; use `quick` only for an explicitly quick scan, public-web fallback, or recorded access constraint. Use `deep` only when the source can lawfully support it. Never silently downgrade.
 
-For a dynamic or logged-in browser, read [browser-collection.md](references/browser-collection.md). Preflight every considered adapter without installing or changing credentials. On Xiaohongshu and X, check OpenCLI and DokoBot when available; capability is platform-specific and requires a successful redacted identity probe:
+For a dynamic or logged-in browser, read [browser-collection.md](references/browser-collection.md). Preflight every considered adapter without installing or changing credentials. On Xiaohongshu and X, check OpenCLI and DokoBot when available; on YouTube, check OpenCLI. Capability is platform-specific and requires a successful redacted probe:
 
 ```bash
 python scripts/check_collection_adapter.py --adapter opencli --output opencli-status.json
@@ -55,15 +55,29 @@ python scripts/check_collection_adapter.py --adapter dokobot --output adapter-st
 python scripts/select_collection_adapter.py --platform xiaohongshu --status opencli-status.json --status adapter-status.json --output adapter-selection.json
 ```
 
-For validated Xiaohongshu or X collection, prefer `OpenCLI → DokoBot`. On X, OpenCLI performs structured Top/Latest search and retained-thread detail reads; DokoBot verifies rendered-page context when fields are missing, content mismatches, a login state appears, or visible UI evidence matters. On Xiaohongshu, OpenCLI performs structured search and signed detail reads with the same verification fallback. When no validated adapter is ready, degrade to an authorized export or public-web discovery without weakening the selected sampling contract.
+For validated Xiaohongshu or X collection, prefer `OpenCLI → DokoBot`. On X, OpenCLI performs structured Top/Latest search and retained-thread detail reads; DokoBot verifies rendered-page context when fields are missing, content mismatches, a login state appears, or visible UI evidence matters. On Xiaohongshu, OpenCLI performs structured search and signed detail reads with the same verification fallback. On YouTube, OpenCLI performs bounded search and video-detail reads; preserve locale-dependent publication labels from search, replace them with the exact detail timestamp when available, and do not claim comment or transcript coverage unless those bounded reads were actually preserved. When no validated adapter is ready, degrade to an authorized export or public-web discovery without weakening the selected sampling contract.
 
 Do not conclude that a CLI is absent from `Get-Command`, `which`, or PATH lookup alone. If a sandbox reports `cli_not_found`, `cli_not_visible`, or `cli_permission_denied`, try the standalone approved version and connection probes once before changing adapters. If they succeed, rerun the preflight with the required read/execute approval so it can write a genuine `ready` record; never hand-edit the status. Never install a CLI or extension without user authorization.
 
 Keep recoverable adapter diagnostics internal. When the standalone probe and approved preflight succeed, tell the user only that the read-only collection environment is ready; do not narrate sandbox paths, npm locations, fallback probes, or approval mechanics. Surface adapter diagnostics only when the user must restore login, connect the browser, approve a narrowly scoped read, or choose a degraded source.
 
-Read [opencli-orchestration.md](references/opencli-orchestration.md) for OpenCLI X or Xiaohongshu collection, or [dokobot-orchestration.md](references/dokobot-orchestration.md) for DokoBot. Use the deterministic adapter-neutral orchestrator instead of browser memory or a single read. Chrome browser control, OpenCLI, and DokoBot are supported examples, not dependencies. Let the user complete login personally.
+Read [opencli-orchestration.md](references/opencli-orchestration.md) for OpenCLI X, Xiaohongshu, or YouTube collection, or [dokobot-orchestration.md](references/dokobot-orchestration.md) for DokoBot. Use the deterministic adapter-neutral orchestrator instead of browser memory or a single read. Chrome browser control, OpenCLI, and DokoBot are supported examples, not dependencies. Let the user complete login personally.
 
 Do not mix platforms. Run separate snapshots and compare only at report level.
+
+When the user requests a cross-platform comparison, require completed single-platform Profile reports with the same subject name, research intent, Profile version, analysis unit, and report language. Keep every platform's collection basis, `observed_heat`, and `evidence_confidence` separate; never add, average, normalize, or rank platform scores. Create an explicit comparison synthesis, then generate the comparison artifacts:
+
+```bash
+python scripts/generate_platform_comparison.py \
+  --report xiaohongshu=PATH/TO/XHS/profile-report.json \
+  --report x=PATH/TO/X/profile-report.json \
+  --synthesis comparison-synthesis.json \
+  --json-output platform-comparison.json \
+  --markdown-output platform-comparison.md \
+  --html-output platform-comparison.html
+```
+
+The comparison must lead with one decision answer, show each platform's research basis, identify shared tasks and platform-specific differences, and end with a unified MVP sequence plus platform-specific validation. Link back to the original platform reports. Treat shared findings as model synthesis supported by the two independent snapshots, not as a new trend score.
 
 ### 3. Collect with a ledger
 
@@ -96,15 +110,26 @@ python scripts/run_opencli_detail_backfill.py --state collection-state.json --re
 python scripts/run_dokobot_detail_backfill.py --state collection-state.json --results-output detail-results.json
 ```
 
-Use `run_collection_capture.py` for live query reads. It preserves exit state, timeout, raw output, immutable metadata, stdout, stderr, and the exact command hash. For OpenCLI X, OpenCLI Xiaohongshu, and DokoBot X search it deterministically creates a query-specific extraction file. Every X search result starts as `unreviewed` and cannot satisfy a relevance gate. Use filenames containing the query id for the extraction, semantic review, and reviewed extraction; append every review to `semantic-review-ledger.json`, never overwrite one generic review file. Direct and adjacent reviews require a meaningful provisional `topic_key`; weak collisions use the excluded key. Pass the reviewed extraction to `record-capture`. Never label every keyword match `direct`; state a concrete review reason. The reusable metadata and extraction paths are only pointers consumed by `record-capture`. Use `record-chunk` only for non-live imported fixtures or compatibility recovery.
+Use `run_collection_capture.py` for live query reads. It preserves exit state, timeout, raw output, immutable metadata, stdout, stderr, and the exact command hash. For OpenCLI X, OpenCLI Xiaohongshu, OpenCLI YouTube, and DokoBot X search it deterministically creates a query-specific extraction file. Every search result starts as `unreviewed` and cannot satisfy a relevance gate. Use filenames containing the query id for the extraction, semantic review, and reviewed extraction; append every review to `semantic-review-ledger.json`, never overwrite one generic review file. Direct and adjacent reviews require a meaningful provisional `topic_key`; weak collisions use the excluded key. Pass the reviewed extraction to `record-capture`. Never label every keyword match `direct`; state a concrete review reason. The reusable metadata and extraction paths are only pointers consumed by `record-capture`. Use `record-chunk` only for non-live imported fixtures or compatibility recovery.
 
 Start standard mode with three probe queries, one in each layer. Let the orchestrator stop as soon as the volume and quality gates pass; add only the deficient-layer queries it requests, up to nine total. If it returns `replan_queries`, add exactly one rewritten query for one recommended deficient layer, execute and review it, then ask the orchestrator again before spending another query slot. Rewrite a high-volume/low-relevance query instead of continuing it: use at most four words, remove stacked audience/product/task qualifiers, and search one platform-native problem, workflow, outcome, objection, or capability phrase at a time. Treat a zero-result query as low yield. When only total observed or unique volume remains deficient and every relevance, detail, counterevidence, and per-layer quality gate already passes, use `volume_recovery.recommended_terms` and its preferred layer; these terms form a deterministic queue of progressively shorter contiguous phrases derived from the highest-yield completed queries. Do not spend the remaining budget on a newly invented compound phrase or a term listed under `avoid_terms`. If the evidence-derived queue is empty, stop and deliver a bounded snapshot even when query budget remains. The orchestrator reserves room for one atomic read before the observed upper bound; never bypass `observed_budget_guard`, truncate visible cards, or start extra searches merely to complete a fixed plan. Do not normalize or report until it returns `complete` or terminal `blocked`. Never interpret a fixed plan ending as proof that the platform lacks demand.
 
-If the orchestrator returns `backfill_details`, exhaust eligible retained links before reporting. On OpenCLI X or Xiaohongshu runs, execute `run_opencli_detail_backfill.py`. X thread output may omit views or replies, so merge it with—not over—existing search metrics and select the requested post id when replies are returned. On DokoBot X runs, execute `run_dokobot_detail_backfill.py`; it opens the retained post URLs, mechanically extracts the rendered post, preserves immutable raw/stdout/stderr/metadata artifacts, and atomically updates the ledger. Use manual `record-details` only for imported compatibility data, never as a substitute for an available deterministic runner. Detail backfill does not spend search-query budget. Do not expose a recoverable detail deficit in the human report; only ask the user when login, permission, captcha, rate limit, or another external condition blocks the attempted recovery.
+If the orchestrator returns `backfill_details`, exhaust eligible retained links before reporting. On OpenCLI X, Xiaohongshu, or YouTube runs, execute `run_opencli_detail_backfill.py`. X thread output may omit views or replies, so merge it with—not over—existing search metrics and select the requested post id when replies are returned. YouTube detail reads merge exact publication time, description, channel identity, subscribers, views, and likes; missing detail fields never erase search facts. On DokoBot X runs, execute `run_dokobot_detail_backfill.py`; it opens the retained post URLs, mechanically extracts the rendered post, preserves immutable raw/stdout/stderr/metadata artifacts, and atomically updates the ledger. Use manual `record-details` only for imported compatibility data, never as a substitute for an available deterministic runner. Detail backfill does not spend search-query budget. Do not expose a recoverable detail deficit in the human report; only ask the user when login, permission, captcha, rate limit, or another external condition blocks the attempted recovery.
 
 After detail backfill, require the orchestrator to close the canonical snapshot and collection state to the same terminal result before normalization. A report may claim the sampling contract is met only when `raw-signals.json`, `collection-state.json`, and the normalized report agree: the raw detail count equals the successfully captured details, the state is `complete`, and its stop reason is `sampling_contract_met`. Never let normalization reinterpret a stale blocked ledger as complete.
 
 Treat detail backfill as evidence enrichment, not a new semantic review. Preserve the retained card's `semantic_review`, `semantic_relevance`, `evidence_role`, and `topic_key`; remove limitations that became false after the detail was opened. Reject delivery when stored counter totals differ from the canonical signal roles or any opened detail loses its semantic audit fields.
+
+Capture only bounded representative conversation context for verified details: at most five replies from an X thread, five separately throttled top-level comments from a Xiaohongshu note, or ten comments from a YouTube video. Preserve comment artifacts and capture metadata, minimize personal fields, and never count comments as additional trend samples. Treat a recoverable comment failure as unavailable enrichment; honor captcha, rate-limit, login, permission, and redirect safety stops.
+
+When representative comments were captured, read [comment-evidence-contract.md](references/comment-evidence-contract.md). After normalization, create the deterministic review queue, review every queued comment from its visible text only, and merge the validated review before clustering or findings:
+
+```bash
+python scripts/prepare_comment_review.py --input normalized-signals.json --output comment-review-queue.json
+python scripts/apply_comment_review.py --input normalized-signals.json --queue comment-review-queue.json --review comment-review.json --output comment-reviewed-signals.json
+```
+
+The Agent creates `comment-review.json`; do not ask the user to label comments. Use relevant comment evidence to refine user tasks, pain points, questions, workarounds, purchase intent, objections, positive outcomes, comparisons, and validation actions. Comments remain qualitative context: never promote them into trend samples, infer unstated identities or intent, or change a source signal's polarity automatically. If no comments were captured, continue without manufacturing a review.
 
 Raw volume never proves research sufficiency. Before declaring the sampling contract complete, require relevant unique signals and per-layer relevant/direct signals in addition to observed, unique, detail, counterevidence, and review-coverage minima. A layer filled by career, course, vendor, or other off-task noise must trigger query rewriting and recovery even when the total count is high.
 
@@ -128,13 +153,19 @@ Read [signal-schema.md](references/signal-schema.md), then run:
 
 ```bash
 python scripts/normalize_signals.py --input raw-signals.json --output normalized-signals.json --platform x --source-mode controlled_capture
-python scripts/calculate_evidence_index.py --input normalized-signals.json --output scored-signals.json
+python scripts/prepare_comment_review.py --input normalized-signals.json --output comment-review-queue.json
+python scripts/apply_comment_review.py --input normalized-signals.json --queue comment-review-queue.json --review comment-review.json --output comment-reviewed-signals.json
+python scripts/calculate_evidence_index.py --input comment-reviewed-signals.json --output scored-signals.json
 python scripts/detect_data_gaps.py --input scored-signals.json --output data-gaps.json
 ```
+
+When the queue contains zero comments, skip `apply_comment_review.py` and use `normalized-signals.json` as the next input.
 
 Try `python3`, `py`, or a documented bundled Python 3 runtime if `python` is unavailable. If no runtime exists, perform the schema-equivalent transformation locally and disclose that deterministic scripts were not executed.
 
 Read [scoring-contract.md](references/scoring-contract.md). Report `observed_heat` and `evidence_confidence` separately. Use content publication time for freshness and topic-level independent authors for diffusion. Missing dimensions contribute zero; never redistribute weights. Cap confidence when the sampling contract is incomplete and show the raw value, capped value, and reason.
+
+Use [engagement-weight-registry.json](references/engagement-weight-registry.json) for platform-specific interaction behavior weights. Preserve its version in scored output, treat candidate weights as calibration assumptions, and never compare raw engagement or weighted scores across platforms.
 
 In human-facing reports, treat the two scores as grading aids, not as warnings. Show `observed_heat` and `evidence_confidence` with plain-language levels so the user can scan them directly. Keep raw confidence, cap calculations, and cap reasons inside a collapsed score explanation and JSON. Never phrase a confidence cap as though the trend score itself was reduced.
 
@@ -158,6 +189,8 @@ For `business_opportunity`, the existing opportunity-card contract remains suppo
 ```bash
 python scripts/validate_profile_decisions.py --research-context research-context.json --signals scored-signals.json --findings profile-findings.json
 ```
+
+When a topic has reviewed relevant comments, use their validated insights when writing the user task, objection, workaround, decision summary, or next validation action. The shared report generator automatically adds a compact reader-facing comment-evidence block to the matching topic card.
 
 For brand sentiment, label a single run as a current issue snapshot. Never claim that an issue is spreading, rising, falling, or resolved over time without at least two compatible snapshots.
 

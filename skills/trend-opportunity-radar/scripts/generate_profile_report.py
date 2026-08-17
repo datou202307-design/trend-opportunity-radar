@@ -171,7 +171,8 @@ def collection_summary(snapshot: dict[str, Any]) -> dict[str, Any]:
         collection.get("contract_status") == "met"
         and collection.get("stop_reason") in {None, "", "sampling_contract_met"}
     )
-    return {
+    comment_evidence = snapshot.get("comment_evidence") or {}
+    result = {
         "query_count": query_count,
         "observed_result_count": count("observed_result_count", snapshot.get("raw_sample_count")),
         "unique_signal_count": unique,
@@ -180,6 +181,10 @@ def collection_summary(snapshot: dict[str, Any]) -> dict[str, Any]:
         "counter_signal_count": counter,
         "sampling_status": "complete" if complete else "bounded",
     }
+    if comment_evidence.get("status") == "reviewed":
+        result["reviewed_comment_count"] = int(comment_evidence.get("reviewed_count") or 0)
+        result["relevant_comment_count"] = int(comment_evidence.get("relevant_count") or 0)
+    return result
 
 
 def platform_label(platform: Any, language: str) -> str:
@@ -187,6 +192,7 @@ def platform_label(platform: Any, language: str) -> str:
     labels = {
         "x": "X",
         "xiaohongshu": "小红书" if language == "zh-CN" else "Xiaohongshu",
+        "youtube": "YouTube",
     }
     return labels.get(value.casefold(), value)
 
@@ -201,6 +207,8 @@ def collection_summary_text(report: dict[str, Any]) -> str:
     relevant = summary.get("relevant_signal_count")
     details = summary.get("detail_open_count")
     counters = summary.get("counter_signal_count")
+    reviewed_comments = summary.get("reviewed_comment_count")
+    relevant_comments = summary.get("relevant_comment_count")
 
     if zh:
         parts = []
@@ -217,6 +225,11 @@ def collection_summary_text(report: dict[str, Any]) -> str:
             parts.append(f"打开并核验 {details} 条详情")
         if counters is not None:
             parts.append(f"检查 {counters} 条不同意见或相反情况")
+        if reviewed_comments:
+            comment_text = f"审查 {reviewed_comments} 条代表性评论"
+            if relevant_comments is not None:
+                comment_text += f"，其中 {relevant_comments} 条提供了相关用户反馈"
+            parts.append(comment_text)
         basis = "；".join(parts) + "。" if parts else "本轮采集数量保留在研究记录中。"
         status = "标准采样已完成。" if summary.get("sampling_status") == "complete" else "本轮为有限快照，以上数据仍可支持报告中的小范围判断。"
         return basis + status
@@ -235,6 +248,11 @@ def collection_summary_text(report: dict[str, Any]) -> str:
         parts.append(f"{details} detail pages were opened and verified")
     if counters is not None:
         parts.append(f"{counters} counter-signals or differing views were reviewed")
+    if reviewed_comments:
+        comment_text = f"{reviewed_comments} representative comments were reviewed"
+        if relevant_comments is not None:
+            comment_text += f", including {relevant_comments} with relevant user feedback"
+        parts.append(comment_text)
     basis = "; ".join(parts) + ". " if parts else "Collection counts remain available in the research record. "
     status = "The standard sampling requirement was met." if summary.get("sampling_status") == "complete" else "This is a bounded snapshot; the evidence still supports the report's limited decisions."
     return basis + status
@@ -246,6 +264,43 @@ def visible_report_sections(intent: str, section_keys: list[str]) -> list[str]:
     if intent == "brand_sentiment":
         hidden.add("affected_audience")
     return [key for key in section_keys if key not in hidden]
+
+
+def finding_comment_evidence(snapshot: dict[str, Any], topic_key: str) -> dict[str, Any] | None:
+    """Aggregate reviewed comments for one topic without changing trend volume."""
+    analyses: list[tuple[dict[str, Any], dict[str, Any]]] = []
+    for signal in snapshot.get("signals", []):
+        if str(signal.get("topic_key") or "") != topic_key:
+            continue
+        analysis = ((signal.get("platform_facts") or {}).get("comment_analysis") or {})
+        if analysis.get("status") == "reviewed" and int(analysis.get("relevant_count") or 0) > 0:
+            analyses.append((signal, analysis))
+    if not analyses:
+        return None
+    categories: dict[str, int] = {}
+    insights: list[str] = []
+    refs: list[str] = []
+    reviewed = relevant = support = counter = 0
+    for signal, analysis in analyses:
+        reviewed += int(analysis.get("reviewed_count") or 0)
+        relevant += int(analysis.get("relevant_count") or 0)
+        support += int(analysis.get("support_count") or 0)
+        counter += int(analysis.get("counter_count") or 0)
+        for category, count in (analysis.get("category_counts") or {}).items():
+            categories[str(category)] = categories.get(str(category), 0) + int(count)
+        insights.extend(str(item) for item in analysis.get("insights", []) if str(item).strip())
+        if signal.get("canonical_url"):
+            refs.append(str(signal["canonical_url"]))
+    return {
+        "reviewed_count": reviewed,
+        "relevant_count": relevant,
+        "support_count": support,
+        "counter_count": counter,
+        "category_counts": dict(sorted(categories.items())),
+        "insights": list(dict.fromkeys(insights))[:4],
+        "source_refs": list(dict.fromkeys(refs)),
+        "boundary": "Representative comments provide qualitative context and do not increase trend sample volume.",
+    }
 
 
 def follow_up_contract(context: dict[str, Any], findings: list[dict[str, Any]]) -> dict[str, Any]:
@@ -290,9 +345,13 @@ def build_report(context: dict[str, Any], snapshot: dict[str, Any], findings_pay
     findings = []
     for source_finding in findings_payload["findings"]:
         finding = dict(source_finding)
-        summary = finding_score_summary(topics_by_key.get(str(finding.get("topic_key"))))
+        topic_key = str(finding.get("topic_key"))
+        summary = finding_score_summary(topics_by_key.get(topic_key))
         if summary:
             finding["score_summary"] = summary
+        comment_evidence = finding_comment_evidence(snapshot, topic_key)
+        if comment_evidence:
+            finding["comment_evidence"] = comment_evidence
         findings.append(finding)
     finding_topic_keys = {str(item.get("topic_key") or "") for item in findings}
     excluded_topics = []
@@ -367,6 +426,16 @@ def render_markdown(report: dict[str, Any]) -> str:
             ])
             if finding_index == 0:
                 lines.extend(["讨论强度看这个问题在平台上有多明显；可靠度看这项判断有多少证据支撑。" if zh else "Discussion strength shows how visible the issue is on the platform; reliability shows how much evidence supports this finding.", ""])
+        comment_evidence = finding.get("comment_evidence")
+        if comment_evidence:
+            lines.extend([f"#### {'评论中的用户反馈' if zh else 'What users said in comments'}", ""])
+            lines.extend([f"- {item}" for item in comment_evidence["insights"]])
+            note = (
+                f"已审查 {comment_evidence['reviewed_count']} 条代表性评论，其中 {comment_evidence['relevant_count']} 条与本主题相关。评论用于理解用户反馈，不增加趋势样本数。"
+                if zh else
+                f"Reviewed {comment_evidence['reviewed_count']} representative comments; {comment_evidence['relevant_count']} were relevant to this topic. Comments add qualitative context, not trend sample volume."
+            )
+            lines.extend([f"- {note}", ""])
         for key in visible_report_sections(
             report["research_context"]["research_intent"],
             report["research_context"]["report_sections"],
@@ -421,13 +490,23 @@ def render_html(report: dict[str, Any]) -> str:
         score_html = ""
         if scores:
             score_html = f'''<div class="score-row" aria-label="{'评分' if zh else 'Scores'}"><span class="score"><b>{'平台讨论强度' if zh else 'Platform discussion strength'} {html.escape(str(scores['observed_heat']))}/100</b><em>{html.escape(score_level(scores['observed_heat'], lang))}</em></span><span class="score"><b>{'这项判断的可靠度' if zh else 'Reliability of this finding'} {html.escape(str(scores['evidence_confidence']))}/100</b><em>{html.escape(score_level(scores['evidence_confidence'], lang))}</em></span></div>{('<p class="score-help">讨论强度看这个问题在平台上有多明显；可靠度看这项判断有多少证据支撑。</p>' if zh else '<p class="score-help">Discussion strength shows how visible the issue is on the platform; reliability shows how much evidence supports this finding.</p>') if index == 0 else ''}'''
-        findings_html.append(f'''<section class="finding {'secondary' if index else ''}"><div class="finding-head"><div><span class="kicker">{html.escape(ui['why'])}</span><h2>{html.escape(str(finding['title']))}</h2>{score_html}</div><span class="status">{html.escape(visible_status(finding['conclusion_status'], lang))}</span></div><p class="summary">{html.escape(str(finding['decision_summary']))}</p><div class="audience"><b>{'与谁有关' if zh else 'Who this affects'}</b><span>{html.escape(str(finding['audience']))}</span></div><div class="details-grid">{sections}</div><div class="action-title"><span class="kicker">{html.escape(ui['action'])}</span></div><div class="actions">{actions}</div><details class="evidence"><summary>{'查看依据和目前不能确定的部分' if zh else 'View evidence and what remains uncertain'}</summary><p>{html.escape(str(finding['evidence_boundary']))}</p><div class="refs">{_refs(finding['support_refs'], zh, 'support')}{_refs(finding['counter_refs'], zh, 'counter')}</div></details></section>''')
+        comment_evidence = finding.get("comment_evidence")
+        comment_html = ""
+        if comment_evidence:
+            insights = "".join(f"<li>{html.escape(str(item))}</li>" for item in comment_evidence["insights"])
+            note = (
+                f"已审查 {comment_evidence['reviewed_count']} 条代表性评论，其中 {comment_evidence['relevant_count']} 条与本主题相关。评论用于理解用户反馈，不增加趋势样本数。"
+                if zh else
+                f"Reviewed {comment_evidence['reviewed_count']} representative comments; {comment_evidence['relevant_count']} were relevant to this topic. Comments add qualitative context, not trend sample volume."
+            )
+            comment_html = f'''<section class="comment-voice" style="margin-top:14px;padding:14px 16px;border:1px solid #dfe8e4;border-radius:14px;background:#f4fbf8"><b>{'评论中的用户反馈' if zh else 'What users said in comments'}</b><ul>{insights}</ul><p style="margin:6px 0 0;color:#667085;font-size:12px">{html.escape(note)}</p></section>'''
+        findings_html.append(f'''<section class="finding {'secondary' if index else ''}"><div class="finding-head"><div><span class="kicker">{html.escape(ui['why'])}</span><h2>{html.escape(str(finding['title']))}</h2>{score_html}</div><span class="status">{html.escape(visible_status(finding['conclusion_status'], lang))}</span></div><p class="summary">{html.escape(str(finding['decision_summary']))}</p><div class="audience"><b>{'与谁有关' if zh else 'Who this affects'}</b><span>{html.escape(str(finding['audience']))}</span></div>{comment_html}<div class="details-grid">{sections}</div><div class="action-title"><span class="kicker">{html.escape(ui['action'])}</span></div><div class="actions">{actions}</div><details class="evidence"><summary>{'查看依据和目前不能确定的部分' if zh else 'View evidence and what remains uncertain'}</summary><p>{html.escape(str(finding['evidence_boundary']))}</p><div class="refs">{_refs(finding['support_refs'], zh, 'support')}{_refs(finding['counter_refs'], zh, 'counter')}</div></details></section>''')
     follow = report["follow_up_recommendation"]
     payload = html.escape(json.dumps(report, ensure_ascii=False), quote=False)
     return f'''<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(ui['name'])} · {html.escape(subject_name(report))}</title><style>
 :root{{--bg:#f3f5f9;--panel:#fff;--ink:#16202c;--muted:#667085;--line:#e4e8ef;--accent:#5364d9;--accent2:#7a55ca;--soft:#eef0ff;--good:#14775a}}*{{box-sizing:border-box}}body{{margin:0;background:linear-gradient(180deg,#eef1f7 0,#f7f8fa 320px);color:var(--ink);font:15px/1.58 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}}main{{max-width:1120px;margin:auto;padding:28px 22px 64px}}header{{padding:34px;border-radius:26px;color:#fff;background:linear-gradient(135deg,#20274d,#5b4f9c);box-shadow:0 22px 55px #30385d26}}.kicker{{display:block;color:#888fa6;font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}}header .kicker{{color:#cad0ff}}h1{{font-size:clamp(30px,5vw,52px);line-height:1.1;margin:8px 0 16px;max-width:900px}}header p{{color:#e5e7f8;max-width:850px;margin:0}}.answer{{margin:18px 0 0;background:#fff;border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 8px 26px #1520380a}}.answer h2{{margin:6px 0 0;font-size:24px;line-height:1.45}}.basis{{margin-top:12px;padding:14px 18px;border:1px solid #dfe2fa;border-radius:16px;background:#f8f8ff}}.basis p{{margin:5px 0 0;color:#4f586b}}.finding{{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 7px 24px #1520380a}}.finding-head{{display:flex;justify-content:space-between;align-items:start;gap:20px}}.finding h2{{font-size:23px;line-height:1.3;margin:5px 0 0}}.status,.tag{{border-radius:99px;padding:6px 10px;background:#e9f7f1;color:var(--good);font-size:12px;font-weight:700}}.status{{white-space:nowrap}}.tag{{display:inline-block;white-space:normal}}.score-row{{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}}.score{{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid #dfe2fa;border-radius:99px;background:#f8f8ff;font-size:12px}}.score b{{color:#343e9c}}.score em{{color:var(--muted);font-style:normal}}.score-help{{margin:8px 0 0;color:var(--muted);font-size:12px}}.summary{{font-size:18px;max-width:850px}}.audience{{display:flex;gap:12px;padding:12px 14px;border-radius:12px;background:#f7f8fb}}.audience span{{color:var(--muted)}}.details-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}}.detail{{border:1px solid var(--line);border-radius:14px;padding:15px}}.detail span{{font-size:12px;color:var(--accent);font-weight:750}}.detail p{{margin:6px 0 0}}.action-title{{margin-top:23px}}.actions{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:9px}}.action{{min-width:0;border:1px solid #dfe2fa;background:#fafaff;border-radius:16px;padding:16px}}.action h4{{font-size:17px;margin:9px 0 0}}.action p{{color:var(--muted)}}details{{border-top:1px solid var(--line);padding-top:11px;margin-top:13px}}summary{{cursor:pointer;font-weight:700}}dl{{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 10px}}dt{{color:var(--muted)}}dd{{margin:0;overflow-wrap:anywhere}}.refs{{display:flex;flex-wrap:wrap;gap:8px}}.refs a{{text-decoration:none;color:#454eb2;background:var(--soft);padding:6px 9px;border-radius:9px}}.follow{{margin-top:22px;padding:22px;border:1px solid #dbdef8;background:#f8f8ff;border-radius:20px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px}}.follow h2{{margin:5px 0 8px}}.cadence{{display:flex;gap:10px;align-items:center;flex-wrap:wrap}}.cadence b{{font-size:20px}}.prompt{{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;color:var(--muted)}}.audit{{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px}}.muted{{color:var(--muted)}}#raw{{white-space:pre-wrap;max-height:440px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace}}@media(max-width:760px){{.finding-head,.audience{{display:block}}.status{{display:inline-block;margin-top:10px}}.details-grid,.actions,.follow{{grid-template-columns:1fr}}header{{padding:26px}}main{{padding:16px}}}}@media print{{body{{background:#fff}}main{{padding:0}}.finding,.answer,header{{box-shadow:none}}}}
 /* Keep long research subjects readable as interface titles, not billboard copy. */
-h1{{font-size:clamp(30px,4vw,44px);line-height:1.15;overflow-wrap:anywhere}}
+h1{{font-size:clamp(28px,3.8vw,42px);line-height:1.15;overflow-wrap:anywhere}}
 </style></head><body><main><header><span class="kicker">{html.escape(ui['name'])} · {html.escape(str(report['platform']))}</span><h1>{html.escape(subject_name(report))}</h1><p>{html.escape(ui['question'])}</p></header><section class="answer"><span class="kicker">{'直接回答' if zh else 'Decision answer'}</span><h2>{html.escape(str(report['decision_answer']))}</h2></section><section class="basis" aria-label="{'本次研究基础' if zh else 'Research basis'}"><span class="kicker">{'本次研究基础' if zh else 'Research basis'}</span><p>{html.escape(collection_summary_text(report))}</p></section><div aria-label="{html.escape(ui['findings'])}">{''.join(findings_html)}</div><section class="follow"><div><span class="kicker">{'可选的后续检查' if zh else 'Optional follow-up check'}</span><h2>{html.escape(ui['follow_title'])}</h2><p class="muted">{'这能帮助判断信号是否持续。定时任务尚未创建，只有你明确确认后才会设置。' if zh else 'This helps establish whether the signal persists. No scheduled task has been created; it will be set up only after your explicit confirmation.'}</p><div class="cadence"><span>{'首次' if zh else 'First'}</span><b>{html.escape(str(follow['cadence']['initial']))}</b><span>· {follow['cadence']['runs']} {'次' if zh else 'runs'}</span></div></div><details><summary>{'查看下次继续研究时使用的指令' if zh else 'View instructions for the next research run'}</summary><p class="prompt">{html.escape(str(follow['automation_prompt']))}</p></details></section><details class="audit"><summary>{'查看研究方法和原始记录' if zh else 'View research method and source record'}</summary><p class="muted">{'这些信息用于复核，不影响上面的业务阅读顺序。' if zh else 'This information supports audit and does not interrupt the decision flow above.'}</p><pre id="raw">{payload}</pre></details></main></body></html>'''
 
 

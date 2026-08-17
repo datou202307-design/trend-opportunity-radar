@@ -28,6 +28,7 @@ An adapter must not:
 - `capability_key`
 - `search_builder`
 - `detail_builder`
+- optional `comment_builder` and bounded `comment_sample_limit`
 - `search_parser`
 - `detail_runner`
 - `pagination`

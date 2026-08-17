@@ -23,7 +23,13 @@ INTENT_PATTERNS = [
 ]
 PLATFORM_PATTERNS = [
     ("xiaohongshu", [r"小红书", r"\bxiaohongshu\b", r"\bxhs\b"]),
+    ("youtube", [r"\byoutube\b", r"油管"]),
     ("x", [r"(?:^|[，。；、,.!?\s])x(?:上|平台|英语市场|$|[，。；、,.!?\s])", r"\bon\s+x\b", r"\btwitter\b"]),
+]
+MARKET_PATTERNS = [
+    ("英语市场", [r"英语市场", r"英文市场", r"english[- ]speaking market", r"english market"]),
+    ("中国市场", [r"中国市场", r"china market", r"mainland china"]),
+    ("全球市场", [r"全球市场", r"global market", r"worldwide"]),
 ]
 
 
@@ -42,6 +48,12 @@ def infer_intent(prompt: str) -> str | None:
 def infer_platform(prompt: str) -> str | None:
     lowered = prompt.casefold()
     matches = [platform for platform, patterns in PLATFORM_PATTERNS if any(re.search(pattern, lowered, flags=re.IGNORECASE) for pattern in patterns)]
+    return matches[0] if len(set(matches)) == 1 else None
+
+
+def infer_market(prompt: str) -> str | None:
+    lowered = prompt.casefold()
+    matches = [market for market, patterns in MARKET_PATTERNS if any(re.search(pattern, lowered, flags=re.IGNORECASE) for pattern in patterns)]
     return matches[0] if len(set(matches)) == 1 else None
 
 
@@ -98,7 +110,7 @@ def compile_context(prompt: str, *, intent: str = "", platform: str = "", subjec
         "profile_implementation_status": profile["implementation_status"],
         "subject": subject_payload,
         "platform": resolved_platform,
-        "market": None,
+        "market": infer_market(prompt),
         "language": resolved_language,
         "audience": None,
         "decision_question": questions.get(resolved_language) or questions["en"],
