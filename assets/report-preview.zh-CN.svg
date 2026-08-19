@@ -1,0 +1,42 @@
+<svg width="1280" height="620" viewBox="0 0 1280 620" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">趋势机会雷达合成报告示例</title>
+  <desc id="desc">使用合成数据展示研究报告中的直接回答、采集数量、机会建议、证据依据、反例和下一步验证动作。</desc>
+  <defs>
+    <linearGradient id="page" x1="40" y1="25" x2="1240" y2="600" gradientUnits="userSpaceOnUse"><stop stop-color="#EEF4F7"/><stop offset="1" stop-color="#F8FAFC"/></linearGradient>
+    <linearGradient id="head" x1="40" y1="60" x2="1210" y2="175" gradientUnits="userSpaceOnUse"><stop stop-color="#10283A"/><stop offset="1" stop-color="#0F514C"/></linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="130%"><feDropShadow dx="0" dy="10" stdDeviation="16" flood-color="#0F172A" flood-opacity=".16"/></filter>
+    <style>.sans{font-family:"Microsoft YaHei","Noto Sans SC","PingFang SC",sans-serif}.small{font-size:11px;fill:#64748B}.label{font-size:10px;font-weight:700;letter-spacing:.8px}.body{font-size:13px;fill:#334155}.strong{font-weight:700;fill:#122B39}</style>
+  </defs>
+  <rect width="1280" height="620" rx="32" fill="#071723"/>
+  <g transform="translate(28 24)" filter="url(#shadow)" class="sans">
+    <rect width="1224" height="568" rx="22" fill="url(#page)"/><rect width="1224" height="38" rx="22" fill="#DDE7EB"/><rect y="20" width="1224" height="18" fill="#DDE7EB"/>
+    <circle cx="22" cy="19" r="5" fill="#FB7185"/><circle cx="39" cy="19" r="5" fill="#FBBF24"/><circle cx="56" cy="19" r="5" fill="#34D399"/><rect x="434" y="10" width="356" height="18" rx="9" fill="#F8FAFC"/><text x="612" y="23" text-anchor="middle" fill="#82939B" font-size="9">本地 HTML 报告 · 合成示例</text>
+
+    <g transform="translate(20 54)">
+      <rect width="1184" height="112" rx="18" fill="url(#head)"/>
+      <rect x="22" y="18" width="126" height="24" rx="12" fill="#123D4A" stroke="#5EEAD4" stroke-opacity=".7"/><text x="85" y="34" text-anchor="middle" fill="#A5F3FC" class="label">合成示例 · 非实时数据</text>
+      <text x="22" y="72" fill="#F8FAFC" font-size="24" font-weight="750">帮助小网店处理重复售后问题的 AI 助手</text><text x="22" y="96" fill="#A9D5D8" font-size="12">产品需求验证 · X 平台 · 标准研究</text>
+      <g transform="translate(790 20)"><rect width="86" height="64" rx="12" fill="#F8FAFC" fill-opacity=".1"/><text x="14" y="23" fill="#A9D5D8" font-size="9">观察结果</text><text x="14" y="49" fill="#F8FAFC" font-size="22" font-weight="750">78</text><rect x="96" width="86" height="64" rx="12" fill="#F8FAFC" fill-opacity=".1"/><text x="110" y="23" fill="#A9D5D8" font-size="9">去重信号</text><text x="110" y="49" fill="#F8FAFC" font-size="22" font-weight="750">41</text><rect x="192" width="86" height="64" rx="12" fill="#F8FAFC" fill-opacity=".1"/><text x="206" y="23" fill="#A9D5D8" font-size="9">打开原文</text><text x="206" y="49" fill="#F8FAFC" font-size="22" font-weight="750">15</text><rect x="288" width="86" height="64" rx="12" fill="#F8FAFC" fill-opacity=".1"/><text x="302" y="23" fill="#A9D5D8" font-size="9">反例</text><text x="302" y="49" fill="#F8FAFC" font-size="22" font-weight="750">4</text></g>
+    </g>
+
+    <g transform="translate(20 182)">
+      <rect width="1184" height="82" rx="16" fill="#FFFFFF" stroke="#D8E3E8"/><text x="20" y="26" fill="#0F766E" class="label">直接回答</text><text x="20" y="55" fill="#122B39" font-size="19" font-weight="750">先验证“整理高频问题并生成回复草稿”，不要一开始做全自动客服。</text><rect x="1014" y="21" width="144" height="36" rx="18" fill="#DCFCE7"/><circle cx="1034" cy="39" r="6" fill="#22C55E"/><text x="1050" y="44" fill="#166534" font-size="11" font-weight="700">值得先验证</text>
+    </g>
+
+    <g transform="translate(20 280)">
+      <rect width="742" height="260" rx="18" fill="#FFFFFF" stroke="#D8E3E8"/><text x="20" y="28" fill="#64748B" class="label">机会 01</text><text x="20" y="59" class="strong" font-size="20">先帮客服把重复问题变成可确认的回复草稿</text>
+      <rect x="20" y="78" width="702" height="50" rx="12" fill="#EFFAF7"/><text x="34" y="99" fill="#0F766E" font-size="10" font-weight="700">适合谁</text><text x="95" y="100" class="body">每天反复处理物流、退款和使用问题的小型网店团队</text><text x="34" y="117" fill="#0F766E" font-size="10" font-weight="700">为什么</text><text x="95" y="118" class="body">重复提问和复制回复同时出现，但用户仍担心自动回复出错</text>
+      <text x="20" y="156" fill="#64748B" class="label">研究依据</text><rect x="20" y="168" width="112" height="28" rx="14" fill="#E0F2FE"/><text x="76" y="186" text-anchor="middle" fill="#075985" font-size="10">反复出现的问题</text><rect x="140" y="168" width="112" height="28" rx="14" fill="#FEF3C7"/><text x="196" y="186" text-anchor="middle" fill="#92400E" font-size="10">人工复制回复</text><rect x="260" y="168" width="112" height="28" rx="14" fill="#FEE2E2"/><text x="316" y="186" text-anchor="middle" fill="#991B1B" font-size="10">担心答错</text>
+      <text x="20" y="225" fill="#64748B" class="label">下一步验证</text><text x="20" y="248" class="body">邀请 5 家目标店铺试用一周，观察回复准备时间和人工改写比例。</text>
+    </g>
+
+    <g transform="translate(780 280)">
+      <rect width="424" height="260" rx="18" fill="#FFFFFF" stroke="#D8E3E8"/><text x="20" y="28" fill="#64748B" class="label">行动建议</text>
+      <g transform="translate(20 44)"><circle cx="10" cy="10" r="10" fill="#14B8A6"/><text x="10" y="14" text-anchor="middle" fill="white" font-size="10" font-weight="700">1</text><text x="32" y="8" class="strong" font-size="13">现在先做</text><text x="32" y="26" class="body">回复草稿，不自动发送</text></g>
+      <g transform="translate(20 99)"><circle cx="10" cy="10" r="10" fill="#38BDF8"/><text x="10" y="14" text-anchor="middle" fill="white" font-size="10" font-weight="700">2</text><text x="32" y="8" class="strong" font-size="13">接着验证</text><text x="32" y="26" class="body">哪些问题最常被人工修改</text></g>
+      <g transform="translate(20 154)"><circle cx="10" cy="10" r="10" fill="#FBBF24"/><text x="10" y="14" text-anchor="middle" fill="white" font-size="10" font-weight="700">3</text><text x="32" y="8" class="strong" font-size="13">停止条件</text><text x="32" y="26" class="body">多数草稿仍需大幅重写</text></g>
+      <rect x="20" y="205" width="384" height="38" rx="11" fill="#FFF7E6"/><text x="34" y="229" fill="#8A5A12" font-size="11"><tspan font-weight="700">反例：</tspan>现成模板已能满足部分低频店铺。</text>
+    </g>
+    <text x="612" y="560" text-anchor="middle" fill="#7B8F99" font-size="10">所有名称、数量和结论均为合成示例，只用于展示报告结构。</text>
+  </g>
+</svg>
