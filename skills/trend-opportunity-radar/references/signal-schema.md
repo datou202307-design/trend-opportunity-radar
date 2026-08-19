@@ -57,6 +57,8 @@ Use one platform per snapshot. Read [sampling-contract.md](sampling-contract.md)
         "comparison_count": null
       },
       "platform_facts": {
+        "reddit_score": "Reddit net score when supplied; never map to likes",
+        "upvote_ratio": "Reddit ratio from 0 to 1 when supplied",
         "representative_comments": [
           {
             "author_name": "public display name or empty",

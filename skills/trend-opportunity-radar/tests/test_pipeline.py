@@ -171,6 +171,8 @@ An entertainment interview translation thread.
             }]})
             run_script("apply_semantic_review.py", "--extraction", str(extraction), "--review", str(review),
                        "--output", str(self.root / f"{query_id}-reviewed-extraction.json"), "--audit-ledger", str(ledger))
+            reviewed = json.loads((self.root / f"{query_id}-reviewed-extraction.json").read_text(encoding="utf-8"))
+            self.assertEqual(reviewed["query_id"], query_id)
         entries = json.loads(ledger.read_text(encoding="utf-8"))["entries"]
         self.assertEqual([item["query_id"] for item in entries], ["baseline-1", "category-1"])
         self.assertEqual(len({item["review"] for item in entries}), 2)
@@ -197,7 +199,7 @@ An entertainment interview translation thread.
         signal = self.make_signal(1600)
         signal["semantic_relevance"] = "weak"
         query = self.write("yield-query.json", {
-            "query_term": "broad phrase", "query_layer": "category", "observed_result_count": 20,
+            "query_term": "broad phrase", "query_layer": "category", "query_intent": "task", "observed_result_count": 20,
             "signals": [signal], "detail_open_count": 0, "relevant_signal_count": 0,
             "retention_rate": 0.05, "relevant_yield_rate": 0.0, "low_yield": True,
         })
@@ -208,6 +210,7 @@ An entertainment interview translation thread.
         self.assertEqual(run["relevant_signal_count"], 0)
         self.assertEqual(run["relevant_yield_rate"], 0.0)
         self.assertTrue(run["low_yield"])
+        self.assertEqual(run["query_intent"], "task")
 
     def test_report_validator_rejects_run_local_repair_scripts(self) -> None:
         (self.root / "sanitize_signals.py").write_text("# one-off repair", encoding="utf-8")
@@ -296,6 +299,19 @@ An entertainment interview translation thread.
         )
         self.assertEqual(normalized["signal_id"], "tiktok-1234567890")
 
+    def test_normalization_preserves_explicit_semantic_review_audit(self) -> None:
+        review = {"status": "agent_reviewed", "reason": "Matches the research question."}
+        normalized = common.normalize_signal(
+            {
+                "platform": "reddit", "content_id": "abc123",
+                "canonical_url": "https://reddit.com/r/travel/comments/abc123/example/",
+                "semantic_relevance": "direct", "semantic_review": review,
+                "evidence_role": "support", "topic_key": "shared-planning",
+            },
+            "reddit", "authorized_api", self.now.isoformat(),
+        )
+        self.assertEqual(normalized["semantic_review"], review)
+
     def test_normalization_removes_isolated_replacement_character_and_records_boundary(self) -> None:
         normalized = common.normalize_signal(
             {
@@ -372,6 +388,26 @@ An entertainment interview translation thread.
         collection = common.normalize_collection(raw, 30, 30, signals)
         self.assertEqual(collection["contract_status"], "blocked")
 
+    def test_reviewed_ledger_can_close_explicit_search_checkpoint(self) -> None:
+        signals = [self.make_signal(index, "counter" if index < 3 else "support") for index in range(30)]
+        for index, signal in enumerate(signals):
+            signal["dedupe_hash"] = f"hash-{index}"
+        raw = {
+            "collection": {
+                "mode": "standard", "stop_reason": "search_collection_complete",
+                "query_runs": [{
+                    "query_term": f"q-{index}",
+                    "query_layer": ["platform_baseline", "category", "subject_bridge"][index % 3],
+                    "observed_result_count": 10,
+                } for index in range(6)],
+                "counts": {"query_count": 6, "observed_result_count": 60},
+            }
+        }
+        collection = common.normalize_collection(raw, 30, 30, signals)
+        self.assertTrue(all(collection["contract_checks"].values()))
+        self.assertEqual(collection["contract_status"], "met")
+        self.assertEqual(collection["stop_reason"], "sampling_contract_met")
+
     def test_report_validator_rejects_met_report_with_blocked_state(self) -> None:
         report = {"collection": {"contract_status": "met", "stop_reason": "sampling_contract_unmet:detail_opens", "counts": {}}}
         with self.assertRaises(SystemExit):
@@ -423,6 +459,46 @@ An entertainment interview translation thread.
             "counts": {"detail_open_count": 1, "counter_signal_count": 0},
         }}
         report_validator.validate_collection_state_consistency(report, self.root)
+
+    def test_report_validator_accepts_audited_append_only_detail_enrichment(self) -> None:
+        raw_signal = {
+            "platform": "reddit", "content_id": "post-1", "detail_captured": False,
+            "semantic_relevance": "direct", "semantic_review": {"status": "reviewed"},
+            "evidence_role": "support", "topic_key": "topic-a",
+        }
+        self.write("raw-signals.json", {
+            "platform": "reddit",
+            "collection": {"counts": {"detail_open_count": 0, "counter_signal_count": 0}, "stop_reason": "sampling_contract_unmet:detail_opens"},
+            "signals": [raw_signal],
+        })
+        reviewed_signal = dict(raw_signal, detail_captured=True, detail_access="direct_post")
+        self.write("scored-signals.json", {
+            "platform": "reddit",
+            "collection": {"counts": {"detail_open_count": 1, "counter_signal_count": 0}, "stop_reason": "sampling_contract_unmet:detail_opens"},
+            "signals": [reviewed_signal],
+        })
+        report = {"platform": "reddit", "collection": {
+            "contract_status": "blocked", "stop_reason": "sampling_contract_unmet:detail_opens",
+            "counts": {"detail_open_count": 1, "counter_signal_count": 0},
+            "detail_backfills": [{"success": True, "detail_open_count": 1, "content_ids": ["post-1"]}],
+        }}
+        report_validator.validate_collection_state_consistency(report, self.root)
+
+    def test_report_validator_rejects_unaudited_append_only_detail_enrichment(self) -> None:
+        raw_signal = {"platform": "reddit", "content_id": "post-1", "detail_captured": False}
+        self.write("raw-signals.json", {
+            "platform": "reddit", "collection": {"counts": {"detail_open_count": 0, "counter_signal_count": 0}},
+            "signals": [raw_signal],
+        })
+        self.write("scored-signals.json", {
+            "platform": "reddit", "collection": {"counts": {"detail_open_count": 1, "counter_signal_count": 0}},
+            "signals": [dict(raw_signal, detail_captured=True, semantic_relevance="direct", semantic_review={"status": "reviewed"}, evidence_role="support", topic_key="topic-a")],
+        })
+        report = {"platform": "reddit", "collection": {
+            "contract_status": "blocked", "counts": {"detail_open_count": 1, "counter_signal_count": 0}, "detail_backfills": [],
+        }}
+        with self.assertRaises(SystemExit):
+            report_validator.validate_collection_state_consistency(report, self.root)
 
     def test_report_validator_rejects_overlapping_support_and_counter_refs(self) -> None:
         report = {

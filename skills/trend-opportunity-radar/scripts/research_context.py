@@ -23,6 +23,7 @@ INTENT_PATTERNS = [
 ]
 PLATFORM_PATTERNS = [
     ("xiaohongshu", [r"小红书", r"\bxiaohongshu\b", r"\bxhs\b"]),
+    ("reddit", [r"\breddit\b", r"红迪"]),
     ("youtube", [r"\byoutube\b", r"油管"]),
     ("tiktok", [r"\btik[ -]?tok\b", r"国际抖音"]),
     ("douyin", [r"抖音", r"\bdouyin\b"]),

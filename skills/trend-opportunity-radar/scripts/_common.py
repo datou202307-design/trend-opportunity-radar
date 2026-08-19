@@ -247,6 +247,8 @@ def normalize_platform(value: Any) -> str:
         "小红书": "xiaohongshu", "rednote": "xiaohongshu", "red": "xiaohongshu", "xhs": "xiaohongshu",
         "twitter": "x", "推特": "x", "抖音": "douyin", "tiktok": "tiktok", "tik tok": "tiktok", "国际抖音": "tiktok",
         "yt": "youtube", "油管": "youtube",
+        "reddit": "reddit",
+        "instagram": "instagram", "ins": "instagram",
         "视频号": "wechat_channels", "wechat channels": "wechat_channels",
     }
     return aliases.get(text, re.sub(r"[^a-z0-9_\-\u4e00-\u9fff]+", "_", text).strip("_"))
@@ -355,6 +357,9 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
         "evidence_role": role if role in {"support", "counter", "neutral"} else "neutral",
         "profile_evidence_role": as_text(first(row, "profile_evidence_role", "profileEvidenceRole")),
         "detail_captured": detail_captured,
+        "detail_access": row.get("detail_access") if isinstance(row.get("detail_access"), dict) else {},
+        "detail_source_mode": as_text(first(row, "detail_source_mode", "detailSourceMode")),
+        "detail_text_kind": as_text(first(row, "detail_text_kind", "detailTextKind")),
         "content_id": content_id,
         "canonical_url": url,
         "query_term": as_text(first(row, "query_term", "queryTerm", "query", "keyword")),
@@ -365,6 +370,7 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
         "semantic_relevance": as_text(first(row, "semantic_relevance", "semanticRelevance")).lower()
         if as_text(first(row, "semantic_relevance", "semanticRelevance")).lower() in {"direct", "adjacent", "weak"}
         else "unreviewed",
+        "semantic_review": row.get("semantic_review") if isinstance(row.get("semantic_review"), dict) else {},
         "topic_key": as_text(first(row, "topic_key", "topicKey")),
         "title": title,
         "summary": summary,
@@ -672,6 +678,11 @@ def normalize_collection(raw: Any, retained_count: int, unique_count: int, signa
         ) >= contract["relevance_review_coverage_min"],
     })
     stop_reason = as_text(source.get("stop_reason"))
+    # Search-card acquisition may finish before semantic review and controlled
+    # detail backfill.  That checkpoint is intentionally not a sampling claim,
+    # but a reviewed derived ledger may close it once every contract check passes.
+    if stop_reason == "search_collection_complete" and all(minimums.values()):
+        stop_reason = "sampling_contract_met"
     status = (
         "untracked" if not tracked
         else "in_progress" if stop_reason == "collection_in_progress"

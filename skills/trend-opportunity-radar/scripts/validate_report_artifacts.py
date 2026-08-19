@@ -15,6 +15,7 @@ from append_collection_result import signal_key
 RAW_PATTERNS = (
     re.compile(r'<pre id=["\']raw["\']>(.*?)</pre>', re.DOTALL),
     re.compile(r'<script type=["\']application/json["\'] id=["\']comparison-data["\']>(.*?)</script>', re.DOTALL),
+    re.compile(r'<script id=["\']report-data["\'] type=["\']application/json["\']>(.*?)</script>', re.DOTALL),
 )
 FORBIDDEN_RUN_REPAIRS = {
     "extract_x_capture.py", "sanitize_signals.py", "dedupe_audit_execution.py",
@@ -100,20 +101,78 @@ def validate_collection_state_consistency(result: dict[str, Any], base: Path) ->
             if isinstance(item, dict) and item.get("detail_captured")
         })
         stored_raw_details = int(raw_counts.get("detail_open_count") or 0)
-        report_details = int((collection.get("counts") or {}).get("detail_open_count") or 0)
-        if stored_raw_details != raw_detail_count or report_details != raw_detail_count:
-            raise SystemExit("Raw ledger and report disagree on successful detail capture count.")
+        if stored_raw_details != raw_detail_count:
+            raise SystemExit("Raw acquisition ledger is internally inconsistent on successful detail capture count.")
         actual_counters = len({
             signal_key(item, platform)
             for item in raw_signals
             if isinstance(item, dict) and item.get("evidence_role") == "counter"
         })
         stored_counters = int(raw_counts.get("counter_signal_count") or 0)
+        if stored_counters != actual_counters:
+            raise SystemExit("Raw acquisition ledger is internally inconsistent on counter-signal count.")
+
+        # Acquisition evidence is immutable. Semantic review and controlled detail
+        # backfills are append-only enrichments, so compare the report with the
+        # latest scored ledger when it exists instead of forcing raw-signals.json
+        # to be rewritten after collection.
+        derived_path = base / "scored-signals.json"
+        derived = load_data(str(derived_path)) if derived_path.is_file() else raw
+        derived_collection = (derived.get("collection") or {}) if isinstance(derived, dict) else {}
+        derived_signals = derived.get("signals") or [] if isinstance(derived, dict) else []
+        derived_platform = str(derived.get("platform") or platform) if isinstance(derived, dict) else platform
+        derived_detail_keys = {
+            signal_key(item, derived_platform)
+            for item in derived_signals
+            if isinstance(item, dict) and item.get("detail_captured")
+        }
+        derived_counters = {
+            signal_key(item, derived_platform)
+            for item in derived_signals
+            if isinstance(item, dict) and item.get("evidence_role") == "counter"
+        }
+        report_details = int((collection.get("counts") or {}).get("detail_open_count") or 0)
         report_counters = int((collection.get("counts") or {}).get("counter_signal_count") or 0)
-        if stored_counters != actual_counters or report_counters != actual_counters:
-            raise SystemExit("Raw ledger and report disagree on counter-signal count.")
+        if report_details != len(derived_detail_keys):
+            raise SystemExit("Reviewed ledger and report disagree on successful detail capture count.")
+        if report_counters != len(derived_counters):
+            raise SystemExit("Reviewed ledger and report disagree on counter-signal count.")
+
+        raw_detail_keys = {
+            signal_key(item, platform)
+            for item in raw_signals
+            if isinstance(item, dict) and item.get("detail_captured")
+        }
+        appended_detail_keys = derived_detail_keys - raw_detail_keys
+        if appended_detail_keys:
+            successful_audits = [
+                audit for audit in (collection.get("detail_backfills") or [])
+                if isinstance(audit, dict) and audit.get("success")
+            ]
+            if not successful_audits:
+                raise SystemExit("Reviewed ledger contains appended details without a successful backfill audit.")
+            audited_ids = {
+                str(content_id)
+                for audit in successful_audits
+                for content_id in (audit.get("content_ids") or [])
+                if str(content_id)
+            }
+            appended_ids = {
+                str(item.get("content_id"))
+                for item in derived_signals
+                if isinstance(item, dict)
+                and item.get("detail_captured")
+                and signal_key(item, derived_platform) in appended_detail_keys
+                and item.get("content_id")
+            }
+            if audited_ids and not appended_ids.issubset(audited_ids):
+                raise SystemExit("Reviewed ledger contains detail IDs missing from successful backfill audits.")
+            audited_count = sum(int(audit.get("detail_open_count") or 0) for audit in successful_audits)
+            if not audited_ids and audited_count < len(appended_detail_keys):
+                raise SystemExit("Successful backfill audits do not cover every appended detail.")
+
         invalid_details = [
-            item for item in raw_signals
+            item for item in derived_signals
             if isinstance(item, dict) and item.get("detail_captured") and (
                 not item.get("evidence_role")
                 or not item.get("semantic_review")
@@ -122,8 +181,9 @@ def validate_collection_state_consistency(result: dict[str, Any], base: Path) ->
         ]
         if invalid_details:
             raise SystemExit("Detail backfill lost semantic review, evidence role, or topic assignment.")
-        if report_status == "met" and raw_stop != "sampling_contract_met":
-            raise SystemExit("Raw ledger remains blocked while the report claims sampling met.")
+        effective_stop = str(derived_collection.get("stop_reason") or raw_stop)
+        if report_status == "met" and effective_stop != "sampling_contract_met":
+            raise SystemExit("Reviewed ledger remains blocked while the report claims sampling met.")
 
     state_path = base / "collection-state.json"
     if state_path.is_file():

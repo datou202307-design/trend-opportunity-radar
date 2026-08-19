@@ -27,6 +27,8 @@ An adapter must not:
 
 - `capability_key`
 - `research_scopes`
+
+An account-scoped browser capture may use a frozen request/record workflow instead of a shell search command. The adapter still declares a builder identifier so routing is explicit, but the generic collection executor must not imitate topic queries. Instagram uses `instagram_account_capture_v1`, which is executed only through `run_instagram_account_capture.py` after a compatible browser controller returns the bounded read-only capture.
 - `search_builder`
 - `detail_builder`
 - optional `comment_builder` and bounded `comment_sample_limit`
@@ -37,6 +39,8 @@ An adapter must not:
 - `safety_stops`
 
 Use `null` only when an operation is intentionally unsupported. Wildcard platform support is allowed only for non-live adapters such as structured import.
+
+An adapter backed by a generic external tool surface must also enforce an explicit operation allowlist. Write-like operations and unrelated stateful features remain denied even when the upstream server advertises them. Readiness proves only that the required operation schemas were discovered; it does not prove collection volume, pagination exhaustion, comment bounds, or release acceptance.
 
 Select an adapter by platform and research scope. Select `validated` scopes by default. Select a `pilot` scope only during an explicit development run; never let a normal public invocation opt into it silently. The selected search adapter may name a separately preflighted detail adapter when the preferred search adapter intentionally lacks detail capability. Freeze both identities; do not let a detail enhancer substitute for an unsupported search reader. Account discovery, a known-account feed, a personalized recommendation feed, and topic search are not interchangeable capabilities.
 

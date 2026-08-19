@@ -26,6 +26,7 @@ def select_adapter(platform: str, statuses: list[dict[str, Any]], research_scope
     rejected: list[dict[str, str]] = []
     selected = ""
     selected_status: dict[str, Any] = {}
+    selected_source_mode = ""
     scope_allowed = scope_status == "validated" or (scope_status == "pilot" and allow_pilot)
     for adapter in preference if scope_allowed else []:
         status = by_adapter.get(adapter)
@@ -44,6 +45,7 @@ def select_adapter(platform: str, statuses: list[dict[str, Any]], research_scope
             continue
         selected = adapter
         selected_status = status
+        selected_source_mode = str(capability.get("source_mode") or "")
         break
     detail_adapter = ""
     detail_status: dict[str, Any] = {}
@@ -67,7 +69,7 @@ def select_adapter(platform: str, statuses: list[dict[str, Any]], research_scope
         "release_status": scope_status,
         "adapter": selected,
         "selected_adapter": selected,
-        "source_mode": "controlled_capture" if selected else "",
+        "source_mode": selected_source_mode,
         "ready": bool(selected),
         "status": "ready" if selected else ("research_scope_not_live_supported" if not scope_allowed else "no_ready_controlled_capture_adapter"),
         "preference": preference,

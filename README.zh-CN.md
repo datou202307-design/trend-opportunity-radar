@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/releases"><img alt="发布版本" src="https://img.shields.io/github/v/release/datou202307-design/trend-opportunity-radar?include_prereleases&style=flat-square&label=release"></a>
   <img alt="5 个决策模式" src="https://img.shields.io/badge/decision_profiles-5-14b8a6?style=flat-square">
-  <img alt="平台：X、小红书、YouTube 和 TikTok Beta" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu_%2B_YouTube_%2B_TikTok_Beta-0f766e?style=flat-square">
+  <img alt="平台：X、小红书、YouTube、Reddit 和 TikTok Beta" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu_%2B_YouTube_%2B_Reddit_%2B_TikTok_Beta-0f766e?style=flat-square">
   <img alt="输出：HTML、Markdown 和 JSON" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
   <a href="LICENSE"><img alt="MIT 许可证" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square"></a>
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/datou202307-design/trend-opportunity-radar?style=flat-square"></a>
@@ -23,14 +23,14 @@
 
 这是一个独立、去品牌化的 Agent Skill，用于在单个平台上围绕一个研究主题完成有证据边界的趋势机会研究。
 
-当前状态：**v0.9.0 candidate**。它是一套受约束的平台研究工作流，不是爆款、流量、需求或收入预测系统。候选版支持在 X、小红书和 YouTube 上使用五种决策模式，并为用户授权且已登录的 Chrome 会话提供需显式启用的 TikTok 主题研究 Beta。OpenCLI 只读采集及 DokoBot 渲染页面核验或回退，仅在当前环境通过能力探测时使用。
+当前状态：**v0.9.1 candidate**。它是一套受约束的平台研究工作流，不是爆款、流量、需求或收入预测系统。候选版支持在 X、小红书、YouTube 和 Reddit 上使用五种决策模式，并为用户授权且已登录的浏览器会话提供需显式启用的 TikTok 主题研究 Beta，以及相互隔离的 Instagram 账号/Hashtag 试点。Reddit 实时研究需要用户连接第三方 MCP 服务，且当前禁用评论树读取。OpenCLI 只读采集及 DokoBot 渲染页面核验或回退，仅在当前环境通过能力探测时使用。
 
 ## 它能做什么
 
 - 接受产品、商机、想法、用户问题、受众需求或项目作为研究主题。
 - 支持五类决策目标：发现商业机会、监测品牌舆情、研究竞品用户、寻找内容机会和验证产品需求。
 - 把简短自然语言请求编译成带版本的研究上下文，用户无需填写内部证据角色或采样门槛。
-- 每次只分析一个平台，包括 X、小红书、YouTube、显式启用的 TikTok Beta 及符合适配器契约的其他平台。
+- 每次只分析一个平台，包括 X、小红书、YouTube、Reddit、显式启用的 TikTok Beta 及符合适配器契约的其他平台。
 - 导入用户提供的数据，或采集已授权的只读浏览器和 API 信号。
 - 规范化证据、来源链接、采集时间、指标和局限。
 - 使用明确的快速、标准和深度采样契约，并保留采集账本。
@@ -107,11 +107,15 @@ Chrome、OpenCLI、DokoBot 或等效受控浏览器均为可选项。适配器�
 
 在 YouTube 上，已验证路径覆盖有限搜索、视频详情补充和单独发起的有限评论读取。每个符合条件的视频最多保留 10 条代表性评论；字幕只在需要核验视频主张时打开。支持某个平台不代表评论、字幕或当前浏览器登录状态一定可用，每次运行仍必须先通过本次只读能力探测。
 
+在 Reddit 上，已验证路径使用用户连接的第三方 MCP 服务完成有限社区发现和顺序主题搜索，再打开选定的公开帖子永久链接进行可审计详情核验。只允许 `discover_subreddits`、`search_subreddit` 和 `fetch_posts`；评论树与 Feed 操作保持禁用。服务会收到研究查询词和社区名称，返回数量少于请求上限也不能解释为 Reddit 已被穷尽。
+
 ### 可选视频证据运行时
 
 TikTok 等视频信息流可使用试验性的 `video-evidence-contract-v0.1`：搜索适配器负责发现和去重，独立视频解析层负责原生字幕、本地 ASR、关键帧和画面 OCR。各通道分别标记来源，不把机器转写或 OCR 写成平台事实。
 
 TikTok 主题研究 Beta 只在明确启用、用户授权且已经登录的 Chrome 会话中可用。OpenCLI 负责有限主题搜索，另行通过预检的 DokoBot 浏览器会话补充代表内容详情；若目标详情已核对但 DokoBot 没有返回评论正文，内置的两段式记录器会先冻结唯一目标，再让可用的 Chrome 控制适配器只展开一次该目标的评论入口。记录器会核对请求哈希、内容 ID、作者路径、数量上限和无写操作声明，全部通过后才合并最多 5 条真实可见顶层评论。页面评论总数与实际采集正文数量分开，评论补充失败不阻断已经完成的搜索与详情报告。
+
+Instagram 当前有两个相互隔离的实验试点。已知账号研究最多保留 12 条近期内容永久链接、打开 6 条详情，并为每个详情保存最多 5 条可见顶层评论；主题研究只使用显式冻结的 Hashtag 结果页，每次有限读取最多保留 24 条永久链接并顺序打开 6 条详情。平台显示的 Hashtag 帖子总量只作为内容供给规模提示，不能算作实际采样量或搜索需求。账号搜索、个性化 Explore、通用 Reels 流、Followers 和 Following 均不得作为主题或受众证据。两个记录器都会拒绝请求、身份、数量上限、凭据、关注关系或无写操作声明不匹配的捕获，且不会打包浏览器会话。
 
 参考 Runner 可配合固定版本的 [mcp-video-analyzer](https://github.com/guimatheus92/mcp-video-analyzer)、[yt-dlp](https://github.com/yt-dlp/yt-dlp) 和可选的本地 [whisper-ctranslate2](https://github.com/Softcatala/whisper-ctranslate2) 使用。这些依赖均不随仓库分发。先运行 `scripts/check_video_evidence_runtime.py`；Windows 建议使用隔离目录中的固定本地入口，不要在每条视频上重复执行临时 `npx` 安装。
 
@@ -134,7 +138,7 @@ Beta 默认只接受公开或明确授权的单条视频 URL，最大并发为 1
 
 ## 第三方兼容性
 
-DokoBot、OpenCLI、Chrome、mcp-video-analyzer、yt-dlp、whisper-ctranslate2、X、小红书、YouTube 和 TikTok 都是可选的第三方工具或平台，不随本仓库分发。名称仅用于说明兼容或试验目标，不代表关联、背书、账号访问或授权。只在具有合法访问权限并遵守适用条款时使用相应集成。
+DokoBot、OpenCLI、Chrome、mcp-video-analyzer、yt-dlp、whisper-ctranslate2、X、小红书、YouTube、TikTok 和 Instagram 都是可选的第三方工具或平台，不随本仓库分发。名称仅用于说明兼容或试验目标，不代表关联、背书、账号访问或授权。只在具有合法访问权限并遵守适用条款时使用相应集成。
 
 ## 仓库结构
 

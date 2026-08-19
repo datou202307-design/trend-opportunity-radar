@@ -26,6 +26,15 @@ class DecisionProfilesM3Test(unittest.TestCase):
             subject={"name": "测试主题", "subject_type": "idea", "summary": "跨模式测试"},
         )
 
+    def test_reddit_platform_is_inferred_from_a_clear_chinese_request(self) -> None:
+        context = research_context.compile_context(
+            "分析面向忙碌家庭的 AI 膳食规划工具在 Reddit 英语社区的产品需求。",
+            subject={"name": "AI 家庭膳食规划", "subject_type": "idea", "summary": "产品需求测试"},
+        )
+        self.assertEqual(context["status"], "ready")
+        self.assertEqual(context["platform"], "reddit")
+        self.assertEqual(context["research_intent"], "product_demand")
+
     def finding(self, context: dict, *, temporal_claim: str = "current_snapshot", snapshots: int = 1) -> dict:
         required_sections = context["report_sections"]
         action_fields = context["action_contract"]["required_fields"]
