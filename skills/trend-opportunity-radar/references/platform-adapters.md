@@ -8,6 +8,12 @@ Choose the strongest lawful source available. Preserve the selected source mode 
 
 Use an official platform or licensed provider API. Read credentials only from the local environment or the platform's secure authorization flow. Set request, page, sample, cost, and timeout limits. Record rate-limit state and raw snapshot hashes without credentials.
 
+For validated third-party Reddit topic research, read [reddit-mcp-adapter.md](reddit-mcp-adapter.md). Require a user-connected MCP service for live collection. Enforce its read-only operation allowlist, keep comments disabled, and preserve the lack of pagination-exhaustion proof.
+
+For the Instagram known-account pilot, read [instagram-account-adapter.md](instagram-account-adapter.md). It supports only a user-supplied public account under `account_research`. Use a user-authorized logged-in browser to retain canonical `/p/` or `/reel/` links and bounded public details. OpenCLI is auxiliary because its current recent-post output omits stable post URLs. Never collect Followers/Following or package session state.
+
+For validated Instagram `topic_research`, read [instagram-hashtag-topic-adapter.md](instagram-hashtag-topic-adapter.md). It supports only explicit hashtag result surfaces. Freeze each hashtag and query layer before browser work, retain bounded canonical links, open details sequentially, preserve repeatability diagnostics, and merge all three standard query layers before review. Never substitute account search, personalized Explore, or the generic Reels feed for a frozen topic query. Instagram `account_research` remains a separate pilot.
+
 ## Customer export
 
 Accept JSON or CSV exported by the user. Preserve the original file and import time. Do not label an export as live data. Normalize column aliases with `normalize_signals.py`.

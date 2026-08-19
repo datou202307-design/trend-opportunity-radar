@@ -37,6 +37,24 @@
         "topic_research": "pilot",
         "account_research": "unsupported"
       }
+    },
+    "reddit": {
+      "aliases": ["reddit"],
+      "controlled_capture_preference": ["reddit_research_mcp"],
+      "metric_fields": ["score", "comments", "upvote_ratio"],
+      "research_scopes": {
+        "topic_research": "validated",
+        "account_research": "unsupported"
+      }
+    },
+    "instagram": {
+      "aliases": ["instagram", "ins"],
+      "controlled_capture_preference": ["instagram_hashtag_browser_capture", "browser_readonly_capture"],
+      "metric_fields": ["views", "likes", "comments"],
+      "research_scopes": {
+        "topic_research": "validated",
+        "account_research": "pilot"
+      }
     }
   },
   "adapters": {
@@ -93,17 +111,67 @@
           "pagination": "bounded_result_set",
           "terminal_evidence": ["success_empty_result", "adapter_error"],
           "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
-        },
-        "tiktok": {
+        }
+      }
+    },
+    "reddit_research_mcp": {
+      "source_mode": "authorized_api",
+      "preflight_required": true,
+      "operation_allowlist": ["discover_subreddits", "search_subreddit", "fetch_posts"],
+      "operation_denylist": ["fetch_comments", "fetch_multiple", "create_feed", "list_feeds", "get_feed", "update_feed", "delete_feed"],
+      "platforms": {
+        "reddit": {
           "research_scopes": ["topic_research"],
-          "capability_key": "tiktok",
-          "search_builder": "opencli_tiktok_search_v1",
-          "detail_builder": null,
-          "search_parser": "opencli_tiktok_search_v1",
-          "detail_runner": null,
-          "pagination": "bounded_result_set",
+          "capability_key": "reddit",
+          "search_builder": "reddit_mcp_search_plan_v1",
+          "detail_builder": "public_reddit_permalink_v1",
+          "search_parser": "reddit_mcp_posts_v1",
+          "detail_runner": "agent_public_web_read",
+          "pagination": "bounded_result_set_without_exhaustion_proof",
           "terminal_evidence": ["success_empty_result", "adapter_error"],
-          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
+          "safety_stops": ["oauth_required", "rate_limit", "permission_denied", "service_unavailable", "schema_mismatch"]
+        }
+      }
+    },
+    "instagram_hashtag_browser_capture": {
+      "source_mode": "controlled_capture",
+      "preflight_required": true,
+      "operation_allowlist": ["read_hashtag_results", "read_canonical_post_links", "read_post_detail", "read_visible_comments"],
+      "operation_denylist": ["read_account_search_as_topic", "read_personalized_explore_feed", "follow_account", "unfollow_account", "like_post", "unlike_post", "comment_post", "save_post", "unsave_post", "publish_post", "read_followers", "read_following"],
+      "platforms": {
+        "instagram": {
+          "research_scopes": ["topic_research"],
+          "capability_key": "instagram",
+          "search_builder": "instagram_hashtag_capture_v1",
+          "detail_builder": "instagram_hashtag_capture_v1",
+          "comment_builder": "embedded_visible_comments",
+          "comment_sample_limit": 5,
+          "search_parser": "instagram_hashtag_capture_v1",
+          "detail_runner": "browser_control",
+          "pagination": "bounded_ranked_hashtag_results",
+          "terminal_evidence": ["bounded_hashtag_result_limit_reached", "visible_hashtag_results_exhausted", "success_empty_result", "adapter_error"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect", "content_mismatch"]
+        }
+      }
+    },
+    "browser_readonly_capture": {
+      "source_mode": "controlled_capture",
+      "preflight_required": true,
+      "operation_allowlist": ["read_profile", "read_recent_posts", "read_post_detail", "read_visible_comments"],
+      "operation_denylist": ["follow_account", "unfollow_account", "like_post", "unlike_post", "comment_post", "save_post", "unsave_post", "publish_post", "read_followers", "read_following"],
+      "platforms": {
+        "instagram": {
+          "research_scopes": ["account_research"],
+          "capability_key": "instagram",
+          "search_builder": "instagram_account_capture_v1",
+          "detail_builder": "instagram_account_capture_v1",
+          "comment_builder": "embedded_visible_comments",
+          "comment_sample_limit": 5,
+          "search_parser": "instagram_account_capture_v1",
+          "detail_runner": "browser_control",
+          "pagination": "bounded_recent_profile_grid",
+          "terminal_evidence": ["profile_grid_limit_reached", "visible_recent_posts_exhausted", "success_empty_result", "adapter_error"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "private_account", "account_not_found", "permission_prompt", "abnormal_redirect", "content_mismatch"]
         }
       }
     },

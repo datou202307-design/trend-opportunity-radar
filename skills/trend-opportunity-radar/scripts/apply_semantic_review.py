@@ -74,9 +74,9 @@ def main() -> None:
         raise SystemExit("Semantic review and reviewed extraction filenames must include the extraction query_id.")
     context = load_context(Path(args.research_context).resolve()) if args.research_context else None
     reviewed = apply_review(extraction, load_data(str(review_path)), context)
-    # The extraction query id binds the review and its audit entry. Execution
-    # identity remains owned by deterministic capture metadata at record time.
-    reviewed.pop("query_id", None)
+    # Preserve the query id in the reviewed extraction. It is required to
+    # distinguish the same frozen term executed in multiple communities while
+    # the hashes below continue to bind the review audit deterministically.
     write_json(str(output_path), reviewed)
     ledger_path = Path(args.audit_ledger).resolve()
     ledger = load_data(str(ledger_path)) if ledger_path.exists() else {"schema_version": "semantic-review-ledger-v0.1", "entries": []}

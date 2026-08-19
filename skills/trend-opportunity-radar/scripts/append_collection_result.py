@@ -60,10 +60,16 @@ def append_query_result(
     validate_artifact_ledger(query, query_result.parent)
     query_term = as_text(query.get("query_term"))
     query_layer = as_text(query.get("query_layer"))
+    query_intent = as_text(query.get("query_intent"))
+    query_id = as_text(query.get("query_id"))
     if not query_term or query_layer not in {"platform_baseline", "category", "subject_bridge"}:
         raise SystemExit("Query result requires query_term and a valid query_layer.")
     existing_runs = snapshot.setdefault("collection", {}).setdefault("query_runs", [])
-    if any(item.get("query_term") == query_term and item.get("query_layer") == query_layer for item in existing_runs):
+    if any(
+        (query_id and as_text(item.get("query_id")) == query_id)
+        or (not query_id and item.get("query_term") == query_term and item.get("query_layer") == query_layer)
+        for item in existing_runs
+    ):
         raise SystemExit("This query already exists in the snapshot; do not double-count it.")
     signals = query.get("signals", [])
     if not isinstance(signals, list) or any(not isinstance(item, dict) for item in signals):
@@ -73,8 +79,10 @@ def append_query_result(
         raise SystemExit("observed_result_count must be at least the number of retained signals.")
     detail_count = int(as_number(query.get("detail_open_count")) or sum(1 for item in signals if item.get("detail_captured")))
     run = {
+        "query_id": query_id,
         "query_term": query_term,
         "query_layer": query_layer,
+        "query_intent": query_intent,
         "observed_result_count": int(observed),
         "retained_signal_count": len(signals),
         "relevant_signal_count": int(as_number(query.get("relevant_signal_count")) or sum(1 for item in signals if item.get("semantic_relevance") in {"direct", "adjacent"})),
@@ -93,6 +101,7 @@ def append_query_result(
     for signal in signals:
         signal.setdefault("query_term", query_term)
         signal.setdefault("query_layer", query_layer)
+        signal.setdefault("query_intent", query_intent)
         signal.setdefault("platform", platform)
         signal.setdefault("source_mode", source_mode)
     snapshot.setdefault("signals", []).extend(signals)
