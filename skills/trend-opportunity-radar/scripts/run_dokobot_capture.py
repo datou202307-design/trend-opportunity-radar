@@ -22,12 +22,19 @@ def requested_command_hash(command: list[str]) -> str:
     return hashlib.sha256(json.dumps(command, ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
 
 
+def windows_appdata_root() -> Path | None:
+    if os.name != "nt":
+        return None
+    appdata = os.environ.get("APPDATA", "").strip()
+    return Path(appdata) if appdata else None
+
+
 def resolve_execution_command(requested_command: list[str]) -> list[str]:
     executable = shutil.which(requested_command[0])
-    if not executable and os.name == "nt":
-        appdata = os.environ.get("APPDATA", "").strip()
-        if appdata:
-            shim = Path(appdata) / "npm" / f"{requested_command[0]}.cmd"
+    if not executable:
+        appdata_root = windows_appdata_root()
+        if appdata_root:
+            shim = appdata_root / "npm" / f"{requested_command[0]}.cmd"
             if shim.is_file():
                 executable = str(shim)
     if not executable:

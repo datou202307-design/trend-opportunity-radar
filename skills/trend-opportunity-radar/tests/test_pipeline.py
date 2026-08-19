@@ -1657,20 +1657,14 @@ You may like
         node = shim_root / "node.exe"
         node.write_text("test", encoding="utf-8")
         original_which = capture_runner.shutil.which
-        original_appdata = capture_runner.os.environ.get("APPDATA")
-        original_name = capture_runner.os.name
+        original_appdata_root = capture_runner.windows_appdata_root
         try:
             capture_runner.shutil.which = lambda name: None
-            capture_runner.os.environ["APPDATA"] = str(appdata)
-            capture_runner.os.name = "nt"
+            capture_runner.windows_appdata_root = lambda: appdata
             command = capture_runner.resolve_execution_command(["dokobot", "read", "https://example.com"])
         finally:
             capture_runner.shutil.which = original_which
-            capture_runner.os.name = original_name
-            if original_appdata is None:
-                capture_runner.os.environ.pop("APPDATA", None)
-            else:
-                capture_runner.os.environ["APPDATA"] = original_appdata
+            capture_runner.windows_appdata_root = original_appdata_root
         self.assertEqual(command[:2], [str(node), str(entry)])
 
     def test_session_expiry_restarts_same_query_without_session_before_partial_failure(self) -> None:
