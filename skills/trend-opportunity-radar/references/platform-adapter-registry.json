@@ -52,7 +52,7 @@
       "controlled_capture_preference": ["instagram_hashtag_browser_capture", "browser_readonly_capture"],
       "metric_fields": ["views", "likes", "comments"],
       "research_scopes": {
-        "topic_research": "pilot",
+        "topic_research": "validated",
         "account_research": "pilot"
       }
     }

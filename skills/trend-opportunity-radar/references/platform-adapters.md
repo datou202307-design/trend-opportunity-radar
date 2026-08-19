@@ -12,7 +12,7 @@ For validated third-party Reddit topic research, read [reddit-mcp-adapter.md](re
 
 For the Instagram known-account pilot, read [instagram-account-adapter.md](instagram-account-adapter.md). It supports only a user-supplied public account under `account_research`. Use a user-authorized logged-in browser to retain canonical `/p/` or `/reel/` links and bounded public details. OpenCLI is auxiliary because its current recent-post output omits stable post URLs. Never collect Followers/Following or package session state.
 
-For the separate Instagram topic pilot, read [instagram-hashtag-topic-adapter.md](instagram-hashtag-topic-adapter.md). It supports only explicit hashtag result surfaces under `topic_research`. Freeze each hashtag and query layer before browser work, retain bounded canonical links, open details sequentially, and preserve repeatability diagnostics. Never substitute account search, personalized Explore, or the generic Reels feed for a frozen topic query.
+For validated Instagram `topic_research`, read [instagram-hashtag-topic-adapter.md](instagram-hashtag-topic-adapter.md). It supports only explicit hashtag result surfaces. Freeze each hashtag and query layer before browser work, retain bounded canonical links, open details sequentially, preserve repeatability diagnostics, and merge all three standard query layers before review. Never substitute account search, personalized Explore, or the generic Reels feed for a frozen topic query. Instagram `account_research` remains a separate pilot.
 
 ## Customer export
 

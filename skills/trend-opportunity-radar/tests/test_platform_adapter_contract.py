@@ -96,12 +96,12 @@ class PlatformAdapterContractTest(unittest.TestCase):
         self.assertEqual(route["adapter"], "reddit_research_mcp")
         self.assertEqual(route["source_mode"], "authorized_api")
 
-    def test_instagram_scopes_use_separate_explicit_pilot_adapters(self) -> None:
+    def test_instagram_validated_topic_and_pilot_account_use_separate_adapters(self) -> None:
         status = {"adapter": "browser_readonly_capture", "ready": True, "status": "ready", "capabilities": {"instagram": True}}
         topic_status = {"adapter": "instagram_hashtag_browser_capture", "ready": True, "status": "ready", "capabilities": {"instagram": True}}
-        self.assertFalse(selector.select_adapter("instagram", [topic_status], research_scope="topic_research")["ready"])
-        topic_route = selector.select_adapter("instagram", [topic_status], research_scope="topic_research", allow_pilot=True)
+        topic_route = selector.select_adapter("instagram", [topic_status], research_scope="topic_research")
         self.assertTrue(topic_route["ready"])
+        self.assertEqual(topic_route["release_status"], "validated")
         self.assertEqual(topic_route["adapter"], "instagram_hashtag_browser_capture")
         self.assertFalse(selector.select_adapter("instagram", [status], research_scope="account_research")["ready"])
         route = selector.select_adapter("instagram", [status], research_scope="account_research", allow_pilot=True)

@@ -160,6 +160,29 @@ def validate_capture(request: dict[str, Any], capture: dict[str, Any]) -> tuple[
     observed = normalized_passes[0]
     if not observed:
         return "unavailable", [], {}, "no_visible_posts"
+    card_rows = capture.get("result_cards") if isinstance(capture.get("result_cards"), list) else []
+    if len(card_rows) > int(request["max_posts"]):
+        raise SystemExit("Instagram hashtag result cards exceed the frozen limit.")
+    card_by_id: dict[str, dict[str, Any]] = {}
+    for row in card_rows:
+        if not isinstance(row, dict):
+            raise SystemExit("Every Instagram hashtag result card must be an object.")
+        identity = canonical_post(row.get("canonical_url"))
+        if not identity or identity[2] not in observed:
+            return "blocked", [], {}, "content_mismatch"
+        kind, content_id, canonical_url = identity
+        if content_id in card_by_id:
+            raise SystemExit("Duplicate Instagram result-card IDs are not allowed.")
+        preview_text = as_text(row.get("preview_text"))
+        if not preview_text:
+            raise SystemExit("Every Instagram result card requires visible preview_text.")
+        card_by_id[content_id] = {
+            "kind": kind,
+            "content_id": content_id,
+            "canonical_url": canonical_url,
+            "author_username": as_text(row.get("author_username")).lstrip("@"),
+            "preview_text": preview_text,
+        }
     detail_rows = capture.get("posts") if isinstance(capture.get("posts"), list) else []
     if len(detail_rows) > int(request["max_detail_posts"]):
         raise SystemExit("Instagram hashtag details exceed the frozen limit.")
@@ -196,12 +219,13 @@ def validate_capture(request: dict[str, Any], capture: dict[str, Any]) -> tuple[
     for url in observed:
         kind, content_id, canonical_url = canonical_post(url)  # type: ignore[misc]
         row = detail_by_id.get(content_id)
+        card = card_by_id.get(content_id, {})
         normalized.append(row or {
             "kind": kind,
             "content_id": content_id,
             "canonical_url": canonical_url,
-            "author_username": "",
-            "caption": "",
+            "author_username": card.get("author_username", ""),
+            "caption": card.get("preview_text", ""),
             "published_at": "",
             "likes": None,
             "comments": None,
@@ -261,7 +285,7 @@ def build_snapshot(request: dict[str, Any], capture: dict[str, Any], raw_path: P
             },
             "evidence_refs": [post["canonical_url"], raw_ref],
             "raw_artifacts": [raw_ref],
-            "limitations": [] if detailed else ["Hashtag result link was observed, but the post detail was not opened."],
+            "limitations": [] if detailed else (["Hashtag result preview was observed, but the post detail was not opened."] if post["caption"] else ["Hashtag result link was observed, but the post detail was not opened and no preview text was available."]),
             "permission_scope": "user_authorized",
             "dedupe_hash": hashlib.sha256(f"instagram:{post['content_id']}".encode("utf-8")).hexdigest(),
         })
@@ -297,6 +321,7 @@ def build_snapshot(request: dict[str, Any], capture: dict[str, Any], raw_path: P
         "observed_post_count": len(posts),
         "detail_post_count": detailed_count,
         "visible_comment_count": sum(len(item["representative_comments"]) for item in posts),
+        "preview_card_count": sum(1 for item in posts if item["caption"]),
         "repeatability": repeatability,
         "raw_capture": raw_ref,
         "raw_capture_sha256": raw_sha256,

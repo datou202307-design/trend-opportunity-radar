@@ -23,7 +23,7 @@
 
 这是一个独立、去品牌化的 Agent Skill，用于在单个平台上围绕一个研究主题完成有证据边界的趋势机会研究。
 
-当前状态：**v0.9.1 candidate**。它是一套受约束的平台研究工作流，不是爆款、流量、需求或收入预测系统。候选版支持在 X、小红书、YouTube 和 Reddit 上使用五种决策模式，并为用户授权且已登录的浏览器会话提供需显式启用的 TikTok 主题研究 Beta，以及相互隔离的 Instagram 账号/Hashtag 试点。Reddit 实时研究需要用户连接第三方 MCP 服务，且当前禁用评论树读取。OpenCLI 只读采集及 DokoBot 渲染页面核验或回退，仅在当前环境通过能力探测时使用。
+当前状态：**v0.10.0 candidate**。它是一套受约束的平台研究工作流，不是爆款、流量、需求或收入预测系统。候选版支持在 X、小红书、YouTube、Reddit 和已验证的 Instagram Hashtag 主题研究上使用五种决策模式，同时保留需显式启用的 TikTok 主题研究 Beta 与相互隔离的 Instagram 账号研究试点。Reddit 实时研究需要用户连接第三方 MCP 服务，且当前禁用评论树读取。OpenCLI 只读采集及 DokoBot 渲染页面核验或回退，仅在当前环境通过能力探测时使用。
 
 ## 它能做什么
 
@@ -115,7 +115,7 @@ TikTok 等视频信息流可使用试验性的 `video-evidence-contract-v0.1`：
 
 TikTok 主题研究 Beta 只在明确启用、用户授权且已经登录的 Chrome 会话中可用。OpenCLI 负责有限主题搜索，另行通过预检的 DokoBot 浏览器会话补充代表内容详情；若目标详情已核对但 DokoBot 没有返回评论正文，内置的两段式记录器会先冻结唯一目标，再让可用的 Chrome 控制适配器只展开一次该目标的评论入口。记录器会核对请求哈希、内容 ID、作者路径、数量上限和无写操作声明，全部通过后才合并最多 5 条真实可见顶层评论。页面评论总数与实际采集正文数量分开，评论补充失败不阻断已经完成的搜索与详情报告。
 
-Instagram 当前有两个相互隔离的实验试点。已知账号研究最多保留 12 条近期内容永久链接、打开 6 条详情，并为每个详情保存最多 5 条可见顶层评论；主题研究只使用显式冻结的 Hashtag 结果页，每次有限读取最多保留 24 条永久链接并顺序打开 6 条详情。平台显示的 Hashtag 帖子总量只作为内容供给规模提示，不能算作实际采样量或搜索需求。账号搜索、个性化 Explore、通用 Reels 流、Followers 和 Following 均不得作为主题或受众证据。两个记录器都会拒绝请求、身份、数量上限、凭据、关注关系或无写操作声明不匹配的捕获，且不会打包浏览器会话。
+Instagram 当前有两个相互隔离的研究路径。已验证的主题研究在三个标准查询层各冻结一个 Hashtag，每个 Hashtag 执行两次限速读取、每轮最多保留 24 条永久链接、顺序打开 6 条详情，再合并去重三个快照，并在报告前审查保留内容和已采集评论。已知账号研究仍为试点，最多保留 12 条近期内容永久链接、打开 6 条详情，并为每个详情保存最多 5 条可见顶层评论。平台显示的 Hashtag 帖子总量只作为内容供给规模提示，不能算作实际采样量或搜索需求。账号搜索、个性化 Explore、通用 Reels 流、Followers 和 Following 均不得作为主题或受众证据。两个路径都会拒绝请求、身份、数量上限、凭据、关注关系或无写操作声明不匹配的捕获，且不会打包浏览器会话。
 
 参考 Runner 可配合固定版本的 [mcp-video-analyzer](https://github.com/guimatheus92/mcp-video-analyzer)、[yt-dlp](https://github.com/yt-dlp/yt-dlp) 和可选的本地 [whisper-ctranslate2](https://github.com/Softcatala/whisper-ctranslate2) 使用。这些依赖均不随仓库分发。先运行 `scripts/check_video_evidence_runtime.py`；Windows 建议使用隔离目录中的固定本地入口，不要在每条视频上重复执行临时 `npx` 安装。
 

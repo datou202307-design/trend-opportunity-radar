@@ -12,6 +12,7 @@ SCRIPTS = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
 import check_instagram_topic_adapter as preflight
+import merge_instagram_topic_snapshots as merger
 import run_instagram_topic_capture as capture
 
 
@@ -34,6 +35,7 @@ class InstagramTopicCaptureTest(unittest.TestCase):
             "captured_at": "2026-08-19T00:00:00Z",
             "displayed_post_count_label": "12K posts",
             "result_passes": [links, links[:7] + ["https://www.instagram.com/reel/SYNTHETIC8/"]],
+            "result_cards": [{"canonical_url": url, "author_username": f"preview.creator{index}", "preview_text": f"Visible preview {index}"} for index, url in enumerate(links)],
             "posts": [{
                 "canonical_url": links[index],
                 "author_username": f"synthetic.creator{index}",
@@ -81,7 +83,29 @@ class InstagramTopicCaptureTest(unittest.TestCase):
         self.assertEqual(snapshot["collection"]["counts"]["detail_open_count"], 2)
         self.assertEqual(snapshot["signals"][0]["semantic_relevance"], "pending_review")
         self.assertEqual(snapshot["signals"][0]["platform_facts"]["displayed_hashtag_volume_label"], "12K posts")
+        self.assertEqual(snapshot["signals"][2]["summary"], "Visible preview 2")
+        self.assertEqual(receipt["preview_card_count"], 8)
         self.assertIsNotNone(receipt["repeatability"]["overlap_jaccard"])
+
+    def test_merge_requires_three_layers_and_deduplicates_signals(self) -> None:
+        paths = []
+        for index, layer in enumerate(("platform_baseline", "category", "subject_bridge")):
+            request = capture.build_request("Synthetic planning subject", f"synthetic{index}", layer, 12, 3)
+            payload = self.payload()
+            payload["request_sha256"] = request["request_sha256"]
+            payload["hashtag"] = request["hashtag"]
+            payload["query_url"] = request["query_url"]
+            raw = self.root / f"capture-{index}.json"
+            raw.write_text(json.dumps(payload), encoding="utf-8")
+            snapshot, _ = capture.build_snapshot(request, payload, raw)
+            path = self.root / f"snapshot-{index}.json"
+            path.write_text(json.dumps(snapshot), encoding="utf-8")
+            paths.append(path)
+        merged = merger.merge_snapshots(paths)
+        self.assertEqual(merged["collection"]["counts"]["query_count"], 3)
+        self.assertEqual(merged["raw_sample_count"], 24)
+        self.assertEqual(merged["unique_sample_count"], 8)
+        self.assertEqual(set(merged["signals"][0]["query_layers"]), {"platform_baseline", "category", "subject_bridge"})
 
     def test_mismatched_hashtag_and_non_observed_detail_are_blocked(self) -> None:
         payload = self.payload()
