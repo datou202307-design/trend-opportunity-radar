@@ -1,18 +1,18 @@
 <p align="center">
-  <img src="assets/github-hero.zh-CN.svg" alt="趋势机会雷达——为 AI Agent 提供有证据边界的平台研究" width="100%">
+  <img src="assets/github-hero.zh-CN.svg" alt="Trend Opportunity Radar——从平台信号找到下一步行动" width="100%">
 </p>
 
 <h1 align="center">Trend Opportunity Radar</h1>
 
 <p align="center">
-  把平台信号转化为可审查的商业、品牌、竞品用户、内容和产品需求决策。
+  围绕一个主题研究一个平台，把公开信号整理成可核对的依据和下一步行动建议。
 </p>
 
 <p align="center">
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/releases"><img alt="发布版本" src="https://img.shields.io/github/v/release/datou202307-design/trend-opportunity-radar?include_prereleases&style=flat-square&label=release"></a>
-  <img alt="5 个决策模式" src="https://img.shields.io/badge/decision_profiles-5-14b8a6?style=flat-square">
-  <img alt="平台：X、小红书、YouTube、Reddit 和 TikTok Beta" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu_%2B_YouTube_%2B_Reddit_%2B_TikTok_Beta-0f766e?style=flat-square">
-  <img alt="输出：HTML、Markdown 和 JSON" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
+  <img alt="5 个研究场景" src="https://img.shields.io/badge/research_scenarios-5-14b8a6?style=flat-square">
+  <img alt="6 条平台研究路径" src="https://img.shields.io/badge/platform_routes-6-0f766e?style=flat-square">
+  <img alt="输出 HTML、Markdown 和 JSON" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
   <a href="LICENSE"><img alt="MIT 许可证" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square"></a>
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/datou202307-design/trend-opportunity-radar?style=flat-square"></a>
 </p>
@@ -21,132 +21,119 @@
   <a href="README.md">English</a> · <strong>简体中文</strong>
 </p>
 
-这是一个独立、去品牌化的 Agent Skill，用于在单个平台上围绕一个研究主题完成有证据边界的趋势机会研究。
+这是一个独立、去品牌化的 Agent Skill。你提供研究主题和目标平台，Agent 负责采集或导入信号、打开原文、检查反例，并生成本地报告。它可以研究产品，也可以研究一个商机、想法、用户问题、受众需求或项目。
 
-当前状态：**v0.10.0 candidate**。它是一套受约束的平台研究工作流，不是爆款、流量、需求或收入预测系统。候选版支持在 X、小红书、YouTube、Reddit 和已验证的 Instagram Hashtag 主题研究上使用五种决策模式，同时保留需显式启用的 TikTok 主题研究 Beta 与相互隔离的 Instagram 账号研究试点。Reddit 实时研究需要用户连接第三方 MCP 服务，且当前禁用评论树读取。OpenCLI 只读采集及 DokoBot 渲染页面核验或回退，仅在当前环境通过能力探测时使用。
+当前版本是 **v0.10.0 candidate**。它帮助你形成更有依据的下一步判断，不预测爆款、流量、需求或收入。
 
-## 它能做什么
-
-- 接受产品、商机、想法、用户问题、受众需求或项目作为研究主题。
-- 支持五类决策目标：发现商业机会、监测品牌舆情、研究竞品用户、寻找内容机会和验证产品需求。
-- 把简短自然语言请求编译成带版本的研究上下文，用户无需填写内部证据角色或采样门槛。
-- 每次只分析一个平台，包括 X、小红书、YouTube、Reddit、显式启用的 TikTok Beta 及符合适配器契约的其他平台。
-- 导入用户提供的数据，或采集已授权的只读浏览器和 API 信号。
-- 规范化证据、来源链接、采集时间、指标和局限。
-- 使用明确的快速、标准和深度采样契约，并保留采集账本。
-- 把每次完成的查询原子写入唯一的原始快照。
-- 编排与适配器无关的查询推进、原始输出留存、有限恢复和采样门槛。
-- 区分读取成功、超时、仍可继续和明确穷尽；首屏完成或单次超时不能再被当作查询已穷尽。
-- 通过确定性包装器记录 DokoBot 仅在控制台可见的会话信息，保留不可变采集审计文件，并对失效续采执行一次重启。
-- 在采集前诊断 DokoBot 缺失、沙箱不可见、权限不足、损坏或浏览器断连等环境状态。
-- 分离观察热度与证据置信度，并明确呈现缺失数据。
-- 降低未打开搜索卡片的证据等级，并限制不完整采集的置信度。
-- 跨搜索卡片和详情页去重同一平台内容，同时保留查询和来源轨迹。
-- 对每个证据层执行观察量、去重量、详情量、语义相关性和主题连接门槛。
-- 聚类主题成为可审查结论前，要求显式、可审计的语义聚类计划。
-- 把零结果查询保留为可审计账本记录，并拒绝从进行中的采集状态渲染报告。
-- 在剩余采集预算内，为不足证据层生成简短、不重复的恢复查询。
-- 排除审查失败的聚类和重复机会卡，不为视觉数量凑数。
-- JSON 保留完整审计状态；面向人的报告使用本地化研究状态说明，而不是软件报错。
-- 把逐条限制说明压缩为最多四条对决策有影响的摘要，同时在 JSON 保留完整列表。
-- 推荐可选、可迁移的后续监测任务，让单次快照逐步形成可比较时间序列，但不会假装已创建自动任务。
-- 保留每次重复原始采集为独立尝试文件，不覆盖早期证据。
-- 根据用户目的、研究目标和受众调整报告语言与决策框架，并为可见证据缺口提供当前价值、边界和解决路径。
-- 在报告前回填可用详情链接，不消耗搜索查询预算，也不向用户暴露可恢复的内部采样门槛。
-- 使用大众可理解的标题检查，保留审计标题，同时用具体表达替换未解释的产品行话。
-- 生成主题与研究对象的结合机会、反向证据、风险、验证动作和复采任务。
-- 明确区分平台事实、用户前提、模型推断和人工确认。
-- 输出自包含本地 HTML、精简 Markdown 和机器可读 JSON。
-- 拒绝疑似乱码，并验证 HTML、Markdown 和 JSON 来自同一份一致的 UTF-8 结果。
-- 对视频承载主要信息的平台，先用搜索卡发现候选，再对最多 10 条去重代表视频执行可选的字幕、语音、关键帧和 OCR 证据解析；视频片段不会增加趋势样本数。
-
-## 五种研究场景，不只是五个标签
-
-证据工作流保持稳定，但会根据用户目标切换决策问题、证据角色和最终行动建议。
-
-<p align="center">
-  <img src="assets/research-scenarios.zh-CN.svg" alt="五种具体决策模式：发现商业机会、监测品牌舆情、研究竞品用户、寻找内容机会和验证产品需求" width="100%">
-</p>
-
-## 最少输入
+## 30 秒开始
 
 只需要两个输入：
 
-1. 一个可以理解的研究主题。
-2. 一个目标平台。
-
-示例：
+1. 你想研究什么。
+2. 你想研究哪个平台。
 
 ```text
-使用 $trend-opportunity-radar，分析“帮助餐厅填补临时空桌的 AI 助手”在 X 平台的趋势机会。
+使用 $trend-opportunity-radar，分析“帮助小网店减少重复售后回复的 AI 助手”在 X 平台的产品需求。
 ```
 
-通用调用：
+如果没有指定研究目的，Agent 会结合你的问题推断；只有不同选择会明显改变结果时，才会请你确认。标准研究会尽量采集 60–100 条观察结果、保留 30–50 条去重信号、打开 12–18 条原文，并寻找至少 3 条反例。数据不足时不会用弱相关内容凑数。
 
-```text
-分析研究主题在某平台的趋势机会。
-```
+## 五种研究场景
 
-Agent 应在安全的情况下推断语言、地区、受众、查询词、时间窗、来源模式、采集方式和输出路径。标准研究以 60–100 条观察结果卡、30–50 条去重保留信号、12–18 个已打开详情和至少 3 条反向信号为目标。这些目标用于提高可复现性，不能用弱证据凑数。
+同一套证据工作流，可以根据你的目的回答五类不同问题。
+
+<p align="center">
+  <img src="assets/research-scenarios.zh-CN.svg" alt="五种研究场景：发现商业机会、监测品牌舆情、研究竞品用户、寻找内容机会和验证产品需求" width="100%">
+</p>
+
+| 你想解决的问题 | 研究会回答什么 | 主要产出 |
+|---|---|---|
+| 发现商业机会 | 哪些问题还没被解决，值得先试？ | 优先验证的机会 |
+| 监测品牌舆情 | 大家在表扬、质疑或求助什么？ | 需要回应的议题 |
+| 研究竞品用户 | 用户为什么留下、抱怨或切换？ | 可切入的用户问题 |
+| 寻找内容机会 | 大家反复在问什么，下一篇先讲什么？ | 值得测试的内容方向 |
+| 验证产品需求 | 用户真的需要它吗？最小先验证什么？ | 最小需求验证方案 |
+
+## 先看看最后会得到什么
+
+报告先给出直接回答，再展示本次采集数量、主要发现、原文依据、反例和下一步验证动作。下面只使用合成数据展示结构，不代表任何真实平台结论。
+
+<p align="center">
+  <img src="assets/report-preview.zh-CN.svg" alt="使用合成数据展示的趋势机会雷达本地报告" width="100%">
+</p>
+
+每次研究会生成：
+
+- `trend-report.html`：适合直接阅读和分享的本地页面；
+- `trend-report.md`：适合继续编辑或交给其他 Agent；
+- `opportunities.json`：保留完整证据、评分和审计字段。
+
+## 平台支持
+
+| 平台或来源 | 当前状态 | 可以研究什么 | 本次运行要求 |
+|---|---|---|---|
+| X | 已验证 | 搜索结果、帖子原文和可见互动指标 | 通过本次只读能力检查 |
+| 小红书 | 已验证 | 搜索卡片、内容详情和可见互动指标 | 已授权的浏览器或结构化导入 |
+| YouTube | 已验证 | 搜索、视频详情、有限评论和按需字幕 | 公开内容；评论与字幕按可用性读取 |
+| Reddit | 已验证 | 社区发现、帖子搜索和详情核对 | 用户连接第三方 MCP；评论树暂不读取 |
+| Instagram | Hashtag 主题研究已验证 | Hashtag 内容、详情和有限可见评论 | 已登录且已授权的浏览器会话 |
+| TikTok | 主题研究 Beta | 主题搜索、视频详情和有限评论补充 | 显式启用且已登录的 Chrome 会话 |
+| JSON / CSV | 通用导入 | 用户提供的结构化信号 | 不需要实时连接器 |
+
+Instagram 已知账号研究仍是独立试点，不等于主题研究能力。TikTok 匿名实时研究不在支持范围内；抖音尚未通过独立真实验收。任何平台在每次运行时都要重新检查当前可用能力，不能仅凭已经安装工具或浏览器已经登录就假定可用。
+
+## 它如何工作
+
+1. **说清问题**：把自然语言请求整理为一个主题、一个平台和一个业务问题。
+2. **采集信号**：读取公开或已授权内容，保存来源、时间、互动指标和采集记录。
+3. **核对证据**：去重、打开原文、检查相关性、反例和数据缺口。
+4. **给出建议**：输出当前可以判断什么、依据是什么，以及下一步验证什么。
+
+观察热度和证据可靠性始终分开。搜索卡片不会因为互动高就自动成为结论；视频字幕、机器转写和 OCR 也会分别标明来源，不会改写成平台事实。
 
 ## 安装
 
-把 Skill 目录复制到 Agent 的 Skill 目录：
+把 Skill 目录复制到你的 Agent Skill 目录：
 
 ```text
 skills/trend-opportunity-radar/
 ```
 
-在 Codex 中，把 `trend-opportunity-radar` 放到 `$CODEX_HOME/skills/`，然后重启或重新加载 Agent 会话。其他 Agent 可以把 `SKILL.md`、参考契约和 Python 脚本适配到自己的 Skill 或工具格式。
+在 Codex 中，把 `trend-opportunity-radar` 放到 `$CODEX_HOME/skills/`，然后重新加载 Agent 会话。其他 Agent 可以适配 `SKILL.md`、参考契约和 Python 脚本。内置脚本只使用 Python 标准库，建议使用 Python 3.10 或更高版本。
 
-内置脚本只使用 Python 标准库，建议使用 Python 3.10 或更高版本。
+## 数据访问与隐私
 
-## 数据访问
+Skill 可以使用用户上传的 JSON/CSV、公开网页、受控只读浏览器、已授权 API 或历史快照。Chrome、OpenCLI、DokoBot 和第三方 MCP 都是可选适配器，不随仓库分发。
 
-工作流不强制依赖实时数据连接器，支持：
+- 只读取公开或明确授权的数据；
+- 不打包 Cookie、Token、浏览器会话或客户数据；
+- 不并发执行高频浏览器操作；
+- 遇到验证码、限流或访问控制时停止，而不是尝试绕过；
+- 当前环境缺少适配器时，可以改用结构化数据导入。
 
-- 用户上传的 JSON 或 CSV；
-- 公开网页信号；
-- 受控的只读浏览器采集；
-- 已授权的平台 API；
-- 历史快照。
+用户需要自行遵守平台条款、账号权限和适用法律。
 
-Chrome、OpenCLI、DokoBot 或等效受控浏览器均为可选项。适配器选择器只使用经过验证的只读能力；当采样量不足时会阻止交付，而不是静默降级。用户需要自行遵守平台条款、账号权限和合法数据访问要求。任何凭据、Cookie 或 Token 都不得写入 Skill 的输入或输出。
+## 它不会声称什么
 
-在 YouTube 上，已验证路径覆盖有限搜索、视频详情补充和单独发起的有限评论读取。每个符合条件的视频最多保留 10 条代表性评论；字幕只在需要核验视频主张时打开。支持某个平台不代表评论、字幕或当前浏览器登录状态一定可用，每次运行仍必须先通过本次只读能力探测。
+- 不把单次研究写成正在上升或下降的长期趋势；
+- 不把互动量直接解释为需求、收入或商业吸引力；
+- 不混合不同平台的热度评分；
+- 不把搜索卡片、机器转写或模型推断伪装成平台事实；
+- 不在采样不足时用低相关内容凑满报告；
+- 不宣称能够预测未来爆款、流量、需求或收入。
 
-在 Reddit 上，已验证路径使用用户连接的第三方 MCP 服务完成有限社区发现和顺序主题搜索，再打开选定的公开帖子永久链接进行可审计详情核验。只允许 `discover_subreddits`、`search_subreddit` 和 `fetch_posts`；评论树与 Feed 操作保持禁用。服务会收到研究查询词和社区名称，返回数量少于请求上限也不能解释为 Reddit 已被穷尽。
+## 方法和适配器文档
 
-### 可选视频证据运行时
-
-TikTok 等视频信息流可使用试验性的 `video-evidence-contract-v0.1`：搜索适配器负责发现和去重，独立视频解析层负责原生字幕、本地 ASR、关键帧和画面 OCR。各通道分别标记来源，不把机器转写或 OCR 写成平台事实。
-
-TikTok 主题研究 Beta 只在明确启用、用户授权且已经登录的 Chrome 会话中可用。OpenCLI 负责有限主题搜索，另行通过预检的 DokoBot 浏览器会话补充代表内容详情；若目标详情已核对但 DokoBot 没有返回评论正文，内置的两段式记录器会先冻结唯一目标，再让可用的 Chrome 控制适配器只展开一次该目标的评论入口。记录器会核对请求哈希、内容 ID、作者路径、数量上限和无写操作声明，全部通过后才合并最多 5 条真实可见顶层评论。页面评论总数与实际采集正文数量分开，评论补充失败不阻断已经完成的搜索与详情报告。
-
-Instagram 当前有两个相互隔离的研究路径。已验证的主题研究在三个标准查询层各冻结一个 Hashtag，每个 Hashtag 执行两次限速读取、每轮最多保留 24 条永久链接、顺序打开 6 条详情，再合并去重三个快照，并在报告前审查保留内容和已采集评论。已知账号研究仍为试点，最多保留 12 条近期内容永久链接、打开 6 条详情，并为每个详情保存最多 5 条可见顶层评论。平台显示的 Hashtag 帖子总量只作为内容供给规模提示，不能算作实际采样量或搜索需求。账号搜索、个性化 Explore、通用 Reels 流、Followers 和 Following 均不得作为主题或受众证据。两个路径都会拒绝请求、身份、数量上限、凭据、关注关系或无写操作声明不匹配的捕获，且不会打包浏览器会话。
-
-参考 Runner 可配合固定版本的 [mcp-video-analyzer](https://github.com/guimatheus92/mcp-video-analyzer)、[yt-dlp](https://github.com/yt-dlp/yt-dlp) 和可选的本地 [whisper-ctranslate2](https://github.com/Softcatala/whisper-ctranslate2) 使用。这些依赖均不随仓库分发。先运行 `scripts/check_video_evidence_runtime.py`；Windows 建议使用隔离目录中的固定本地入口，不要在每条视频上重复执行临时 `npx` 安装。
-
-Beta 默认只接受公开或明确授权的单条视频 URL，最大并发为 1，删除临时帧，不保留完整媒体，不转发 Cookie、浏览器会话、云端语音 API Key 或 Hugging Face Token。TikTok 匿名实时研究不在支持范围内，结构化导入仍是不依赖会话的降级路径；抖音视频解析尚未通过真实验收，不能据此宣称支持。
-
-可用的媒体文本必须先由 Agent 完成语义复核，才会进入报告。HTML/Markdown 只显示少量经过复核的原文摘录，并明确区分视频字幕、机器语音转写和机器画面文字；原始 ASR/OCR 只保留在 JSON 审计数据中，不要求用户逐条标注。
-
-## 重要边界
-
-- 不混合不同平台的热度评分。
-- 浏览器采集的 X 数据必须标记为受控采集，不能标记为 API 数据。
-- 没有可比较时间序列时，使用“信号快照”，不要声称趋势方向。
-- 采样契约未完成时，不把机会标记为 `review_ready`。
-- 任一查询层质量门槛失败时，不能用全局总量替代分层门槛。
-- 证据置信度不等于商业吸引力；不能从单次快照推断趋势方向。
-- 不在 `raw-signals.json` 之外维护第二份手工采集账本。
-- 产品按事实约束对象处理；想法和商机按待验证假设处理。
-- 只有人工可以把 `review_ready` 证据升级为 `confirmed`。
-- 不宣称证据热度指数能够预测未来爆款、流量、需求或收入。
+- [采样合同](skills/trend-opportunity-radar/references/sampling-contract.md)
+- [评分合同](skills/trend-opportunity-radar/references/scoring-contract.md)
+- [平台适配器](skills/trend-opportunity-radar/references/platform-adapters.md)
+- [浏览器采集](skills/trend-opportunity-radar/references/browser-collection.md)
+- [视频证据](skills/trend-opportunity-radar/references/video-evidence-contract.md)
+- [输出结构](skills/trend-opportunity-radar/references/output-schema.md)
 
 ## 第三方兼容性
 
-DokoBot、OpenCLI、Chrome、mcp-video-analyzer、yt-dlp、whisper-ctranslate2、X、小红书、YouTube、TikTok 和 Instagram 都是可选的第三方工具或平台，不随本仓库分发。名称仅用于说明兼容或试验目标，不代表关联、背书、账号访问或授权。只在具有合法访问权限并遵守适用条款时使用相应集成。
+DokoBot、OpenCLI、Chrome、mcp-video-analyzer、yt-dlp、whisper-ctranslate2、X、小红书、YouTube、Reddit、TikTok 和 Instagram 均为可选第三方工具或平台。名称仅用于说明兼容或研究目标，不代表关联、背书、账号访问或授权。
 
 ## 仓库结构
 
@@ -159,16 +146,16 @@ skills/trend-opportunity-radar/
 └── tests/
 ```
 
-## 许可证
-
-MIT License，见 [LICENSE](LICENSE)。
-
 ## 发布安全
 
-仓库只包含合成测试夹具，不打包平台采集数据、浏览器会话、凭据、客户材料、内部品牌或本机运行产物。发布变更前运行：
+仓库只包含合成测试夹具和示意资产，不包含真实平台采集数据、浏览器会话、凭据、客户材料、内部品牌或本机运行产物。发布前运行：
 
 ```text
 python tools/audit_open_source_release.py
 python tools/validate_skill.py skills/trend-opportunity-radar
 python -m unittest discover -s skills/trend-opportunity-radar/tests -v
 ```
+
+## 许可证
+
+MIT License，见 [LICENSE](LICENSE)。

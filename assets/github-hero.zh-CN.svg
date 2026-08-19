@@ -18,12 +18,12 @@
 
   <g font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, Segoe UI, sans-serif">
     <rect x="64" y="62" width="248" height="36" rx="18" fill="#0F3442" stroke="#38BDF8" stroke-opacity="0.55"/><circle cx="86" cy="80" r="5" fill="#5EEAD4"/>
-    <text x="102" y="86" fill="#A5F3FC" font-size="15" font-weight="700" letter-spacing="1.2">有证据边界的平台研究</text>
-    <text x="64" y="176" fill="#F8FAFC" font-size="54" font-weight="750" letter-spacing="1">趋势机会</text>
-    <text x="64" y="239" fill="url(#accent)" font-size="54" font-weight="750" letter-spacing="1">雷达</text>
-    <text x="66" y="282" fill="#C7E4E8" font-size="19">为 AI Agent 提供受约束的平台研究。</text>
-    <text x="66" y="313" fill="#8FB5BD" font-size="15">从平台信号到可审查的决策。</text>
-    <rect x="64" y="345" width="152" height="38" rx="11" fill="#F0FDFA"/><text x="84" y="370" fill="#0F3542" font-size="14" font-weight="700">5 种决策模式</text>
+    <text x="102" y="86" fill="#A5F3FC" font-size="13" font-weight="700" letter-spacing="1.1">TREND OPPORTUNITY RADAR</text>
+    <text x="64" y="176" fill="#F8FAFC" font-size="50" font-weight="750" letter-spacing="1">从平台信号，找到</text>
+    <text x="64" y="239" fill="url(#accent)" font-size="54" font-weight="750" letter-spacing="1">下一步行动</text>
+    <text x="66" y="282" fill="#C7E4E8" font-size="18">一次研究一个主题、一个平台、一个业务问题。</text>
+    <text x="66" y="313" fill="#8FB5BD" font-size="15">为 AI Agent 提供可复核的平台研究。</text>
+    <rect x="64" y="345" width="152" height="38" rx="11" fill="#F0FDFA"/><text x="84" y="370" fill="#0F3542" font-size="14" font-weight="700">5 种研究场景</text>
     <rect x="228" y="345" width="208" height="38" rx="11" fill="#0D3440" stroke="#2DD4BF" stroke-opacity="0.65"/>
     <rect x="240" y="353" width="22" height="22" rx="6" fill="#F8FAFC"/><path d="M246 359L256 369M256 359L246 369" stroke="#07111F" stroke-width="2.2" stroke-linecap="round"/>
     <use href="#xhsSquareLogo" x="274" y="353" width="23" height="22"/>
@@ -35,19 +35,19 @@
   </g>
 
   <g font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="12" font-weight="700" letter-spacing="0.8">
-    <text x="500" y="54" fill="#77D7E0">01 · 定义主题</text><text x="652" y="54" fill="#77D7E0">02 · 只读采集</text><text x="900" y="54" fill="#77D7E0">03 · 证据审查</text><text x="1062" y="54" fill="#77D7E0">04 · 决策输出</text>
+    <text x="500" y="54" fill="#77D7E0">01 · 说清问题</text><text x="652" y="54" fill="#77D7E0">02 · 采集信号</text><text x="900" y="54" fill="#77D7E0">03 · 核对证据</text><text x="1062" y="54" fill="#77D7E0">04 · 行动建议</text>
   </g>
 
   <g transform="translate(482 76)" filter="url(#shadow)" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif">
     <rect width="142" height="126" rx="18" fill="#E7F8F7"/><rect x="14" y="17" width="114" height="22" rx="11" fill="#BCEBE5"/>
-    <text x="42" y="33" fill="#14504D" font-size="11" font-weight="700">研究主题</text><text x="16" y="63" fill="#163B48" font-size="14" font-weight="700">一个主题</text><text x="16" y="84" fill="#517982" font-size="13">一个平台</text>
+    <text x="42" y="33" fill="#14504D" font-size="11" font-weight="700">研究问题</text><text x="16" y="63" fill="#163B48" font-size="14" font-weight="700">一个主题</text><text x="16" y="84" fill="#517982" font-size="13">一个平台</text>
     <rect x="16" y="97" width="87" height="7" rx="3.5" fill="#8DCBCB"/><rect x="16" y="110" width="58" height="6" rx="3" fill="#B0DBD9"/>
   </g>
   <path d="M624 139H644M638 133L644 139L638 145" stroke="#5EEAD4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 
   <g transform="translate(652 76)" filter="url(#shadow)" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif">
     <rect width="222" height="286" rx="20" fill="#F3FAFA"/><rect width="222" height="42" rx="20" fill="#14354A"/><rect y="23" width="222" height="19" fill="#14354A"/>
-    <circle cx="18" cy="21" r="5" fill="#5EEAD4"/><text x="32" y="26" fill="#EFFCFC" font-size="13" font-weight="700">平台采集</text><text x="119" y="26" fill="#9DDDE1" font-size="10">界面示意</text>
+    <circle cx="18" cy="21" r="5" fill="#5EEAD4"/><text x="32" y="26" fill="#EFFCFC" font-size="13" font-weight="700">平台信号</text><text x="119" y="26" fill="#9DDDE1" font-size="10">界面示意</text>
     <rect x="10" y="52" width="34" height="28" rx="14" fill="#D4F4EF"/><rect x="16" y="55" width="22" height="22" rx="6" fill="#111827"/><path d="M22 61L32 71M32 61L22 71" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
     <rect x="50" y="52" width="34" height="28" rx="14" fill="#E6EEF3"/><use href="#xhsSquareLogo" x="56" y="55" width="23" height="22"/>
     <rect x="90" y="52" width="34" height="28" rx="14" fill="#FDE8EC"/><rect x="95" y="58" width="25" height="17" rx="5" fill="#FF0033"/><path d="M105 62L112 66.5L105 71Z" fill="white"/>
@@ -56,29 +56,29 @@
     <g transform="translate(14 91)"><rect width="194" height="52" rx="10" fill="#DDF3F1"/><circle cx="17" cy="17" r="7" fill="#14B8A6"/><rect x="31" y="11" width="72" height="7" rx="3.5" fill="#67B8BA"/><rect x="12" y="29" width="151" height="6" rx="3" fill="#91C9CB"/><rect x="12" y="40" width="112" height="5" rx="2.5" fill="#B1DADB"/></g>
     <g transform="translate(14 151)"><rect width="194" height="52" rx="10" fill="#E6F4F6"/><circle cx="17" cy="17" r="7" fill="#38BDF8"/><rect x="31" y="11" width="59" height="7" rx="3.5" fill="#74B4CC"/><rect x="12" y="29" width="164" height="6" rx="3" fill="#A1CFD8"/><rect x="12" y="40" width="95" height="5" rx="2.5" fill="#BEDDE2"/></g>
     <g transform="translate(14 211)"><rect width="194" height="52" rx="10" fill="#E1F1EF"/><circle cx="17" cy="17" r="7" fill="#FBBF24"/><rect x="31" y="11" width="81" height="7" rx="3.5" fill="#70B0B1"/><rect x="12" y="29" width="143" height="6" rx="3" fill="#9AC8C7"/><rect x="12" y="40" width="126" height="5" rx="2.5" fill="#B8D8D5"/></g>
-    <text x="14" y="278" fill="#79959B" font-size="10">只读卡片 + 已打开详情</text>
+    <text x="14" y="278" fill="#79959B" font-size="10">公开内容 + 已打开原文</text>
   </g>
   <path d="M874 218H894M888 212L894 218L888 224" stroke="#5EEAD4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 
   <g transform="translate(902 114)" filter="url(#shadow)" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif">
     <rect width="136" height="208" rx="20" fill="#102F46" stroke="#60A5FA" stroke-opacity="0.58"/><circle cx="68" cy="52" r="29" fill="#123D4D" stroke="#5EEAD4" stroke-width="2"/>
-    <path d="M52 52L64 64L84 41" stroke="#5EEAD4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><text x="68" y="106" fill="#F0FDFA" font-size="16" font-weight="750" text-anchor="middle">证据审查</text>
-    <g fill="#9DD9DC" font-size="10"><text x="16" y="145">✓ 规范化与去重</text><text x="16" y="164">✓ 打开详情</text><text x="16" y="183">✓ 检查反向证据</text></g>
+    <path d="M52 52L64 64L84 41" stroke="#5EEAD4" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><text x="68" y="106" fill="#F0FDFA" font-size="16" font-weight="750" text-anchor="middle">核对证据</text>
+    <g fill="#9DD9DC" font-size="10"><text x="16" y="145">✓ 规范化与去重</text><text x="16" y="164">✓ 打开原文</text><text x="16" y="183">✓ 检查反例</text></g>
   </g>
   <path d="M1038 218H1057M1051 212L1057 218L1051 224" stroke="#FBBF24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
 
   <g transform="translate(1064 76)" filter="url(#shadow)" font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif">
     <rect width="166" height="330" rx="20" fill="#F8FAFC"/><rect width="166" height="47" rx="20" fill="#F5E9C5"/><rect y="27" width="166" height="20" fill="#F5E9C5"/>
-    <text x="15" y="21" fill="#654E16" font-size="10" font-weight="700">本地报告</text><text x="15" y="39" fill="#3D3525" font-size="14" font-weight="750">决策简报</text>
-    <text x="14" y="69" fill="#61717A" font-size="9" font-weight="700">直接回答</text><rect x="14" y="78" width="138" height="31" rx="8" fill="#E5F6F2"/><rect x="25" y="88" width="108" height="6" rx="3" fill="#65B5AB"/><rect x="25" y="98" width="79" height="5" rx="2.5" fill="#9BD0C8"/>
-    <text x="14" y="128" fill="#61717A" font-size="9" font-weight="700">研究基础</text>
-    <g font-size="9" font-weight="700"><rect x="14" y="137" width="41" height="21" rx="7" fill="#E6EEF3"/><text x="25" y="152" fill="#3E5E6D">信号</text><rect x="61" y="137" width="42" height="21" rx="7" fill="#E6EEF3"/><text x="71" y="152" fill="#3E5E6D">详情</text><rect x="109" y="137" width="43" height="21" rx="7" fill="#FFF0D5"/><text x="116" y="152" fill="#765420">反向</text></g>
-    <text x="14" y="179" fill="#61717A" font-size="9" font-weight="700">决策卡片</text>
+    <text x="15" y="21" fill="#654E16" font-size="10" font-weight="700">本地报告</text><text x="15" y="39" fill="#3D3525" font-size="14" font-weight="750">下一步建议</text>
+    <text x="14" y="69" fill="#61717A" font-size="9" font-weight="700">先做什么</text><rect x="14" y="78" width="138" height="31" rx="8" fill="#E5F6F2"/><rect x="25" y="88" width="108" height="6" rx="3" fill="#65B5AB"/><rect x="25" y="98" width="79" height="5" rx="2.5" fill="#9BD0C8"/>
+    <text x="14" y="128" fill="#61717A" font-size="9" font-weight="700">为什么这样判断</text>
+    <g font-size="9" font-weight="700"><rect x="14" y="137" width="41" height="21" rx="7" fill="#E6EEF3"/><text x="25" y="152" fill="#3E5E6D">信号</text><rect x="61" y="137" width="42" height="21" rx="7" fill="#E6EEF3"/><text x="71" y="152" fill="#3E5E6D">原文</text><rect x="109" y="137" width="43" height="21" rx="7" fill="#FFF0D5"/><text x="116" y="152" fill="#765420">反例</text></g>
+    <text x="14" y="179" fill="#61717A" font-size="9" font-weight="700">下一步验证</text>
     <g transform="translate(14 188)"><rect width="138" height="38" rx="9" fill="#DDF3F1"/><circle cx="14" cy="14" r="5" fill="#14B8A6"/><rect x="25" y="10" width="79" height="6" rx="3" fill="#63B3B3"/><rect x="11" y="25" width="108" height="5" rx="2.5" fill="#A1D1CF"/></g>
     <g transform="translate(14 234)"><rect width="138" height="38" rx="9" fill="#E1ECFA"/><circle cx="14" cy="14" r="5" fill="#38BDF8"/><rect x="25" y="10" width="69" height="6" rx="3" fill="#77ACC9"/><rect x="11" y="25" width="115" height="5" rx="2.5" fill="#AAC9DC"/></g>
     <g transform="translate(14 280)"><rect width="138" height="34" rx="9" fill="#FFF0D9"/><circle cx="14" cy="13" r="5" fill="#FBBF24"/><rect x="25" y="9" width="83" height="6" rx="3" fill="#C79A4C"/><rect x="11" y="23" width="95" height="5" rx="2.5" fill="#DFC491"/></g>
   </g>
 
-  <g font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="10" fill="#78AAB1"><text x="496" y="443">界面示意 · 不包含真实平台数据</text><text x="1064" y="426">回答 · 证据 · 行动</text></g>
+  <g font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, sans-serif" font-size="10" fill="#78AAB1"><text x="496" y="443">流程示意 · 不包含真实平台数据</text><text x="1064" y="426">建议 · 依据 · 下一步</text></g>
   <rect x="1" y="1" width="1278" height="478" rx="33" stroke="#D8FFFA" stroke-opacity="0.12" stroke-width="2"/>
 </svg>
