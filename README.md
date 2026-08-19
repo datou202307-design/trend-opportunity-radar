@@ -60,6 +60,14 @@ Current status: **v0.10.0 candidate**. This is a constrained platform-research w
 - Rejects likely encoding corruption and verifies that HTML, Markdown, and JSON were generated from one mutually consistent UTF-8 result.
 - For video-first feeds, discovers candidates from search cards and optionally extracts native captions, local speech transcripts, key frames, and OCR from no more than 10 deduplicated representative videos; media segments never increase trend sample counts.
 
+## Five decision modes, shown as real research tasks
+
+The evidence workflow stays stable while the decision question, evidence roles, and final action change with the user's goal.
+
+<p align="center">
+  <img src="assets/research-scenarios.svg" alt="Five concrete decision modes: business opportunities, brand sentiment, competitor users, content opportunities, and product-demand validation" width="100%">
+</p>
+
 ## Minimum input
 
 Only two inputs are required:
