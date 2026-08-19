@@ -1,0 +1,88 @@
+<svg width="1280" height="760" viewBox="0 0 1280 760" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Five research decision modes</title>
+  <desc id="desc">Five concrete research tasks: find business opportunities, monitor brand sentiment, study competitor users, find content opportunities, and validate product demand.</desc>
+  <defs>
+    <linearGradient id="bg" x1="30" y1="20" x2="1240" y2="740" gradientUnits="userSpaceOnUse"><stop stop-color="#07111F"/><stop offset="0.55" stop-color="#0A2431"/><stop offset="1" stop-color="#0A3B39"/></linearGradient>
+    <pattern id="grid" width="42" height="42" patternUnits="userSpaceOnUse"><path d="M42 0H0V42" stroke="#8FE7DD" stroke-opacity="0.055"/></pattern>
+    <filter id="shadow" x="-15%" y="-15%" width="130%" height="140%"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#020617" flood-opacity="0.34"/></filter>
+    <style>
+      .sans{font-family:Inter,"Segoe UI",Arial,sans-serif}.card-title{font-size:21px;font-weight:750;fill:#F8FAFC}.question{font-size:13px;fill:#9EC4CB}.label{font-size:10px;font-weight:700;fill:#A5F3FC;letter-spacing:.8px}.micro{font-size:10px;fill:#D5EAED}.decision{font-size:12px;font-weight:700;fill:#F8FAFC}
+    </style>
+  </defs>
+  <rect width="1280" height="760" rx="34" fill="url(#bg)"/><rect width="1280" height="760" rx="34" fill="url(#grid)"/>
+  <path d="M0 641C180 579 318 616 492 564C701 501 867 591 1034 600C1128 605 1201 579 1280 548" stroke="#5EEAD4" stroke-opacity="0.13" stroke-width="2"/>
+  <g class="sans">
+    <rect x="44" y="34" width="210" height="32" rx="16" fill="#0F3442" stroke="#38BDF8" stroke-opacity=".55"/><circle cx="65" cy="50" r="5" fill="#5EEAD4"/><text x="80" y="55" class="label">FIVE DECISION MODES</text>
+    <text x="44" y="102" fill="#F8FAFC" font-size="32" font-weight="760">Same evidence discipline. Different decisions.</text>
+    <text x="1236" y="98" text-anchor="end" fill="#7FC8D0" font-size="13">One topic · One platform · One decision goal</text>
+
+    <!-- 01 Business opportunity -->
+    <g transform="translate(44 132)" filter="url(#shadow)">
+      <rect width="376" height="240" rx="22" fill="#0D2A3A" stroke="#2DD4BF" stroke-opacity=".46"/><text x="20" y="29" class="label">01 · DISCOVER</text><text x="20" y="59" class="card-title">Find business opportunities</text>
+      <text x="20" y="82" class="question">Which unmet tasks merit a real-world test?</text>
+      <g transform="translate(20 101)">
+        <rect width="92" height="34" rx="10" fill="#123B49"/><circle cx="13" cy="17" r="5" fill="#FB7185"/><text x="25" y="21" class="micro">unmet task</text>
+        <rect y="43" width="92" height="34" rx="10" fill="#123B49"/><circle cx="13" cy="60" r="5" fill="#FBBF24"/><text x="25" y="64" class="micro">workaround</text>
+        <rect y="86" width="92" height="34" rx="10" fill="#123B49"/><circle cx="13" cy="103" r="5" fill="#38BDF8"/><text x="25" y="107" class="micro">demand</text>
+        <path d="M104 60H135M128 53L135 60L128 67" stroke="#5EEAD4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="145" y="22" width="191" height="76" rx="14" fill="#DDF3F1"/><circle cx="170" cy="47" r="13" fill="#14B8A6"/><path d="M166 47L170 51L177 42" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/><text x="191" y="42" fill="#164E52" font-size="10" font-weight="700">OPPORTUNITY</text><text x="191" y="54" fill="#164E52" font-size="10" font-weight="700">HYPOTHESIS</text><text x="191" y="72" fill="#49767C" font-size="10">audience · task · test</text><text x="191" y="87" fill="#49767C" font-size="10">metric · stop condition</text>
+      </g>
+      <rect x="20" y="221" width="336" height="1" fill="#35606A"/><text x="20" y="235" class="decision">Decision: which opportunity to validate first</text>
+    </g>
+
+    <!-- 02 Brand sentiment -->
+    <g transform="translate(452 132)" filter="url(#shadow)">
+      <rect width="376" height="240" rx="22" fill="#0D2A3A" stroke="#38BDF8" stroke-opacity=".42"/><text x="20" y="29" class="label">02 · MONITOR</text><text x="20" y="59" class="card-title">Monitor brand sentiment</text>
+      <text x="20" y="82" class="question">Which current issues need attention or response?</text>
+      <g transform="translate(20 100)">
+        <circle cx="65" cy="61" r="30" fill="#143B4D" stroke="#60A5FA"/><text x="65" y="57" text-anchor="middle" fill="#F8FAFC" font-size="10" font-weight="700">BRAND</text><text x="65" y="71" text-anchor="middle" fill="#93C5D2" font-size="9">mentions</text>
+        <rect x="0" y="0" width="101" height="25" rx="9" fill="#153B49"/><circle cx="13" cy="12.5" r="4" fill="#FB7185"/><text x="23" y="16" class="micro">complaint</text>
+        <rect x="0" y="98" width="101" height="25" rx="9" fill="#153B49"/><circle cx="13" cy="110.5" r="4" fill="#FBBF24"/><text x="23" y="114" class="micro">help request</text>
+        <path d="M105 61H137M130 54L137 61L130 68" stroke="#5EEAD4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="146" y="13" width="190" height="96" rx="14" fill="#E4F2F6"/><text x="161" y="34" fill="#285163" font-size="10" font-weight="700">RESPONSE PRIORITY</text><rect x="161" y="44" width="151" height="18" rx="9" fill="#FEE2E2"/><circle cx="172" cy="53" r="4" fill="#EF4444"/><text x="184" y="57" fill="#7F1D1D" font-size="9">respond now</text><rect x="161" y="68" width="151" height="18" rx="9" fill="#FEF3C7"/><circle cx="172" cy="77" r="4" fill="#F59E0B"/><text x="184" y="81" fill="#78350F" font-size="9">observe</text><rect x="161" y="92" width="104" height="5" rx="2.5" fill="#9FCAD2"/>
+      </g>
+      <rect x="20" y="221" width="336" height="1" fill="#35606A"/><text x="20" y="235" class="decision">Decision: respond, observe, or verify further</text>
+    </g>
+
+    <!-- 03 Competitor users -->
+    <g transform="translate(860 132)" filter="url(#shadow)">
+      <rect width="376" height="240" rx="22" fill="#0D2A3A" stroke="#A78BFA" stroke-opacity=".42"/><text x="20" y="29" class="label">03 · UNDERSTAND</text><text x="20" y="59" class="card-title">Study competitor users</text>
+      <text x="20" y="82" class="question">Why do users stay, complain, or switch?</text>
+      <g transform="translate(20 102)">
+        <rect width="91" height="91" rx="14" fill="#152F45" stroke="#64748B"/><rect x="14" y="15" width="63" height="12" rx="6" fill="#94A3B8"/><rect x="14" y="37" width="52" height="7" rx="3.5" fill="#526E82"/><rect x="14" y="52" width="61" height="7" rx="3.5" fill="#526E82"/><text x="45" y="78" text-anchor="middle" fill="#CBD5E1" font-size="9" font-weight="700">COMPETITOR</text>
+        <g transform="translate(111 5)"><circle cx="28" cy="19" r="11" fill="#38BDF8"/><path d="M8 57C10 40 18 34 28 34C38 34 46 40 48 57" fill="#164E63"/><text x="28" y="74" text-anchor="middle" class="micro">stay</text></g>
+        <g transform="translate(179 5)"><circle cx="28" cy="19" r="11" fill="#FB7185"/><path d="M8 57C10 40 18 34 28 34C38 34 46 40 48 57" fill="#71344A"/><text x="28" y="74" text-anchor="middle" class="micro">complain</text></g>
+        <g transform="translate(247 5)"><circle cx="28" cy="19" r="11" fill="#5EEAD4"/><path d="M8 57C10 40 18 34 28 34C38 34 46 40 48 57" fill="#155E5A"/><text x="28" y="74" text-anchor="middle" class="micro">switch</text></g>
+        <path d="M97 45H113" stroke="#A78BFA" stroke-width="2.5" stroke-linecap="round"/><path d="M227 88H324" stroke="#5EEAD4" stroke-width="2.5" stroke-linecap="round"/><path d="M317 81L324 88L317 95" stroke="#5EEAD4" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+      <rect x="20" y="221" width="336" height="1" fill="#35606A"/><text x="20" y="235" class="decision">Decision: which product wedge to test</text>
+    </g>
+
+    <!-- 04 Content opportunity -->
+    <g transform="translate(248 408)" filter="url(#shadow)">
+      <rect width="376" height="240" rx="22" fill="#0D2A3A" stroke="#FBBF24" stroke-opacity=".42"/><text x="20" y="29" class="label">04 · CREATE</text><text x="20" y="59" class="card-title">Find content opportunities</text>
+      <text x="20" y="82" class="question">Which audience questions deserve useful content?</text>
+      <g transform="translate(20 102)">
+        <rect width="127" height="29" rx="10" fill="#153B49"/><text x="13" y="19" class="micro">“How do I...?”</text><rect y="39" width="127" height="29" rx="10" fill="#153B49"/><text x="13" y="58" class="micro">“Is this worth it?”</text><rect y="78" width="127" height="29" rx="10" fill="#153B49"/><text x="13" y="97" class="micro">“What goes wrong?”</text>
+        <path d="M139 54H166M159 47L166 54L159 61" stroke="#FBBF24" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <g transform="translate(177 0)"><rect width="148" height="103" rx="14" fill="#FFF4D8"/><rect x="14" y="14" width="72" height="8" rx="4" fill="#D3A64F"/><rect x="14" y="31" width="119" height="6" rx="3" fill="#E2C582"/><rect x="14" y="43" width="97" height="6" rx="3" fill="#E2C582"/><rect x="14" y="62" width="120" height="26" rx="8" fill="#F8DF9E"/><text x="74" y="79" text-anchor="middle" fill="#6B4F18" font-size="9" font-weight="700">HOOK · PROOF · NEXT STEP</text></g>
+      </g>
+      <rect x="20" y="221" width="336" height="1" fill="#35606A"/><text x="20" y="235" class="decision">Decision: what content angle to test next</text>
+    </g>
+
+    <!-- 05 Product demand -->
+    <g transform="translate(656 408)" filter="url(#shadow)">
+      <rect width="376" height="240" rx="22" fill="#0D2A3A" stroke="#FB7185" stroke-opacity=".42"/><text x="20" y="29" class="label">05 · VALIDATE</text><text x="20" y="59" class="card-title">Validate product demand</text>
+      <text x="20" y="82" class="question">Do real tasks justify a bounded MVP test?</text>
+      <g transform="translate(20 102)">
+        <rect width="124" height="104" rx="14" fill="#153B49"/><text x="14" y="21" class="micro" font-weight="700">CURRENT WORKFLOW</text><circle cx="17" cy="39" r="4" fill="#38BDF8"/><rect x="29" y="35" width="76" height="7" rx="3.5" fill="#6497A7"/><circle cx="17" cy="59" r="4" fill="#FBBF24"/><rect x="29" y="55" width="64" height="7" rx="3.5" fill="#6497A7"/><circle cx="17" cy="79" r="4" fill="#FB7185"/><rect x="29" y="75" width="82" height="7" rx="3.5" fill="#6497A7"/><text x="14" y="96" fill="#FCA5A5" font-size="9">task · workaround · friction</text>
+        <path d="M136 52H164M157 45L164 52L157 59" stroke="#FB7185" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        <rect x="176" width="149" height="104" rx="14" fill="#E8F7F3"/><rect x="190" y="14" width="121" height="23" rx="8" fill="#BFE9DF"/><text x="250" y="29" text-anchor="middle" fill="#164E52" font-size="10" font-weight="700">BOUNDED MVP</text><text x="190" y="55" fill="#47757A" font-size="10">one task</text><text x="190" y="72" fill="#47757A" font-size="10">one success metric</text><text x="190" y="89" fill="#47757A" font-size="10">one stop condition</text>
+      </g>
+      <rect x="20" y="221" width="336" height="1" fill="#35606A"/><text x="20" y="235" class="decision">Decision: what smallest MVP to validate</text>
+    </g>
+
+    <g transform="translate(390 693)"><circle cx="7" cy="7" r="7" fill="#38BDF8"/><text x="23" y="11" fill="#B9D7DB" font-size="12">Observed platform signals</text><path d="M190 7H232M225 1L232 7L225 13" stroke="#5EEAD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="254" cy="7" r="7" fill="#5EEAD4"/><text x="270" y="11" fill="#B9D7DB" font-size="12">Evidence review</text><path d="M382 7H424M417 1L424 7L417 13" stroke="#FBBF24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="446" cy="7" r="7" fill="#FBBF24"/><text x="462" y="11" fill="#B9D7DB" font-size="12">Bounded decision</text></g>
+    <text x="640" y="738" text-anchor="middle" fill="#729FA7" font-size="10">Illustrative interface · no live platform data shown</text>
+  </g>
+</svg>
