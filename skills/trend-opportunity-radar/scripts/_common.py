@@ -197,6 +197,12 @@ MOJIBAKE_MARKERS = (
 )
 
 
+def clean_isolated_replacement_characters(value: Any) -> tuple[str, bool]:
+    """Remove U+FFFD from normalized text while retaining the immutable raw capture."""
+    text = as_text(value)
+    return text.replace("\ufffd", "").rstrip(), "\ufffd" in text
+
+
 def text_integrity_issues(value: Any, path: str = "$") -> list[str]:
     """Return paths containing strong encoding-corruption markers.
 
@@ -239,7 +245,7 @@ def normalize_platform(value: Any) -> str:
     text = as_text(value).lower()
     aliases = {
         "小红书": "xiaohongshu", "rednote": "xiaohongshu", "red": "xiaohongshu", "xhs": "xiaohongshu",
-        "twitter": "x", "推特": "x", "抖音": "douyin", "tiktok": "douyin",
+        "twitter": "x", "推特": "x", "抖音": "douyin", "tiktok": "tiktok", "tik tok": "tiktok", "国际抖音": "tiktok",
         "yt": "youtube", "油管": "youtube",
         "视频号": "wechat_channels", "wechat channels": "wechat_channels",
     }
@@ -316,8 +322,12 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
     author = row.get("author") if isinstance(row.get("author"), dict) else {}
     discovery = row.get("discovery") if isinstance(row.get("discovery"), dict) else {}
     platform_facts = row.get("platform_facts") if isinstance(row.get("platform_facts"), dict) else {}
+    content_evidence = row.get("content_evidence") if isinstance(row.get("content_evidence"), dict) else {}
     url = normalize_url(first(row, "canonical_url", "canonicalUrl", "url", "link", "source_url"))
-    title = as_text(first(row, "title", "name", "text", "body"))[:500]
+    title, title_repaired = clean_isolated_replacement_characters(first(row, "title", "name", "text", "body"))
+    summary, summary_repaired = clean_isolated_replacement_characters(first(row, "summary", "description", "body", "text"))
+    title = title[:500]
+    summary = summary[:4000]
     author_id = as_text(first(author, "id", "author_id") or first(row, "author_id", "authorId", "username"))
     published_at = as_text(first(row, "published_at", "publishedAt", "created_at", "createdAt"))
     row_captured_at = as_text(first(row, "captured_at", "capturedAt")) or captured_at
@@ -325,20 +335,27 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
     signal_source_mode = as_text(first(row, "source_mode", "sourceMode")) or source_mode
     normalized_platform = normalize_platform(first(row, "platform") or platform)
     dedupe_hash = stable_signal_key(row, normalized_platform)
+    content_id = as_text(first(row, "content_id", "contentId", "id"))
+    supplied_signal_id = as_text(first(row, "signal_id", "signalId", "id"))
+    stable_signal_id = supplied_signal_id or (
+        f"{normalized_platform}-{content_id}" if normalized_platform and content_id else f"signal-{dedupe_hash[:12]}"
+    )
     evidence_refs = [normalize_url(item) for item in as_list(first(row, "evidence_refs", "evidenceRefs", "refs"))]
     if url:
         evidence_refs.insert(0, url)
     limitations = [as_text(item) for item in as_list(first(row, "limitations", "limits")) if as_text(item)]
+    if title_repaired or summary_repaired:
+        limitations.append("An invalid replacement character was removed from platform card text; the immutable raw capture is retained for audit.")
     role = as_text(first(row, "evidence_role", "evidenceRole", "role")).lower()
     return {
-        "signal_id": as_text(first(row, "signal_id", "signalId", "id")) or f"signal-{dedupe_hash[:12]}",
+        "signal_id": stable_signal_id,
         "platform": normalized_platform,
         "source_mode": signal_source_mode,
         "source_type": infer_source_type(row, signal_source_mode, url, detail_captured),
         "evidence_role": role if role in {"support", "counter", "neutral"} else "neutral",
         "profile_evidence_role": as_text(first(row, "profile_evidence_role", "profileEvidenceRole")),
         "detail_captured": detail_captured,
-        "content_id": as_text(first(row, "content_id", "contentId", "id")),
+        "content_id": content_id,
         "canonical_url": url,
         "query_term": as_text(first(row, "query_term", "queryTerm", "query", "keyword")),
         "query_layer": as_text(first(row, "query_layer", "queryLayer", "scope")) or "unspecified",
@@ -350,7 +367,7 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
         else "unreviewed",
         "topic_key": as_text(first(row, "topic_key", "topicKey")),
         "title": title,
-        "summary": as_text(first(row, "summary", "description", "body", "text"))[:4000],
+        "summary": summary,
         "published_at": published_at,
         "captured_at": row_captured_at,
         "metrics_captured_at": as_text(first(row, "metrics_captured_at", "metricsCapturedAt")) or row_captured_at,
@@ -374,6 +391,7 @@ def normalize_signal(row: dict[str, Any], platform: str, source_mode: str, captu
             "comparison_count": as_number(first(row, "comparison_count", "comparisonCount")),
         },
         "platform_facts": platform_facts,
+        "content_evidence": content_evidence,
         "evidence_refs": list(dict.fromkeys(item for item in evidence_refs if item)),
         "limitations": limitations,
         "permission_scope": as_text(first(row, "permission_scope", "permissionScope")) or "unspecified",
@@ -392,7 +410,7 @@ def merge_signals(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]
     for field in ("canonical_url", "content_id", "title", "summary", "published_at", "captured_at", "metrics_captured_at", "permission_scope"):
         if not merged.get(field) and secondary.get(field):
             merged[field] = secondary[field]
-    for section in ("metrics", "author", "discovery", "time_series", "platform_facts"):
+    for section in ("metrics", "author", "discovery", "time_series", "platform_facts", "content_evidence"):
         combined = dict(secondary.get(section) or {})
         combined.update({key: value for key, value in (primary.get(section) or {}).items() if value not in (None, "")})
         merged[section] = combined

@@ -18,6 +18,8 @@ Use a user-authorized logged-in Chrome session, OpenCLI, DokoBot, an in-app brow
 
 Run a non-mutating preflight for every considered adapter and select by recorded platform capability. For Xiaohongshu and X, prefer validated OpenCLI for structured search and retained details, then DokoBot for rendered-page verification. For YouTube, use OpenCLI only after its independent probe succeeds. Follow [opencli-orchestration.md](opencli-orchestration.md). The neutral orchestrator, not any single CLI call, owns query progression, raw-output retention, atomic ledger writes, detail recovery, and contract completion.
 
+TikTok topic research is a conditional Beta path: it requires explicit enablement and a user-authorized, already logged-in Chrome session. Use OpenCLI for bounded keyword search and a separately preflighted DokoBot session for exact-target detail reads. If the target detail is verified but DokoBot exposes no comment bodies, use [tiktok-comment-enrichment.md](tiktok-comment-enrichment.md): freeze one target, let an available Chrome-control adapter expand that exact target's Comments entry once, and pass the bounded visible result through the deterministic recorder. The recorder rechecks request hash, content ID, author path, visible total, five-comment limit, and no-write assertions. Comment enrichment is optional and its failure does not invalidate completed search/detail evidence. No cookies or sessions are packaged by the Skill.
+
 Browser capture may collect Xiaohongshu, X, or another platform the user can lawfully access. It remains `controlled_capture`, not an official API. Personalized ranking, incomplete metrics, access limits, and capture depth must be disclosed.
 
 ## Public web

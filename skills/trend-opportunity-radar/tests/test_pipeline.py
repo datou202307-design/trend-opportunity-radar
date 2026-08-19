@@ -15,6 +15,7 @@ sys.path.insert(0, str(SCRIPTS))
 
 import check_collection_adapter as adapter_check
 import _common as common
+import research_context
 import generate_opportunities as opportunity_generator
 import orchestrate_dokobot_collection as orchestrator
 import parse_opencli_xhs_search as opencli_parser
@@ -28,6 +29,7 @@ import apply_comment_review as comment_reviewer
 import prepare_comment_review as comment_queue
 import run_dokobot_capture as capture_runner
 import run_dokobot_detail_backfill as detail_runner
+import parse_dokobot_tiktok_detail as tiktok_detail_parser
 import select_collection_adapter as adapter_selector
 import validate_report_artifacts as report_validator
 from generate_profile_report import collection_summary, finding_comment_evidence, visible_status
@@ -76,6 +78,16 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(len(topic["insights"]), 2)
         basis = collection_summary(enriched)
         self.assertEqual(basis["reviewed_comment_count"], 2)
+
+    def test_collection_summary_recomputes_detail_count_from_canonical_signals(self) -> None:
+        snapshot = {
+            "collection": {"counts": {"detail_open_count": 0}},
+            "signals": [
+                {"signal_id": "s1", "detail_captured": True, "semantic_relevance": "direct", "evidence_role": "support"},
+                {"signal_id": "s2", "detail_captured": False, "semantic_relevance": "adjacent", "evidence_role": "counter"},
+            ],
+        }
+        self.assertEqual(collection_summary(snapshot)["detail_open_count"], 1)
 
     def test_comment_review_rejects_missing_labels(self) -> None:
         snapshot = {"platform": "x", "signals": [{"signal_id": "s1", "platform_facts": {"representative_comments": [{"text": "Useful"}]}}]}
@@ -274,7 +286,42 @@ An entertainment interview translation thread.
         self.assertEqual(state["stop_reason"], "sampling_contract_met")
         self.assertEqual(updated["collection"]["stop_reason"], "sampling_contract_met")
         self.assertEqual(updated["collection"]["counts"]["detail_open_count"], 1)
+        self.assertEqual(updated["signals"][0]["signal_id"], signal["id"])
         self.assertNotIn("sampling_contract_unmet:detail_opens", updated["collection"]["limitations"])
+
+    def test_normalization_restores_platform_content_id_when_detail_lacks_signal_id(self) -> None:
+        normalized = common.normalize_signal(
+            {"platform": "tiktok", "content_id": "1234567890", "canonical_url": "https://www.tiktok.com/@creator/video/1234567890"},
+            "tiktok", "controlled_capture", self.now.isoformat(),
+        )
+        self.assertEqual(normalized["signal_id"], "tiktok-1234567890")
+
+    def test_normalization_removes_isolated_replacement_character_and_records_boundary(self) -> None:
+        normalized = common.normalize_signal(
+            {
+                "platform": "tiktok",
+                "content_id": "1234567890",
+                "canonical_url": "https://www.tiktok.com/@creator/video/1234567890",
+                "title": "Weekly budget plan \ufffd",
+                "summary": "Weekly budget plan \ufffd",
+            },
+            "tiktok", "controlled_capture", self.now.isoformat(),
+        )
+        self.assertEqual(normalized["title"], "Weekly budget plan")
+        self.assertEqual(normalized["summary"], "Weekly budget plan")
+        self.assertTrue(any("replacement character" in item for item in normalized["limitations"]))
+
+    def test_expansion_platform_names_are_inferred_without_reasking_the_user(self) -> None:
+        prompts = {
+            "使用 trend-opportunity-radar，分析家庭预算在 TikTok 英语市场的产品需求。": "tiktok",
+            "分析年轻人在抖音平台的内容机会。": "douyin",
+            "研究 Instagram 上的品牌舆情。": "instagram",
+        }
+        for prompt, expected in prompts.items():
+            with self.subTest(expected=expected):
+                context = research_context.compile_context(prompt)
+                self.assertEqual(context["status"], "ready")
+                self.assertEqual(context["platform"], expected)
 
     def test_detail_backfill_plan_deduplicates_a_signal_seen_in_multiple_layers(self) -> None:
         shared = self.make_signal(123)
@@ -290,7 +337,7 @@ An entertainment interview translation thread.
             "collection": {"mode": "standard", "query_runs": [], "counts": {}},
         })
         state = {
-            "snapshot": str(snapshot), "platform": "youtube", "mode": "standard",
+            "snapshot": str(snapshot), "adapter": "opencli", "platform": "youtube", "mode": "standard",
             "detail_backfill_attempts": [],
         }
         original_recovery = orchestrator.recovery_diagnostics
@@ -465,8 +512,18 @@ An entertainment interview translation thread.
         self.assertEqual(ordinary["waited_seconds"], 20)
         self.assertEqual(after_batch["waited_seconds"], 65)
         self.assertEqual(after_batch["batch_cooldown_seconds"], 45)
-        self.assertEqual(x_platform["waited_seconds"], 0)
-        self.assertEqual(waits, [20, 65])
+        self.assertEqual(x_platform["waited_seconds"], 40)
+        self.assertEqual(x_platform["max_parallel_reads"], 1)
+        self.assertFalse(x_platform["randomized"])
+        self.assertEqual(waits, [20, 65, 40])
+
+    def test_query_read_count_preserves_serial_cadence_across_queries(self) -> None:
+        state = {"queries": [
+            {"capture_executions": [{"read_status": "success"}]},
+            {"capture_executions": [{"read_status": "timeout"}, {"read_status": "success"}]},
+            {"capture_executions": []},
+        ]}
+        self.assertEqual(collection_capture_runner.prior_query_read_count(state), 3)
 
     def test_reader_titles_translate_internal_jargon_for_general_audience(self) -> None:
         profile = {"language": "zh-CN", "audience": "general"}
@@ -1034,6 +1091,173 @@ An entertainment interview translation thread.
         self.assertFalse(audit["truncated"])
         self.assertEqual(audit["reason"], "atomic_read_overshoot")
 
+    def test_finalize_active_recovers_when_snapshot_append_preceded_state_write(self) -> None:
+        snapshot = self.root / "recover-raw.json"
+        state_path = self.root / "recover-state.json"
+        active = orchestrator.new_active_query({
+            "id": "bridge", "term": "AI travel planner", "layer": "subject_bridge",
+            "url": "https://www.tiktok.com/search?q=AI%20travel%20planner",
+        })
+        active.update({
+            "observed_result_keys": ["video-1"],
+            "signals": [{"id": "video-1", "url": "https://www.tiktok.com/@demo/video/1", "semantic_relevance": "direct"}],
+        })
+        state = {
+            "adapter": "opencli", "platform": "tiktok", "mode": "standard",
+            "snapshot": str(snapshot), "active_query": active,
+            "queries": [{"id": "bridge", "term": "AI travel planner", "layer": "subject_bridge", "status": "in_progress"}],
+        }
+        orchestrator.finalize_active(state, state_path)
+        recovered_active = json.loads(json.dumps(active))
+        state["active_query"] = recovered_active
+        state["queries"][0]["status"] = "in_progress"
+        orchestrator.finalize_active(state, state_path)
+        saved = json.loads(snapshot.read_text(encoding="utf-8"))
+        self.assertEqual(len(saved["collection"]["query_runs"]), 1)
+        self.assertEqual(saved["collection"]["counts"]["observed_result_count"], 1)
+        self.assertEqual(state["queries"][0]["status"], "completed")
+        self.assertIsNone(state["active_query"])
+
+    def test_search_only_tiktok_hands_off_to_video_evidence_without_detail_command(self) -> None:
+        layers = ["platform_baseline", "category", "subject_bridge"]
+        signals = []
+        for index in range(60):
+            layer = layers[index // 20]
+            signals.append({
+                "id": f"video-{index}", "url": f"https://www.tiktok.com/@demo/video/{index}",
+                "query_layer": layer, "semantic_relevance": "direct",
+                "evidence_role": "counter" if index >= 54 else "support",
+                "source_type": "search_card", "detail_captured": False,
+            })
+        snapshot = self.write("tiktok-search-only.json", {
+            "schema_version": "trend-raw-snapshot-v0.2", "platform": "tiktok", "source_mode": "controlled_capture",
+            "collection": {"mode": "standard", "query_runs": [
+                {"query_term": layer, "query_layer": layer, "observed_result_count": 20, "retained_signal_count": 20,
+                 "detail_open_count": 0, "discarded_result_count": 0}
+                for layer in layers
+            ], "counts": {}, "stop_reason": "collection_in_progress", "limitations": []},
+            "signals": signals,
+        })
+        state = self.write("tiktok-search-only-state.json", {
+            "schema_version": "collection-orchestrator-v0.2", "adapter": "opencli", "platform": "tiktok",
+            "source_mode": "controlled_capture", "mode": "standard", "snapshot": str(snapshot),
+            "plan": str(self.root / "plan.json"), "adapter_status": str(self.root / "adapter.json"),
+            "capture_dir": str(self.root / "captures"), "screens_per_chunk": 1,
+            "status": "in_progress", "stop_reason": "", "active_query": None,
+            "queries": [
+                {"id": f"q-{index}", "term": layer, "layer": layer, "url": "https://www.tiktok.com/search", "status": "completed"}
+                for index, layer in enumerate(layers)
+            ],
+        })
+        action = run_script_json("orchestrate_dokobot_collection.py", "next", "--state", str(state))
+        self.assertEqual(action["action"], "blocked")
+        self.assertEqual(action["handoff"], "video_evidence")
+        self.assertIn("detail_enrichment_unavailable", action["stop_reason"])
+        self.assertFalse(orchestrator.detail_backfill_plan(json.loads(state.read_text(encoding="utf-8")))["available"])
+
+    def test_tiktok_detail_enhancement_uses_dokobot_after_opencli_search(self) -> None:
+        snapshot = self.write("tiktok-enhanced-raw.json", {
+            "platform": "tiktok", "source_mode": "controlled_capture",
+            "collection": {"mode": "standard", "query_runs": [], "counts": {}, "stop_reason": "collection_in_progress"},
+            "signals": [{
+                "content_id": "7000000000000000001",
+                "canonical_url": "https://www.tiktok.com/@synthetic.creator/video/7000000000000000001",
+                "query_layer": "subject_bridge", "semantic_relevance": "direct", "evidence_role": "support",
+                "title": "Synthetic travel planner example", "detail_captured": False,
+            }],
+        })
+        state = {
+            "adapter": "opencli", "detail_adapter": "dokobot", "platform": "tiktok", "mode": "standard",
+            "snapshot": str(snapshot), "capture_dir": str(self.root / "captures"), "detail_backfill_attempts": [],
+            "queries": [], "active_query": None,
+        }
+        original_recovery = orchestrator.recovery_diagnostics
+        orchestrator.recovery_diagnostics = lambda _state: {
+            "global_deficits": {"details": 1},
+            "layer_deficits": {
+                "platform_baseline": {"details": 0}, "category": {"details": 0},
+                "subject_bridge": {"details": 1, "direct": 1},
+            }
+        }
+        try:
+            plan = orchestrator.detail_backfill_plan(state)
+        finally:
+            orchestrator.recovery_diagnostics = original_recovery
+        self.assertTrue(plan["available"])
+        self.assertEqual(len(plan["targets"]), 1)
+        command = orchestrator.detail_capture_command(state, plan["targets"][0]["url"], self.root / "detail.txt")
+        self.assertEqual(command[:2], ["dokobot", "read"])
+
+    def test_attach_detail_adapter_reopens_only_recoverable_tiktok_detail_block(self) -> None:
+        snapshot = self.write("attach-detail-raw.json", {
+            "platform": "tiktok", "collection": {"stop_reason": "sampling_contract_unmet:detail_opens,detail_enrichment_unavailable", "limitations": []}, "signals": [],
+        })
+        selection_path = self.write("enhanced-selection.json", {
+            "schema_version": "collection-adapter-selection-v0.2", "platform": "tiktok",
+            "adapter": "opencli", "ready": True, "detail_adapter": "dokobot", "detail_ready": True,
+            "detail_selected_preflight": {"adapter": "dokobot", "ready": True, "status": "ready"},
+        })
+        state = {
+            "adapter": "opencli", "platform": "tiktok", "snapshot": str(snapshot),
+            "status": "blocked", "stop_reason": "sampling_contract_unmet:detail_opens,detail_enrichment_unavailable",
+        }
+        orchestrator.attach_detail_adapter(state, selection_path, json.loads(selection_path.read_text(encoding="utf-8")))
+        self.assertEqual(state["detail_adapter"], "dokobot")
+        self.assertEqual(state["status"], "in_progress")
+        self.assertEqual(len(state["adapter_enhancements"]), 1)
+        saved = json.loads(snapshot.read_text(encoding="utf-8"))
+        self.assertEqual(saved["collection"]["stop_reason"], "collection_in_progress")
+
+    def test_tiktok_detail_parser_requires_stable_identity_and_bounds_visible_comments(self) -> None:
+        target_url = "https://www.tiktok.com/@synthetic.creator/video/7000000000000000001"
+        raw_text = """# TikTok - Make Your Day
+> https://www.tiktok.com/@synthetic.creator/video/7000000000000000001
+
+**1250**
+**Like**
+**Comments**
+**12**
+**Favorites**
+**Add to Favorites**
+**Share**
+**31**
+---
+Synthetic Creator [8]
+· 8-18
+
+Build a flexible AI travel planner **more** #travel
+---
+Comments
+Viewer One
+I need to change the plan after booking
+3 likes · 1d ago
+---
+Viewer Two
+Spreadsheets already work for me
+1 like · 2d ago
+---
+You may like
+[8] https://www.tiktok.com/@synthetic.creator
+"""
+        raw = self.root / "tiktok-detail.txt"
+        metadata = self.root / "detail.capture.json"
+        stdout = self.root / "detail.stdout.txt"
+        stderr = self.root / "detail.stderr.txt"
+        for path in (raw, metadata, stdout, stderr):
+            path.write_text(raw_text if path == raw else "{}", encoding="utf-8")
+        parsed = tiktok_detail_parser.parse_tiktok_detail(raw_text, target_url, raw, metadata, stdout, stderr, "AI travel planner")
+        self.assertIsNotNone(parsed)
+        self.assertEqual(parsed["content_id"], "7000000000000000001")
+        self.assertEqual(parsed["metrics"]["likes"], 1250)
+        self.assertEqual(parsed["metrics"]["comments"], 12)
+        self.assertEqual(parsed["metrics"]["shares"], 31)
+        self.assertEqual(parsed["platform_facts"]["representative_comment_count"], 2)
+        mismatch = tiktok_detail_parser.parse_tiktok_detail(
+            raw_text, "https://www.tiktok.com/@synthetic.creator/video/7999999999999999999",
+            raw, metadata, stdout, stderr,
+        )
+        self.assertIsNone(mismatch)
+
     def test_dokobot_orchestrator_backfills_retained_details_before_reporting(self) -> None:
         signals = []
         layers = ["platform_baseline", "category", "subject_bridge"]
@@ -1422,6 +1646,27 @@ An entertainment interview translation thread.
         self.assertEqual(command[1], str(entry))
         self.assertEqual(command[3], "https://x.example/search?q=a&src=typed_query&f=live")
 
+    def test_windows_dokobot_shim_falls_back_to_appdata_npm(self) -> None:
+        appdata = self.root / "AppData" / "Roaming"
+        shim_root = appdata / "npm"
+        entry = shim_root / "node_modules" / "@dokobot" / "cli" / "dist" / "cli" / "bin" / "dokobot.js"
+        entry.parent.mkdir(parents=True)
+        entry.write_text("// test", encoding="utf-8")
+        shim = shim_root / "dokobot.cmd"
+        shim.write_text("@echo off", encoding="utf-8")
+        node = shim_root / "node.exe"
+        node.write_text("test", encoding="utf-8")
+        original_which = capture_runner.shutil.which
+        original_appdata_root = capture_runner.windows_appdata_root
+        try:
+            capture_runner.shutil.which = lambda name: None
+            capture_runner.windows_appdata_root = lambda: appdata
+            command = capture_runner.resolve_execution_command(["dokobot", "read", "https://example.com"])
+        finally:
+            capture_runner.shutil.which = original_which
+            capture_runner.windows_appdata_root = original_appdata_root
+        self.assertEqual(command[:2], [str(node), str(entry)])
+
     def test_session_expiry_restarts_same_query_without_session_before_partial_failure(self) -> None:
         state = self.root / "session-restart-state.json"
         snapshot = self.root / "session-restart-raw.json"
@@ -1554,13 +1799,16 @@ An entertainment interview translation thread.
             [sys.executable, str(SCRIPTS / "generate_opportunities.py"), "--subject", str(subject),
              "--signals", str(signals), "--json-output", str(self.root / "bad.json"),
              "--markdown-output", str(self.root / "bad.md"), "--html-output", str(self.root / "bad.html")],
-            capture_output=True, text=True,
+            capture_output=True, text=True, encoding="utf-8", errors="replace",
         )
         self.assertNotEqual(completed.returncode, 0)
         self.assertIn("text integrity", completed.stderr + completed.stdout)
 
     def test_dokobot_adapter_preflight_distinguishes_ready_and_disconnected(self) -> None:
-        def ready_runner(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        probe_kwargs: list[dict[str, object]] = []
+
+        def ready_runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
+            probe_kwargs.append(kwargs)
             if command[-1] == "--version":
                 return subprocess.CompletedProcess(command, 0, "2.11.0\n", "")
             return subprocess.CompletedProcess(command, 0, "Local:\n  abc pid 1234, Chrome, ext 0.3.1\n", "")
@@ -1569,6 +1817,8 @@ An entertainment interview translation thread.
         self.assertTrue(ready["ready"])
         self.assertEqual(ready["status"], "ready")
         self.assertEqual(ready["cli"]["version"], "2.11.0")
+        self.assertTrue(all(item["encoding"] == "utf-8" for item in probe_kwargs))
+        self.assertTrue(all(item["errors"] == "replace" for item in probe_kwargs))
 
         def disconnected_runner(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
             if command[-1] == "--version":
@@ -1587,9 +1837,13 @@ An entertainment interview translation thread.
         self.assertIn("standalone", " ".join(hidden["remediation"]))
 
     def test_opencli_preflight_and_platform_routing_are_capability_bounded(self) -> None:
-        def ready_runner(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+        observed_timeouts: dict[str, list[int]] = {}
+
+        def ready_runner(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
             if "--version" in command:
                 return subprocess.CompletedProcess(command, 0, "1.8.6\n", "")
+            capability = "tiktok" if "tiktok" in command else command[1]
+            observed_timeouts.setdefault(capability, []).append(int(kwargs["timeout"]))
             return subprocess.CompletedProcess(command, 0, '[{"field":"username","value":"tester"}]\n', "")
 
         opencli = adapter_check.diagnose_opencli("opencli", "test", runner=ready_runner)
@@ -1597,11 +1851,38 @@ An entertainment interview translation thread.
         self.assertTrue(opencli["capabilities"]["xiaohongshu"])
         self.assertTrue(opencli["capabilities"]["x"])
         self.assertTrue(opencli["capabilities"]["youtube"])
+        self.assertTrue(opencli["capabilities"]["tiktok"])
+        self.assertEqual(opencli["diagnostics"]["identity_probes"]["tiktok"]["probe_type"], "identity_diagnostic_and_bounded_topic_search")
+        self.assertEqual(opencli["diagnostics"]["identity_probes"]["tiktok"]["timeout_seconds"], 45)
+        self.assertEqual(observed_timeouts["tiktok"], [15, 45])
+        self.assertEqual(observed_timeouts["twitter"], [15])
         dokobot = {"adapter": "dokobot", "ready": True, "status": "ready"}
         xhs_route = adapter_selector.select_adapter("小红书", [dokobot, opencli])
         self.assertEqual(xhs_route["selected_adapter"], "opencli")
         x_route = adapter_selector.select_adapter("x", [dokobot, opencli])
         self.assertEqual(x_route["selected_adapter"], "opencli")
+
+    def test_opencli_tiktok_preflight_does_not_confuse_identity_parser_failure_with_search_failure(self) -> None:
+        calls: list[list[str]] = []
+
+        def auth_required_runner(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+            calls.append(command)
+            if "--version" in command:
+                return subprocess.CompletedProcess(command, 0, "1.8.6\n", "")
+            if "tiktok" in command and "whoami" in command:
+                return subprocess.CompletedProcess(command, 77, "", "AUTH_REQUIRED: no owner user")
+            if "tiktok" in command and "search" in command:
+                return subprocess.CompletedProcess(command, 0, '[{"url":"https://www.tiktok.com/@tester/video/1"}]\n', "")
+            return subprocess.CompletedProcess(command, 0, '[{"field":"username","value":"tester"}]\n', "")
+
+        status = adapter_check.diagnose_opencli("opencli", "test", runner=auth_required_runner)
+        tiktok_calls = [command for command in calls if "tiktok" in command]
+        self.assertTrue(status["capabilities"]["tiktok"])
+        self.assertEqual(len(tiktok_calls), 2)
+        self.assertIn("whoami", tiktok_calls[0])
+        self.assertIn("search", tiktok_calls[1])
+        self.assertFalse(status["diagnostics"]["identity_probes"]["tiktok"]["identity_ok"])
+        self.assertTrue(status["diagnostics"]["identity_probes"]["tiktok"]["search_attempted"])
 
     def test_opencli_x_parser_normalizes_metrics_and_keeps_search_evidence_unreviewed(self) -> None:
         raw = self.write("opencli-x-search.json", [{
@@ -1810,8 +2091,8 @@ An entertainment interview translation thread.
         self.assertEqual(action["opencli_command"][:3], ["opencli", "xiaohongshu", "search"])
         self.assertNotIn("dokobot_command", action)
         xhs_state = json.loads(state.read_text(encoding="utf-8"))
-        self.assertEqual(xhs_state["platform_adapter_contract"], "platform-adapter-contract-v0.1")
-        self.assertEqual(xhs_state["platform_adapter_registry"], "platform-adapter-registry-v0.1")
+        self.assertEqual(xhs_state["platform_adapter_contract"], "platform-adapter-contract-v0.2")
+        self.assertEqual(xhs_state["platform_adapter_registry"], "platform-adapter-registry-v0.2")
         x_action = run_script_json(
             "orchestrate_collection.py", "init", "--state", str(self.root / "x-state.json"),
             "--snapshot", str(self.root / "x-raw.json"), "--plan", str(plan), "--adapter-status", str(status),

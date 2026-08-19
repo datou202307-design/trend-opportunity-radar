@@ -122,7 +122,15 @@ def executable_command(cli_path: str, args: list[str], package: str, entry: tupl
 
 def run_probe(command: list[str], timeout: int, runner: Runner = subprocess.run) -> dict[str, Any]:
     try:
-        completed = runner(command, capture_output=True, text=True, timeout=timeout, check=False)
+        completed = runner(
+            command,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=timeout,
+            check=False,
+        )
         return {
             "ok": completed.returncode == 0,
             "returncode": completed.returncode,
@@ -237,7 +245,7 @@ def diagnose_opencli(
         "status": "",
         "cli": {"path": cli_path, "resolution": resolution, "version": ""},
         "browser": {"connected": False},
-        "capabilities": {"xiaohongshu": False, "x": False, "youtube": False},
+        "capabilities": {"xiaohongshu": False, "x": False, "youtube": False, "tiktok": False},
         "diagnostics": {"resolution_errors": errors},
     }
     if not cli_path:
@@ -256,16 +264,47 @@ def diagnose_opencli(
         return base
     base["cli"]["version"] = version_probe["stdout"].splitlines()[0] if version_probe["stdout"] else "unknown"
     identity_probes = {}
-    for capability, site in (("xiaohongshu", "xiaohongshu"), ("x", "twitter"), ("youtube", "youtube")):
-        identity_command = executable_command(cli_path, [site, "whoami", "-f", "json", "--window", "background"], "@jackwener/opencli", ("dist", "src", "main.js"))
+    for capability, site in (("xiaohongshu", "xiaohongshu"), ("x", "twitter"), ("youtube", "youtube"), ("tiktok", "tiktok")):
+        identity_args = [site, "whoami", "-f", "json", "--window", "background"]
+        identity_command = executable_command(cli_path, identity_args, "@jackwener/opencli", ("dist", "src", "main.js"))
         identity_probe = run_probe(identity_command, timeout, runner)
         combined = f"{identity_probe['stdout']}\n{identity_probe['stderr']}\n{identity_probe['error']}".casefold()
-        rejected = any(marker in combined for marker in ("browser_connect", "not connected", "login_required", "not logged in"))
-        base["capabilities"][capability] = bool(identity_probe["ok"] and not rejected and identity_probe["stdout"].strip())
+        rejected = any(marker in combined for marker in (
+            "auth_required", "browser_connect", "not connected", "login_required", "not logged in", "no owner user",
+        ))
+
+        search_probe = None
+        if capability == "tiktok":
+            # TikTok `whoami` can fail to rehydrate owner identity even while
+            # the controlled, already logged-in Chrome page is visible and the
+            # read-only search surface works. Treat identity as a diagnostic;
+            # prove search with the exact bounded read the adapter will use.
+            search_args = [
+                site, "search", "meal planning", "--limit", "1", "-f", "json",
+                "--window", "background", "--trace", "retain-on-failure",
+            ]
+            search_command = executable_command(cli_path, search_args, "@jackwener/opencli", ("dist", "src", "main.js"))
+            search_probe = run_probe(search_command, max(timeout, 45), runner)
+            search_combined = f"{search_probe['stdout']}\n{search_probe['stderr']}\n{search_probe['error']}".casefold()
+            search_rejected = any(marker in search_combined for marker in (
+                "auth_required", "browser_connect", "not connected", "login_required", "not logged in", "no owner user",
+            ))
+            base["capabilities"][capability] = bool(
+                search_probe["ok"] and not search_rejected and search_probe["stdout"].strip()
+            )
+        else:
+            base["capabilities"][capability] = bool(
+                identity_probe["ok"] and not rejected and identity_probe["stdout"].strip()
+            )
+
         identity_probes[capability] = {
-            "ok": identity_probe["ok"],
-            "returncode": identity_probe["returncode"],
-            "error": identity_probe["error"],
+            "ok": search_probe["ok"] if search_probe is not None else identity_probe["ok"],
+            "returncode": search_probe["returncode"] if search_probe is not None else identity_probe["returncode"],
+            "error": search_probe["error"] if search_probe is not None else identity_probe["error"],
+            "probe_type": "identity_diagnostic_and_bounded_topic_search" if capability == "tiktok" else "identity",
+            "timeout_seconds": max(timeout, 45) if capability == "tiktok" else timeout,
+            "identity_ok": identity_probe["ok"] and not rejected,
+            "search_attempted": search_probe is not None,
             "session_state_redacted": True,
         }
     base["diagnostics"]["identity_probes"] = identity_probes

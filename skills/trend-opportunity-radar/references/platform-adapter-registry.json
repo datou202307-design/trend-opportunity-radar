@@ -1,21 +1,42 @@
 {
-  "schema_version": "platform-adapter-registry-v0.1",
-  "contract_version": "platform-adapter-contract-v0.1",
+  "schema_version": "platform-adapter-registry-v0.2",
+  "contract_version": "platform-adapter-contract-v0.2",
   "platforms": {
     "x": {
       "aliases": ["x", "twitter"],
       "controlled_capture_preference": ["opencli", "dokobot"],
-      "metric_fields": ["likes", "comments", "shares", "bookmarks", "views"]
+      "metric_fields": ["likes", "comments", "shares", "bookmarks", "views"],
+      "research_scopes": {
+        "topic_research": "validated",
+        "account_research": "unsupported"
+      }
     },
     "xiaohongshu": {
       "aliases": ["xiaohongshu", "xhs", "小红书"],
       "controlled_capture_preference": ["opencli", "dokobot"],
-      "metric_fields": ["likes", "comments", "shares", "bookmarks"]
+      "metric_fields": ["likes", "comments", "shares", "bookmarks"],
+      "research_scopes": {
+        "topic_research": "validated",
+        "account_research": "unsupported"
+      }
     },
     "youtube": {
       "aliases": ["youtube", "yt", "油管"],
       "controlled_capture_preference": ["opencli"],
-      "metric_fields": ["views", "likes", "comments"]
+      "metric_fields": ["views", "likes", "comments"],
+      "research_scopes": {
+        "topic_research": "validated",
+        "account_research": "unsupported"
+      }
+    },
+    "tiktok": {
+      "aliases": ["tiktok", "tik tok", "国际抖音"],
+      "controlled_capture_preference": ["opencli", "dokobot"],
+      "metric_fields": ["views", "likes", "comments", "shares"],
+      "research_scopes": {
+        "topic_research": "pilot",
+        "account_research": "unsupported"
+      }
     }
   },
   "adapters": {
@@ -24,6 +45,7 @@
       "preflight_required": true,
       "platforms": {
         "x": {
+          "research_scopes": ["topic_research"],
           "capability_key": "x",
           "search_builder": "opencli_x_search_v1",
           "detail_builder": "opencli_x_detail_v1",
@@ -36,6 +58,7 @@
           "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
         },
         "xiaohongshu": {
+          "research_scopes": ["topic_research"],
           "capability_key": "xiaohongshu",
           "search_builder": "opencli_xhs_search_v1",
           "detail_builder": "opencli_xhs_detail_v1",
@@ -48,6 +71,7 @@
           "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
         },
         "youtube": {
+          "research_scopes": ["topic_research"],
           "capability_key": "youtube",
           "search_builder": "opencli_youtube_search_v1",
           "detail_builder": "opencli_youtube_detail_v1",
@@ -55,6 +79,28 @@
           "comment_sample_limit": 10,
           "search_parser": "opencli_youtube_search_v1",
           "detail_runner": "opencli",
+          "pagination": "bounded_result_set",
+          "terminal_evidence": ["success_empty_result", "adapter_error"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
+        },
+        "tiktok": {
+          "research_scopes": ["topic_research"],
+          "capability_key": "tiktok",
+          "search_builder": "opencli_tiktok_search_v1",
+          "detail_builder": null,
+          "search_parser": "opencli_tiktok_search_v1",
+          "detail_runner": null,
+          "pagination": "bounded_result_set",
+          "terminal_evidence": ["success_empty_result", "adapter_error"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
+        },
+        "tiktok": {
+          "research_scopes": ["topic_research"],
+          "capability_key": "tiktok",
+          "search_builder": "opencli_tiktok_search_v1",
+          "detail_builder": null,
+          "search_parser": "opencli_tiktok_search_v1",
+          "detail_runner": null,
           "pagination": "bounded_result_set",
           "terminal_evidence": ["success_empty_result", "adapter_error"],
           "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
@@ -66,6 +112,7 @@
       "preflight_required": true,
       "platforms": {
         "x": {
+          "research_scopes": ["topic_research"],
           "capability_key": null,
           "search_builder": "dokobot_read_search_v1",
           "detail_builder": "dokobot_read_detail_v1",
@@ -76,6 +123,7 @@
           "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
         },
         "xiaohongshu": {
+          "research_scopes": ["topic_research"],
           "capability_key": null,
           "search_builder": "dokobot_read_search_v1",
           "detail_builder": "dokobot_read_detail_v1",
@@ -84,6 +132,19 @@
           "pagination": "session_continuation",
           "terminal_evidence": ["explicit_platform_end", "zero_results", "no_more_results"],
           "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect"]
+        },
+        "tiktok": {
+          "research_scopes": ["topic_research"],
+          "capability_key": null,
+          "search_builder": null,
+          "detail_builder": "dokobot_tiktok_detail_v1",
+          "comment_builder": "embedded_visible_comments",
+          "comment_sample_limit": 5,
+          "search_parser": null,
+          "detail_runner": "dokobot",
+          "pagination": "bounded_detail_page",
+          "terminal_evidence": ["detail_identity_verified", "visible_comments_exhausted", "adapter_error"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect", "content_mismatch"]
         }
       }
     },
@@ -92,6 +153,7 @@
       "preflight_required": false,
       "platforms": {
         "*": {
+          "research_scopes": ["topic_research", "account_research"],
           "capability_key": null,
           "search_builder": null,
           "detail_builder": null,

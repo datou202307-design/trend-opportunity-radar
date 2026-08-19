@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/releases"><img alt="Release" src="https://img.shields.io/github/v/release/datou202307-design/trend-opportunity-radar?include_prereleases&style=flat-square&label=release"></a>
   <img alt="Five decision profiles" src="https://img.shields.io/badge/decision_profiles-5-14b8a6?style=flat-square">
-  <img alt="Platforms: X, Xiaohongshu and YouTube" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu_%2B_YouTube-0f766e?style=flat-square">
+  <img alt="Platforms: X, Xiaohongshu, YouTube and TikTok Beta" src="https://img.shields.io/badge/platforms-X_%2B_Xiaohongshu_%2B_YouTube_%2B_TikTok_Beta-0f766e?style=flat-square">
   <img alt="Outputs: HTML, Markdown and JSON" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square"></a>
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/datou202307-design/trend-opportunity-radar?style=flat-square"></a>
@@ -23,14 +23,14 @@
 
 An independent, brand-neutral agent Skill for analyzing evidence-backed trend opportunities for a research topic on one platform.
 
-Current status: **v0.8.0 candidate**. This is a constrained platform-research workflow, not a viral-content, traffic, demand, or revenue prediction system. The candidate supports five decision profiles on X, Xiaohongshu, and YouTube, with validated optional OpenCLI read-only collection and DokoBot rendered-page verification or fallback where supported.
+Current status: **v0.9.0 candidate**. This is a constrained platform-research workflow, not a viral-content, traffic, demand, or revenue prediction system. The candidate supports five decision profiles on X, Xiaohongshu, and YouTube, plus an explicitly enabled TikTok topic-research Beta for user-authorized logged-in Chrome sessions. Optional OpenCLI read-only collection and DokoBot rendered-page verification or fallback are used only where the current environment passes capability checks.
 
 ## What it does
 
 - Accepts a product, business opportunity, idea, user problem, audience need, or project as the research topic.
 - Supports five decision goals: business opportunities, brand sentiment, competitor users, content opportunities, and product-demand validation.
 - Compiles a short natural-language request into a versioned research context, so users do not need to specify internal evidence roles or sampling gates.
-- Analyzes one platform at a time, including X, Xiaohongshu, YouTube, and adapter-defined platforms.
+- Analyzes one platform at a time, including X, Xiaohongshu, YouTube, explicitly enabled TikTok Beta, and adapter-defined platforms.
 - Imports user-provided data or collects authorized, read-only browser and API signals.
 - Normalizes evidence, source links, capture times, metrics, and limitations.
 - Uses explicit quick, standard, and deep sampling contracts with a collection ledger.
@@ -58,6 +58,7 @@ Current status: **v0.8.0 candidate**. This is a constrained platform-research wo
 - Separates platform facts, user premises, model inferences, and human confirmation.
 - Produces a self-contained local HTML report, concise Markdown, and machine-readable JSON.
 - Rejects likely encoding corruption and verifies that HTML, Markdown, and JSON were generated from one mutually consistent UTF-8 result.
+- For video-first feeds, discovers candidates from search cards and optionally extracts native captions, local speech transcripts, key frames, and OCR from no more than 10 deduplicated representative videos; media segments never increase trend sample counts.
 
 ## Minimum input
 
@@ -106,6 +107,18 @@ Chrome, OpenCLI, DokoBot, or an equivalent controlled browser is optional. The a
 
 On YouTube, the validated path covers bounded search, video-detail enrichment, and separately requested bounded comments. Comment reads are capped at 10 representative items per eligible video, and transcripts are opened only when needed to verify a claim. Platform support does not guarantee that comments, transcripts, or a current browser session are available; every run must pass its own read-only capability probe.
 
+### Optional video-evidence runtime
+
+Video-first feeds such as TikTok can use the experimental `video-evidence-contract-v0.1`. Discovery adapters find and deduplicate candidates; a separate media layer handles native subtitles, local ASR, key frames, and on-screen OCR. Every channel preserves its provenance, so machine transcription and OCR are never rewritten as platform facts.
+
+TikTok topic-research Beta is available only when explicitly enabled in a user-authorized, already logged-in Chrome session. OpenCLI performs bounded topic search while a separately preflighted DokoBot browser session enriches selected details. If the exact target is verified but DokoBot exposes no comment bodies, the bundled two-stage recorder freezes one target before an available Chrome-control adapter expands its Comments entry once. It then rejects request, content-ID, author, limit, or no-write mismatches before merging at most five visible top-level comments. The displayed comment count remains separate from captured text. Comment enrichment is optional and never blocks an otherwise complete search/detail report.
+
+The reference runner can use pinned [mcp-video-analyzer](https://github.com/guimatheus92/mcp-video-analyzer), [yt-dlp](https://github.com/yt-dlp/yt-dlp), and optional local [whisper-ctranslate2](https://github.com/Softcatala/whisper-ctranslate2). None is bundled. Run `scripts/check_video_evidence_runtime.py` first; on Windows, prefer an isolated pinned local entry instead of reinstalling the package through `npx` for every video.
+
+The Beta accepts only public or explicitly authorized individual video URLs, keeps concurrency at one, removes temporary frames, retains no full media, and does not forward cookies, browser sessions, cloud speech API keys, or Hugging Face tokens. Anonymous TikTok live research is not supported; structured import remains the session-independent fallback. Douyin media analysis is not claimed until it passes separate real acceptance.
+
+Usable media text is reviewed by the Agent before it can appear in a report. The visible HTML/Markdown shows only a few exact reviewed excerpts under clear subtitle, machine-transcribed speech, or on-screen-text labels; raw ASR/OCR remains in JSON audit data. Users do not need to label the media manually.
+
 ## Important boundaries
 
 - Do not mix heat scores from different platforms.
@@ -121,7 +134,7 @@ On YouTube, the validated path covers bounded search, video-detail enrichment, a
 
 ## Third-party compatibility
 
-DokoBot, OpenCLI, Chrome, X, Xiaohongshu, and YouTube are optional third-party tools or platforms and are not bundled with this repository. Their names identify compatibility targets only; no affiliation, endorsement, account access, or permission is implied. Use each integration only with lawful access and in accordance with its applicable terms.
+DokoBot, OpenCLI, Chrome, mcp-video-analyzer, yt-dlp, whisper-ctranslate2, X, Xiaohongshu, YouTube, and TikTok are optional third-party tools or platforms and are not bundled with this repository. Their names identify compatibility or experimental targets only; no affiliation, endorsement, account access, or permission is implied. Use each integration only with lawful access and in accordance with its applicable terms.
 
 ## Repository layout
 

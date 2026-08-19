@@ -1,6 +1,6 @@
 <svg width="1280" height="480" viewBox="0 0 1280 480" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
   <title id="title">Trend Opportunity Radar workflow</title>
-  <desc id="desc">An illustrative workflow from a research topic through read-only X, Xiaohongshu, or YouTube collection and evidence review to a local decision report.</desc>
+  <desc id="desc">An illustrative workflow from a research topic through read-only X, Xiaohongshu, YouTube, or explicitly enabled TikTok Beta collection and evidence review to a local decision report.</desc>
   <defs>
     <linearGradient id="bg" x1="28" y1="22" x2="1240" y2="458" gradientUnits="userSpaceOnUse"><stop stop-color="#07111F"/><stop offset="0.54" stop-color="#0A2431"/><stop offset="1" stop-color="#0A3B39"/></linearGradient>
     <linearGradient id="accent" x1="70" y1="150" x2="430" y2="250" gradientUnits="userSpaceOnUse"><stop stop-color="#5EEAD4"/><stop offset="1" stop-color="#38BDF8"/></linearGradient>
@@ -21,10 +21,11 @@
     <text x="66" y="266" fill="#C7E4E8" font-size="19">Constrained platform research for AI agents.</text>
     <text x="66" y="296" fill="#8FB5BD" font-size="15">From platform signals to an auditable decision.</text>
     <rect x="64" y="334" width="152" height="38" rx="11" fill="#F0FDFA"/><text x="84" y="358" fill="#0F3542" font-size="13" font-weight="700">5 DECISION MODES</text>
-    <rect x="228" y="334" width="122" height="38" rx="11" fill="#0D3440" stroke="#2DD4BF" stroke-opacity="0.65"/>
+    <rect x="228" y="334" width="158" height="38" rx="11" fill="#0D3440" stroke="#2DD4BF" stroke-opacity="0.65"/>
     <rect x="240" y="342" width="22" height="22" rx="6" fill="#F8FAFC"/><path d="M246 348L256 358M256 348L246 358" stroke="#07111F" stroke-width="2.2" stroke-linecap="round"/>
     <use href="#xhsSquareLogo" x="276" y="342" width="23" height="22"/>
     <rect x="312" y="344" width="26" height="18" rx="5" fill="#FF0033"/><path d="M322 348.5L329 353L322 357.5Z" fill="white"/>
+    <rect x="348" y="342" width="22" height="22" rx="6" fill="#111827"/><path d="M359 347V356.5A3.5 3.5 0 1 1 356 353" stroke="#25F4EE" stroke-width="2.2" stroke-linecap="round"/><path d="M361 347.5C362.2 349.8 363.6 350.6 366 350.7" stroke="#FE2C55" stroke-width="2.2" stroke-linecap="round"/><path d="M360 347V356.5A3.5 3.5 0 1 1 357 353" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
     <rect x="64" y="384" width="188" height="38" rx="11" fill="#102D43" stroke="#38BDF8" stroke-opacity="0.55"/><text x="85" y="408" fill="#D4F0FF" font-size="13" font-weight="700">LOCAL HTML · MD · JSON</text>
   </g>
 
@@ -45,6 +46,7 @@
     <rect x="14" y="52" width="42" height="28" rx="14" fill="#D4F4EF"/><rect x="24" y="55" width="22" height="22" rx="6" fill="#111827"/><path d="M30 61L40 71M40 61L30 71" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
     <rect x="62" y="52" width="42" height="28" rx="14" fill="#E6EEF3"/><use href="#xhsSquareLogo" x="72" y="55" width="23" height="22"/>
     <rect x="110" y="52" width="42" height="28" rx="14" fill="#FDE8EC"/><rect x="119" y="58" width="25" height="17" rx="5" fill="#FF0033"/><path d="M129 62L136 66.5L129 71Z" fill="white"/>
+    <rect x="158" y="52" width="42" height="28" rx="14" fill="#E5E7EB"/><rect x="168" y="55" width="22" height="22" rx="6" fill="#111827"/><path d="M179 60V69.5A3.5 3.5 0 1 1 176 66" stroke="#25F4EE" stroke-width="2.2" stroke-linecap="round"/><path d="M181 60.5C182.2 62.8 183.6 63.6 186 63.7" stroke="#FE2C55" stroke-width="2.2" stroke-linecap="round"/><path d="M180 60V69.5A3.5 3.5 0 1 1 177 66" stroke="white" stroke-width="1.4" stroke-linecap="round"/>
     <g transform="translate(14 91)"><rect width="194" height="52" rx="10" fill="#DDF3F1"/><circle cx="17" cy="17" r="7" fill="#14B8A6"/><rect x="31" y="11" width="72" height="7" rx="3.5" fill="#67B8BA"/><rect x="12" y="29" width="151" height="6" rx="3" fill="#91C9CB"/><rect x="12" y="40" width="112" height="5" rx="2.5" fill="#B1DADB"/></g>
     <g transform="translate(14 151)"><rect width="194" height="52" rx="10" fill="#E6F4F6"/><circle cx="17" cy="17" r="7" fill="#38BDF8"/><rect x="31" y="11" width="59" height="7" rx="3.5" fill="#74B4CC"/><rect x="12" y="29" width="164" height="6" rx="3" fill="#A1CFD8"/><rect x="12" y="40" width="95" height="5" rx="2.5" fill="#BEDDE2"/></g>
     <g transform="translate(14 211)"><rect width="194" height="52" rx="10" fill="#E1F1EF"/><circle cx="17" cy="17" r="7" fill="#FBBF24"/><rect x="31" y="11" width="81" height="7" rx="3.5" fill="#70B0B1"/><rect x="12" y="29" width="143" height="6" rx="3" fill="#9AC8C7"/><rect x="12" y="40" width="126" height="5" rx="2.5" fill="#B8D8D5"/></g>

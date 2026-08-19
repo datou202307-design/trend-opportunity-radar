@@ -11,6 +11,8 @@ from _common import load_data, now_iso, write_json
 from orchestrate_dokobot_collection import action, load_state, record_detail_backfill
 from run_collection_capture import command_hash
 from run_dokobot_capture import classify_failure, resolve_execution_command
+from collection_pacing import throttle_before_read
+from parse_dokobot_tiktok_detail import parse_tiktok_detail
 
 
 X_URL = re.compile(r"https://(?:www\.)?x\.com/([A-Za-z0-9_]+)/status/(\d+)", re.IGNORECASE)
@@ -83,7 +85,7 @@ def parse_x_detail(text: str, target_url: str, raw_path: Path, metadata_path: Pa
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Execute eligible DokoBot X detail backfills with immutable execution evidence.")
+    parser = argparse.ArgumentParser(description="Execute eligible DokoBot detail backfills with immutable execution evidence.")
     parser.add_argument("--state", required=True)
     parser.add_argument("--results-output", required=True)
     parser.add_argument("--timeout-seconds", type=int, default=75)
@@ -94,8 +96,9 @@ def main() -> None:
         raise SystemExit("--timeout-seconds must be between 10 and 300.")
     state_path = Path(args.state).resolve()
     state = load_state(state_path)
-    if state.get("adapter") != "dokobot" or state.get("platform") != "x":
-        raise SystemExit("This runner is limited to the validated DokoBot X detail workflow.")
+    detail_adapter = state.get("detail_adapter") or state.get("adapter")
+    if detail_adapter != "dokobot" or state.get("platform") not in {"x", "tiktok"}:
+        raise SystemExit("This runner requires a registered DokoBot X or TikTok detail workflow.")
     next_action = action(state)
     if next_action.get("action") != "backfill_details":
         raise SystemExit("The collection orchestrator does not currently request detail backfill.")
@@ -104,10 +107,17 @@ def main() -> None:
         targets = targets[:args.max_details]
     results: list[dict[str, Any]] = []
     hard_stop = ""
+    previous_reads = sum(
+        1 for item in (load_data(state["snapshot"]).get("collection", {}).get("detail_backfills", []) or [])
+        if isinstance(item, dict)
+    )
+    request_index = previous_reads
     for target in targets:
         accepted = None
         last_result: dict[str, Any] = {}
         for attempt in (1, 2):
+            pacing = throttle_before_read(state["platform"], "detail", request_index)
+            request_index += 1
             base = Path(target["raw_output"])
             raw_path = base.with_name(f"{base.stem}-attempt-{attempt}{base.suffix}").resolve()
             stdout_path = raw_path.with_suffix(raw_path.suffix + ".stdout.txt")
@@ -134,6 +144,7 @@ def main() -> None:
                 "timed_out": timed_out, "started_at": started_at, "finished_at": finished_at,
                 "raw_artifact": str(raw_path), "stdout_artifact": str(stdout_path),
                 "stderr_artifact": str(stderr_path), "metadata_artifact": str(metadata_path),
+                "pacing": pacing,
             }
             write_json(str(metadata_path), metadata)
             stop_reason = ""
@@ -144,9 +155,14 @@ def main() -> None:
             elif not raw_path.is_file():
                 stop_reason = "cli_error"
             else:
-                accepted = parse_x_detail(raw_path.read_text(encoding="utf-8", errors="replace"), target["url"], raw_path, metadata_path, stdout_path, stderr_path)
+                raw_text = raw_path.read_text(encoding="utf-8", errors="replace")
+                accepted = (
+                    parse_x_detail(raw_text, target["url"], raw_path, metadata_path, stdout_path, stderr_path)
+                    if state["platform"] == "x"
+                    else parse_tiktok_detail(raw_text, target["url"], raw_path, metadata_path, stdout_path, stderr_path, target.get("title", ""))
+                )
                 if accepted is None:
-                    stop_reason = "cli_error"
+                    stop_reason = "content_mismatch" if state["platform"] == "tiktok" else "cli_error"
             last_result = {
                 "signal_key": target["signal_key"], "success": accepted is not None,
                 "raw_artifact": str(raw_path), "stop_reason": "" if accepted else stop_reason,

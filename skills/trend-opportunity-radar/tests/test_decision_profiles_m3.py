@@ -201,15 +201,15 @@ class DecisionProfilesM3Test(unittest.TestCase):
             self.assertIn("较弱", page)
             self.assertIn("中等", page)
             self.assertIn("本次研究基础", page)
-            self.assertIn("本轮通过 4 个搜索主题，在X观察到 77 条可见结果", page)
+            self.assertIn("本轮通过 4 个搜索主题，在 X 观察到 77 条可见结果", page)
             self.assertIn("其中 2 条与研究主题相关", page)
-            self.assertIn("打开并核验 12 条详情", page)
+            self.assertIn("打开并核验 0 条详情", page)
             self.assertIn("检查 1 条不同意见或相反情况", page)
             self.assertIn("标准采样已完成", page)
             self.assertEqual(report["schema_version"], "profile-research-report-v0.3")
             self.assertEqual(report["collection_summary"], {
                 "query_count": 4, "observed_result_count": 77, "unique_signal_count": 3,
-                "relevant_signal_count": 2, "detail_open_count": 12,
+                "relevant_signal_count": 2, "detail_open_count": 0,
                 "counter_signal_count": 1, "sampling_status": "complete",
             })
             self.assertEqual(report["findings"][0]["score_summary"], {"observed_heat": 32, "evidence_confidence": 54})
@@ -272,6 +272,57 @@ class DecisionProfilesM3Test(unittest.TestCase):
         report = generate_profile_report.build_report(context, snapshot, self.finding(context))
         self.assertNotIn("score_summary", report["findings"][0])
         self.assertNotIn("平台讨论强度", generate_profile_report.render_html(report))
+
+    def test_chinese_report_rejects_known_reader_facing_jargon(self) -> None:
+        context = self.context("business_opportunity")
+        payload = self.finding(context)
+        payload["findings"][0]["decision_summary"] = "把跨来源整理作为入口，形成一条任务链。"
+        snapshot = {"platform": "x", "collection": {"contract_status": "met"}, "topics": [{
+            "topic_key": "topic-1", "cluster_audit": {"status": "passed"},
+        }]}
+        with self.assertRaisesRegex(SystemExit, "plain language"):
+            generate_profile_report.build_report(context, snapshot, payload)
+
+    def test_report_shows_only_reviewed_video_additions_in_plain_language(self) -> None:
+        context = self.context("business_opportunity")
+        snapshot = {
+            "platform": "x",
+            "collection": {"contract_status": "met", "stop_reason": "sampling_contract_met"},
+            "video_evidence": {"semantic_review_status": "complete", "reviewed_count": 1, "relevant_reviewed_count": 1},
+            "signals": [{
+                "topic_key": "topic-1", "canonical_url": "https://x.example/video-1",
+                "semantic_relevance": "direct", "evidence_role": "support",
+                "content_evidence": {
+                    "transcript": {"provenance": "asr", "segments": [{"text": "raw machine transcript"}]},
+                    "visual_text": {"provenance": "ocr", "rows": [{"text": "raw OCR row"}]},
+                    "semantic_review": {
+                        "status": "reviewed", "content_format": "video", "usable_channels": ["asr", "ocr"],
+                        "summary": "视频说明用户先完成三步设置。", "relevant_excerpt_count": 2,
+                        "excerpts": [
+                            {"channel": "asr", "text": "先完成一次最小测试", "semantic_relevance": "direct", "evidence_role": "support"},
+                            {"channel": "ocr", "text": "三步设置", "semantic_relevance": "direct", "evidence_role": "support"},
+                        ],
+                    },
+                },
+            }],
+            "topics": [{"topic_key": "topic-1", "cluster_audit": {"status": "passed"}}],
+        }
+        report = generate_profile_report.build_report(context, snapshot, self.finding(context))
+        page = generate_profile_report.render_html(report)
+        visible = page.split('<pre id="raw">', 1)[0]
+        markdown = generate_profile_report.render_markdown(report)
+        self.assertIn("核验 1 条视频内容", visible)
+        self.assertIn("视频核验发现", visible)
+        self.assertIn("视频说明用户先完成三步设置。", visible)
+        self.assertIn("查看原始字幕或画面文字", visible)
+        self.assertIn("语音转写（机器提取）", visible)
+        self.assertIn("画面文字（机器提取）", markdown)
+        self.assertIn("先完成一次最小测试", visible)
+        self.assertLess(visible.index("视频说明用户先完成三步设置。"), visible.index("先完成一次最小测试"))
+        self.assertNotIn("raw machine transcript", visible)
+        self.assertNotIn("raw OCR row", visible)
+        self.assertEqual(report["collection_summary"]["reviewed_video_count"], 1)
+        self.assertEqual(report["collection_summary"]["relevant_video_count"], 1)
 
 
 if __name__ == "__main__":
