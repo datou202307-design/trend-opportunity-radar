@@ -10,6 +10,7 @@ from typing import Any
 
 from _common import now_iso, write_json
 from check_collection_adapter import executable_command, resolve_opencli
+from collection_pacing import throttle_before_read
 from orchestrate_dokobot_collection import action, load_state
 from platform_adapter_contract import parse_search_capture
 from run_dokobot_capture import build_metadata as build_dokobot_metadata
@@ -17,6 +18,14 @@ from run_dokobot_capture import execution_artifact_paths, resolve_execution_comm
 
 
 SCHEMA_VERSION = "collection-capture-execution-v0.2"
+
+
+def prior_query_read_count(state: dict[str, Any]) -> int:
+    return sum(
+        len(query.get("capture_executions", []))
+        for query in state.get("queries", [])
+        if isinstance(query, dict) and isinstance(query.get("capture_executions", []), list)
+    )
 
 
 def immutable_raw_path(requested: Path) -> Path:
@@ -85,6 +94,7 @@ def main() -> None:
     raw_path.parent.mkdir(parents=True, exist_ok=True)
     metadata_path = Path(args.metadata_output).resolve()
     capture_metadata_path, stdout_path, stderr_path = execution_artifact_paths(metadata_path, raw_path)
+    pacing = throttle_before_read(str(state.get("platform") or ""), "search", prior_query_read_count(state))
     started_at = now_iso()
     try:
         completed = subprocess.run(command, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=args.timeout_seconds)
@@ -128,6 +138,7 @@ def main() -> None:
         metadata = build_dokobot_metadata(next_action["query"]["id"], requested, str(raw_path), stdout, stderr, exit_code, started_at, finished_at, timed_out)
         metadata["schema_version"] = SCHEMA_VERSION
         metadata["adapter"] = adapter
+    metadata["pacing"] = pacing
     extraction_path = Path(args.extraction_output).resolve()
     extraction = parse_search_capture(adapter, state.get("platform", ""), raw_path, next_action["query"]) if metadata["read_status"] == "success" else None
     if extraction is not None:

@@ -81,6 +81,13 @@ Use one platform per snapshot. Read [sampling-contract.md](sampling-contract.md)
           "comment_keys": ["comment-..."]
         }
       },
+      "content_evidence": {
+        "contract_version": "video-evidence-contract-v0.1",
+        "status": "complete|partial|unavailable",
+        "transcript": {"provenance": "native_subtitle|asr|unknown", "segments": []},
+        "visual_text": {"provenance": "ocr", "rows": []},
+        "keyframes": []
+      },
       "evidence_refs": ["https://..."],
       "limitations": [],
       "permission_scope": "public|user_authorized|exported|unspecified",
@@ -95,6 +102,8 @@ Use one platform per snapshot. Read [sampling-contract.md](sampling-contract.md)
 Representative comments are a bounded qualitative sample attached to a selected detail. They do not increase `raw_sample_count`, do not populate the content's total comment metric, and must preserve capture provenance. X keeps at most 5 replies from the already-opened thread; Xiaohongshu performs a separately throttled read of at most 5 top-level comments; YouTube keeps at most 10 comments. Missing comments remain unavailable and never invalidate an otherwise usable detail unless the read encounters a platform-wide safety stop.
 
 When comments exist, [comment-evidence-contract.md](comment-evidence-contract.md) governs their complete review and merge. `comment_analysis` summarizes only reviewed visible text, preserves the original comment sample, and may inform a topic's qualitative decision reasoning without changing sample counts or observed heat.
+
+For video-bearing items, [video-evidence-contract.md](video-evidence-contract.md) governs optional transcript, OCR, and keyframe enrichment. `content_evidence` is derived evidence, not a platform-fact container. It does not increase any sample count. A successful bounded media read may promote the same item from `search_card` to `direct_post`; a failed or unavailable analysis must leave the original search-card status unchanged.
 
 For `controlled_capture`, a post visible only in search results is `search_card` with `detail_captured: false`. Do not manually force it to `direct_post`; normalization will downgrade that combination.
 

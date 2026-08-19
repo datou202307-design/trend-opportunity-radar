@@ -4,13 +4,13 @@ import argparse
 import json
 import shutil
 import subprocess
-import time
 from pathlib import Path
 from typing import Any
 
 from _common import load_data, now_iso, write_json
 from append_collection_result import signal_key
 from check_collection_adapter import executable_command, resolve_opencli
+from collection_pacing import pacing_policy, throttle_before_read
 from orchestrate_dokobot_collection import action, load_state, record_detail_backfill
 from parse_opencli_xhs_search import parse_count
 from parse_opencli_x_search import parse_count as parse_x_count
@@ -18,32 +18,14 @@ from parse_opencli_youtube_search import parse_count as parse_youtube_count
 from run_collection_capture import classify_opencli_failure, command_hash
 
 
-XHS_DETAIL_INTERVAL_SECONDS = 20
-XHS_DETAIL_BATCH_SIZE = 5
-XHS_DETAIL_BATCH_COOLDOWN_SECONDS = 45
 YOUTUBE_COMMENT_SAMPLE_LIMIT = 10
 X_COMMENT_SAMPLE_LIMIT = 5
 XHS_COMMENT_SAMPLE_LIMIT = 5
 
 
-def throttle_before_detail(platform: str, request_index: int, sleeper=time.sleep) -> dict[str, Any]:
-    """Apply and describe the deterministic Xiaohongshu read cadence."""
-    if platform != "xiaohongshu" or request_index <= 0:
-        return {
-            "request_index": request_index,
-            "interval_seconds": 0,
-            "batch_cooldown_seconds": 0,
-            "waited_seconds": 0,
-        }
-    cooldown = XHS_DETAIL_BATCH_COOLDOWN_SECONDS if request_index % XHS_DETAIL_BATCH_SIZE == 0 else 0
-    waited = XHS_DETAIL_INTERVAL_SECONDS + cooldown
-    sleeper(waited)
-    return {
-        "request_index": request_index,
-        "interval_seconds": XHS_DETAIL_INTERVAL_SECONDS,
-        "batch_cooldown_seconds": cooldown,
-        "waited_seconds": waited,
-    }
+def throttle_before_detail(platform: str, request_index: int, sleeper=None) -> dict[str, Any]:
+    """Apply the shared serialized detail-read cadence."""
+    return throttle_before_read(platform, "detail", request_index, sleeper) if sleeper else throttle_before_read(platform, "detail", request_index)
 
 
 def fields_map(value: Any) -> dict[str, Any]:
@@ -206,7 +188,10 @@ def immutable_attempt_path(path: Path) -> Path:
         index += 1
 
 
-def capture_youtube_comments(target: dict[str, Any], detail_raw_path: Path, timeout: int) -> dict[str, Any]:
+def capture_youtube_comments(
+    target: dict[str, Any], detail_raw_path: Path, timeout: int, throttle: dict[str, Any] | None = None
+) -> dict[str, Any]:
+    throttle = throttle or throttle_before_read("youtube", "comment", 0)
     requested = [
         "opencli", "youtube", "comments", str(target["url"]),
         "--limit", str(YOUTUBE_COMMENT_SAMPLE_LIMIT), "-f", "json",
@@ -247,6 +232,7 @@ def capture_youtube_comments(target: dict[str, Any], detail_raw_path: Path, time
         "timed_out": timed_out,
         "stop_reason": stop_reason,
         "hard_stop": hard_stop,
+        "throttle": throttle,
         "started_at": started_at,
         "finished_at": finished_at,
         "raw_artifact": str(raw_path.resolve()),
@@ -440,7 +426,9 @@ def main() -> None:
             if state.get("platform") == "youtube":
                 accepted = youtube_detail(decoded)
                 if accepted:
-                    comment_capture = capture_youtube_comments(target, raw_path, args.timeout_seconds)
+                    comment_throttle = throttle_before_read("youtube", "comment", detail_request_index)
+                    detail_request_index += 1
+                    comment_capture = capture_youtube_comments(target, raw_path, args.timeout_seconds, comment_throttle)
                     platform_facts = accepted.setdefault("platform_facts", {})
                     platform_facts["representative_comments"] = comment_capture["comments"]
                     platform_facts["representative_comment_count"] = len(comment_capture["comments"])
@@ -529,9 +517,7 @@ def main() -> None:
         "status": "blocked" if hard_stop else "complete",
         "hard_stop": hard_stop,
         "throttle_policy": {
-            "detail_interval_seconds": XHS_DETAIL_INTERVAL_SECONDS if state.get("platform") == "xiaohongshu" else 0,
-            "batch_size": XHS_DETAIL_BATCH_SIZE if state.get("platform") == "xiaohongshu" else 0,
-            "batch_cooldown_seconds": XHS_DETAIL_BATCH_COOLDOWN_SECONDS if state.get("platform") == "xiaohongshu" else 0,
+            **pacing_policy(str(state.get("platform") or ""), "detail"),
             "request_count": detail_request_index,
         },
         "results": results,

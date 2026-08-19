@@ -1,6 +1,6 @@
 # DokoBot collection orchestration
 
-Use DokoBot as a read-only `controlled_capture` adapter. Let the deterministic state file choose the next action; never treat one page read or one curated result list as a completed sample.
+Use DokoBot as a read-only `controlled_capture` adapter. It may be the primary search adapter on a registered platform or a separately preflighted detail enhancer after another adapter performed search. Let the deterministic state file choose the next action; never treat one page read or one curated result list as a completed sample.
 
 ## Preflight the adapter
 
@@ -131,6 +131,8 @@ python scripts/run_dokobot_detail_backfill.py \
 ```
 
 Each attempt preserves the raw page, console stdout/stderr, execution metadata, exact command hash, and either the mechanically extracted post or an exact stop reason. Successful details merge into the canonical snapshot by stable content identity without increasing query, observed, or unique counts. `record-details` remains available only for imported compatibility fixtures. Continue calling `next` until the contract is complete, no eligible retained link remains, or a safety/access stop requires user action.
+
+For an explicitly enabled TikTok pilot, OpenCLI may remain the frozen search adapter while DokoBot is frozen as `detail_adapter`. The runner requires the requested content ID and author route to match the rendered page, records the resolved `video|photo` format, preserves visible publication and interaction fields, and retains at most five comment bodies only when they are actually visible in the bounded read. A comment total without comment bodies remains a metric. A mixed recommendation page, missing target block, changed content identity, captcha, login request, or abnormal redirect never counts as a successful detail.
 
 ## Obey the terminal decision
 

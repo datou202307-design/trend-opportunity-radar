@@ -10,7 +10,7 @@ from typing import Any
 
 from _common import SAMPLING_CONTRACTS, as_bool, as_list, as_text, load_data, merge_signals, now_iso, write_json
 from append_collection_result import append_query_result, signal_key
-from platform_adapter_contract import CONTRACT_VERSION, SCHEMA_VERSION as ADAPTER_REGISTRY_VERSION, build_detail_command, build_search_command, normalize_platform, status_supports
+from platform_adapter_contract import CONTRACT_VERSION, SCHEMA_VERSION as ADAPTER_REGISTRY_VERSION, adapter_capability, build_detail_command, build_search_command, normalize_platform, status_supports
 from research_context import load_context
 
 
@@ -187,7 +187,14 @@ def search_capture_command(state: dict[str, Any], active: dict[str, Any], raw_ou
 
 
 def detail_capture_command(state: dict[str, Any], url: str, output: Path) -> list[str]:
-    return build_detail_command(state, url, output)
+    detail_state = {**state, "adapter": as_text(state.get("detail_adapter")) or as_text(state.get("adapter"))}
+    return build_detail_command(detail_state, url, output)
+
+
+def supports_detail_capture(state: dict[str, Any]) -> bool:
+    adapter = as_text(state.get("detail_adapter")) or as_text(state.get("adapter")) or "dokobot"
+    capability = adapter_capability(adapter, as_text(state.get("platform")))
+    return bool(capability and capability.get("detail_builder"))
 
 
 def merged_snapshot_signals(signals: list[Any], platform: str) -> list[dict[str, Any]]:
@@ -413,6 +420,8 @@ def recovery_diagnostics(state: dict[str, Any]) -> dict[str, Any]:
 
 def detail_backfill_plan(state: dict[str, Any]) -> dict[str, Any]:
     """Plan detail opens from retained links without spending search-query budget."""
+    if not supports_detail_capture(state):
+        return {"required_detail_count": 0, "targets": [], "available": False}
     snapshot_path = Path(state["snapshot"])
     snapshot = load_data(str(snapshot_path)) if snapshot_path.exists() else {}
     signals = snapshot.get("signals", []) if isinstance(snapshot, dict) else []
@@ -465,7 +474,7 @@ def detail_backfill_plan(state: dict[str, Any]) -> dict[str, Any]:
             targets.append({"signal_key": key, "layer": layer, "url": url, "title": as_text(signal.get("title"))})
             selected.add(key)
     required = max(global_needed, sum(int(item.get("details") or 0) for item in deficits.values()))
-    return {"required_detail_count": required, "targets": targets}
+    return {"required_detail_count": required, "targets": targets, "available": True}
 
 
 def record_detail_backfill(state: dict[str, Any], payload: Any) -> None:
@@ -520,6 +529,7 @@ def record_detail_backfill(state: dict[str, Any], payload: Any) -> None:
                 raise SystemExit("A successful detail result requires signal or detail data.")
             detail = dict(detail)
             original = signals[target_index]
+            detail.setdefault("signal_id", original.get("signal_id") or original.get("signalId") or original.get("id"))
             detail.setdefault("content_id", original.get("content_id"))
             detail.setdefault("canonical_url", original.get("canonical_url") or original.get("url"))
             detail.setdefault("query_term", original.get("query_term"))
@@ -582,6 +592,58 @@ def set_snapshot_stop(state: dict[str, Any], reason: str) -> None:
     if reason and reason not in {"collection_in_progress", "sampling_contract_met"} and reason not in limitations:
         limitations.append(reason)
     write_json(str(target), snapshot)
+
+
+def attach_detail_adapter(state: dict[str, Any], selection_path: Path, selection: Any) -> None:
+    if not isinstance(selection, dict) or selection.get("schema_version") != "collection-adapter-selection-v0.2":
+        raise SystemExit("Detail adapter attachment requires a validated adapter-selection artifact.")
+    if normalized_platform(as_text(selection.get("platform"))) != as_text(state.get("platform")):
+        raise SystemExit("Detail adapter selection platform does not match the collection state.")
+    if not selection.get("ready") or as_text(selection.get("adapter")) != as_text(state.get("adapter")):
+        raise SystemExit("Detail adapter selection must preserve the original ready search adapter.")
+    detail_adapter = as_text(selection.get("detail_adapter"))
+    detail_preflight = selection.get("detail_selected_preflight")
+    capability = adapter_capability(detail_adapter, as_text(state.get("platform")))
+    if (
+        not selection.get("detail_ready")
+        or not detail_adapter
+        or not capability
+        or not capability.get("detail_builder")
+        or not isinstance(detail_preflight, dict)
+        or not status_supports(detail_preflight, as_text(state.get("platform")))
+    ):
+        raise SystemExit("The selected detail adapter is not ready for this platform detail workflow.")
+    existing = as_text(state.get("detail_adapter"))
+    if existing and existing != detail_adapter:
+        raise SystemExit("A different detail adapter is already frozen in this collection state.")
+    state["detail_adapter"] = detail_adapter
+    state["detail_adapter_status"] = str(selection_path.resolve())
+    enhancements = state.setdefault("adapter_enhancements", [])
+    receipt = {
+        "capability": "detail",
+        "adapter": detail_adapter,
+        "selection": str(selection_path.resolve()),
+        "preflight_checked_at": as_text(detail_preflight.get("checked_at")),
+        "attached_at": now_iso(),
+    }
+    if not any(
+        isinstance(item, dict)
+        and as_text(item.get("capability")) == "detail"
+        and as_text(item.get("adapter")) == detail_adapter
+        and as_text(item.get("selection")) == receipt["selection"]
+        for item in enhancements
+    ):
+        enhancements.append(receipt)
+    recoverable = (
+        state.get("status") == "blocked"
+        and as_text(state.get("stop_reason")).startswith("sampling_contract_unmet:")
+        and "detail_enrichment_unavailable" in as_text(state.get("stop_reason"))
+    )
+    if recoverable:
+        state["status"] = "in_progress"
+        state["stop_reason"] = ""
+        set_snapshot_stop(state, "collection_in_progress")
+    state["updated_at"] = now_iso()
 
 
 def set_budget_audit(state: dict[str, Any]) -> None:
@@ -688,7 +750,8 @@ def action(state: dict[str, Any]) -> dict[str, Any]:
             safe_key = hashlib.sha256(item["signal_key"].encode("utf-8")).hexdigest()[:16]
             output = capture_dir / f"detail-backfill-{safe_key}.json"
             command = detail_capture_command(state, item["url"], output)
-            targets.append({**item, "raw_output": str(output.resolve()), "capture_command": command, **({"dokobot_command": command} if state.get("adapter") == "dokobot" else {"opencli_command": command})})
+            detail_adapter = as_text(state.get("detail_adapter")) or as_text(state.get("adapter"))
+            targets.append({**item, "raw_output": str(output.resolve()), "capture_command": command, **({"dokobot_command": command} if detail_adapter == "dokobot" else {"opencli_command": command})})
         return {
             **base,
             "status": "in_progress",
@@ -703,6 +766,21 @@ def action(state: dict[str, Any]) -> dict[str, Any]:
         pending["status"] = "in_progress"
         state["updated_at"] = now_iso()
         return action(state)
+    detail_gaps = {"detail_opens", "layer_detail_opens", "subject_bridge_direct_evidence"}
+    if not supports_detail_capture(state) and detail_gaps.intersection(missing):
+        reason = "sampling_contract_unmet:" + ",".join(missing) + ",detail_enrichment_unavailable"
+        state["status"] = "blocked"
+        state["stop_reason"] = reason
+        set_snapshot_stop(state, reason)
+        return {
+            **base,
+            "status": "blocked",
+            "action": "blocked",
+            "stop_reason": reason,
+            "missing": missing,
+            "handoff": "video_evidence",
+            "instruction": "Search collection is preserved. This pilot adapter has no detail reader; do not invent or execute a detail command. Hand retained video candidates to the bounded video-evidence workflow and deliver only a candidate-grade study.",
+        }
     if not budget["may_start_search"]:
         reason = "observed_budget_guard:" + ",".join(missing)
         state["status"] = "blocked"
@@ -797,9 +875,18 @@ def finalize_active(state: dict[str, Any], state_path: Path, stop_reason: str = 
     artifact_dir.mkdir(parents=True, exist_ok=True)
     result_path = artifact_dir / f"query-{active['id']}.json"
     write_json(str(result_path), query_result)
-    append_query_result(
-        Path(state["snapshot"]), result_path, state["platform"], "controlled_capture", state["mode"]
+    snapshot_path = Path(state["snapshot"])
+    snapshot = load_data(str(snapshot_path)) if snapshot_path.exists() else {}
+    existing_runs = ((snapshot.get("collection") or {}).get("query_runs") or []) if isinstance(snapshot, dict) else []
+    already_appended = any(
+        as_text(item.get("query_term")) == as_text(query_result.get("query_term"))
+        and as_text(item.get("query_layer")) == as_text(query_result.get("query_layer"))
+        for item in existing_runs if isinstance(item, dict)
     )
+    if not already_appended:
+        append_query_result(
+            snapshot_path, result_path, state["platform"], "controlled_capture", state["mode"]
+        )
     set_budget_audit(state)
     for query in state["queries"]:
         if query["id"] == active["id"]:
@@ -1025,6 +1112,9 @@ def main() -> None:
     add_queries = subparsers.add_parser("add-queries")
     add_queries.add_argument("--state", required=True)
     add_queries.add_argument("--plan", required=True)
+    attach_detail = subparsers.add_parser("attach-detail-adapter")
+    attach_detail.add_argument("--state", required=True)
+    attach_detail.add_argument("--selection", required=True)
     args = parser.parse_args()
 
     state_path = Path(args.state).resolve()
@@ -1045,6 +1135,7 @@ def main() -> None:
             "platform_adapter_contract": CONTRACT_VERSION,
             "platform_adapter_registry": ADAPTER_REGISTRY_VERSION,
             "adapter": adapter,
+            "detail_adapter": as_text(adapter_status.get("detail_adapter")),
             "platform": platform_key,
             "source_mode": "controlled_capture",
             "mode": args.mode,
@@ -1090,6 +1181,9 @@ def main() -> None:
             state["status"] = "in_progress"
             state["stop_reason"] = ""
             set_snapshot_stop(state, "collection_in_progress")
+        elif args.command == "attach-detail-adapter":
+            selection_path = Path(args.selection).resolve()
+            attach_detail_adapter(state, selection_path, load_data(selection_path))
     current_action = action(state)
     state["updated_at"] = now_iso()
     write_json(str(state_path), state)

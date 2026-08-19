@@ -14,7 +14,7 @@ from validate_report_artifacts import validate_report_contents
 
 PROFILE_UI = {
     "business_opportunity": {
-        "zh-CN": {"name": "商业机会研究", "question": "这个方向值得做吗？最应该先验证什么？", "findings": "值得验证的机会", "action": "下一步验证", "why": "用户问题与可行切口", "follow_title": "7 天后再看一次，确认机会是否持续"},
+        "zh-CN": {"name": "商业机会研究", "question": "这个方向值得做吗？最应该先验证什么？", "findings": "值得验证的机会", "action": "下一步怎么验证", "why": "用户遇到什么、可以先做什么", "follow_title": "7 天后再看一次，确认机会是否持续"},
         "en": {"name": "Business opportunity research", "question": "Is this direction worth pursuing, and what should be tested first?", "findings": "Opportunities to validate", "action": "Next validation", "why": "User problem and viable wedge", "follow_title": "Check again in 7 days to see whether the opportunity persists"},
     },
     "brand_sentiment": {
@@ -26,7 +26,7 @@ PROFILE_UI = {
         "en": {"name": "Competitor user research", "question": "Why do users stay, complain, or switch, and where could we enter?", "findings": "Why users stay or switch", "action": "Product wedge validation", "why": "Why users stay or switch", "follow_title": "Check again in 7 days to see whether switching reasons persist"},
     },
     "content_opportunity": {
-        "zh-CN": {"name": "内容机会研究", "question": "受众现在最想解决什么问题？哪些内容值得先做？", "findings": "值得回应的受众问题", "action": "内容测试建议", "why": "受众问题与内容切口", "follow_title": "7 天后再看一次，确认受众问题是否持续"},
+        "zh-CN": {"name": "内容机会研究", "question": "受众现在最想解决什么问题？哪些内容值得先做？", "findings": "值得回应的受众问题", "action": "内容测试建议", "why": "受众在问什么、内容可以怎么回答", "follow_title": "7 天后再看一次，确认受众问题是否持续"},
         "en": {"name": "Content opportunity research", "question": "What does the audience most want to solve now, and which content should come first?", "findings": "Audience questions to address", "action": "Content tests", "why": "Audience problem and content angle", "follow_title": "Check again in 7 days to see whether the audience need persists"},
     },
     "product_demand": {
@@ -52,9 +52,9 @@ ACTION_FIELD_LABELS = {
 
 SECTION_LABELS = {
     "decision_answer": {"zh-CN": "直接回答", "en": "Decision answer"},
-    "opportunity_hypotheses": {"zh-CN": "机会假设", "en": "Opportunity hypothesis"},
-    "audience_and_task": {"zh-CN": "用户与任务", "en": "Audience and task"},
-    "validation_actions": {"zh-CN": "验证方法", "en": "Validation action"},
+    "opportunity_hypotheses": {"zh-CN": "可能值得做的方向", "en": "Opportunity hypothesis"},
+    "audience_and_task": {"zh-CN": "适合谁、帮他做什么", "en": "Audience and task"},
+    "validation_actions": {"zh-CN": "怎么验证", "en": "Validation action"},
     "evidence_boundary": {"zh-CN": "证据边界", "en": "Evidence boundary"},
     "issue_priority": {"zh-CN": "议题优先级", "en": "Issue priority"},
     "affected_audience": {"zh-CN": "受影响人群", "en": "Affected audience"},
@@ -88,6 +88,20 @@ STATUS_LABELS = {
         "confirmed": "Human confirmed",
         "rejected": "Do not continue",
     },
+}
+
+ZH_VISIBLE_JARGON = {
+    "任务链": "实际操作过程",
+    "跨来源": "来自不同网页和内容",
+    "受约束": "有明确范围",
+    "作为入口": "用来吸引用户",
+    "切口": "可以先做的方向",
+    "副驾": "具体说明它帮助用户做什么",
+    "中台": "具体说明它统一管理什么",
+    "闭环": "具体说明前后步骤",
+    "赋能": "具体说明带来的帮助",
+    "桥接": "具体说明连接的两件事",
+    "守门层": "具体说明检查或阻止什么",
 }
 
 
@@ -132,6 +146,25 @@ def materially_duplicates(first: Any, second: Any) -> bool:
     return shorter == longer or (len(shorter) >= 48 and shorter in longer and len(shorter) / len(longer) >= 0.85)
 
 
+def visible_plain_language_issues(findings_payload: dict[str, Any]) -> list[str]:
+    """Find known internal/product jargon only in reader-facing finding text."""
+    issues: list[str] = []
+    for index, finding in enumerate(findings_payload.get("findings", []), 1):
+        values = [
+            finding.get("title"), finding.get("decision_summary"), finding.get("audience"),
+            finding.get("evidence_boundary"),
+            *((finding.get("report_sections") or {}).values()),
+        ]
+        for action in finding.get("recommended_actions", []):
+            if isinstance(action, dict):
+                values.extend(action.values())
+        combined = "\n".join(str(value or "") for value in values)
+        for term, replacement in ZH_VISIBLE_JARGON.items():
+            if term in combined:
+                issues.append(f"finding {index} uses ‘{term}’; rewrite it as {replacement}")
+    return issues
+
+
 def subject_name(report: dict[str, Any]) -> str:
     subject = report.get("subject") or {}
     return str(subject.get("name") or subject.get("title") or subject.get("summary") or "Research topic")
@@ -155,6 +188,7 @@ def collection_summary(snapshot: dict[str, Any]) -> dict[str, Any]:
     relevant = None
     counter = count("counter_signal_count")
     unique = count("unique_sample_count", snapshot.get("unique_sample_count"))
+    detail_count = count("detail_open_count")
     if signals:
         unique = len(signals)
         relevant = sum(
@@ -162,6 +196,7 @@ def collection_summary(snapshot: dict[str, Any]) -> dict[str, Any]:
             if signal.get("semantic_relevance") in {"direct", "adjacent"}
         )
         counter = sum(1 for signal in signals if signal.get("evidence_role") == "counter")
+        detail_count = sum(1 for signal in signals if signal.get("detail_captured"))
 
     query_count = count("query_count")
     if query_count is None and collection.get("query_runs"):
@@ -172,18 +207,22 @@ def collection_summary(snapshot: dict[str, Any]) -> dict[str, Any]:
         and collection.get("stop_reason") in {None, "", "sampling_contract_met"}
     )
     comment_evidence = snapshot.get("comment_evidence") or {}
+    video_evidence = snapshot.get("video_evidence") or {}
     result = {
         "query_count": query_count,
         "observed_result_count": count("observed_result_count", snapshot.get("raw_sample_count")),
         "unique_signal_count": unique,
         "relevant_signal_count": relevant,
-        "detail_open_count": count("detail_open_count"),
+        "detail_open_count": detail_count,
         "counter_signal_count": counter,
         "sampling_status": "complete" if complete else "bounded",
     }
     if comment_evidence.get("status") == "reviewed":
         result["reviewed_comment_count"] = int(comment_evidence.get("reviewed_count") or 0)
         result["relevant_comment_count"] = int(comment_evidence.get("relevant_count") or 0)
+    if video_evidence.get("semantic_review_status") == "complete":
+        result["reviewed_video_count"] = int(video_evidence.get("reviewed_count") or 0)
+        result["relevant_video_count"] = int(video_evidence.get("relevant_reviewed_count") or 0)
     return result
 
 
@@ -193,6 +232,7 @@ def platform_label(platform: Any, language: str) -> str:
         "x": "X",
         "xiaohongshu": "小红书" if language == "zh-CN" else "Xiaohongshu",
         "youtube": "YouTube",
+        "tiktok": "TikTok",
     }
     return labels.get(value.casefold(), value)
 
@@ -201,6 +241,7 @@ def collection_summary_text(report: dict[str, Any]) -> str:
     summary = report.get("collection_summary") or {}
     zh = report.get("language") == "zh-CN"
     platform = platform_label(report.get("platform"), report.get("language", "en"))
+    zh_platform = f" {platform} " if platform.isascii() else platform
     queries = summary.get("query_count")
     observed = summary.get("observed_result_count")
     unique = summary.get("unique_signal_count")
@@ -209,13 +250,15 @@ def collection_summary_text(report: dict[str, Any]) -> str:
     counters = summary.get("counter_signal_count")
     reviewed_comments = summary.get("reviewed_comment_count")
     relevant_comments = summary.get("relevant_comment_count")
+    reviewed_videos = summary.get("reviewed_video_count")
+    relevant_videos = summary.get("relevant_video_count")
 
     if zh:
         parts = []
         if queries is not None and observed is not None:
-            parts.append(f"本轮通过 {queries} 个搜索主题，在{platform}观察到 {observed} 条可见结果")
+            parts.append(f"本轮通过 {queries} 个搜索主题，在{zh_platform}观察到 {observed} 条可见结果")
         elif observed is not None:
-            parts.append(f"本轮在{platform}观察到 {observed} 条可见结果")
+            parts.append(f"本轮在{zh_platform}观察到 {observed} 条可见结果")
         if unique is not None:
             text = f"去重后 {unique} 条"
             if relevant is not None:
@@ -230,6 +273,11 @@ def collection_summary_text(report: dict[str, Any]) -> str:
             if relevant_comments is not None:
                 comment_text += f"，其中 {relevant_comments} 条提供了相关用户反馈"
             parts.append(comment_text)
+        if reviewed_videos:
+            video_text = f"核验 {reviewed_videos} 条视频内容"
+            if relevant_videos is not None:
+                video_text += f"，其中 {relevant_videos} 条为本主题补充了可用信息"
+            parts.append(video_text)
         basis = "；".join(parts) + "。" if parts else "本轮采集数量保留在研究记录中。"
         status = "标准采样已完成。" if summary.get("sampling_status") == "complete" else "本轮为有限快照，以上数据仍可支持报告中的小范围判断。"
         return basis + status
@@ -253,6 +301,11 @@ def collection_summary_text(report: dict[str, Any]) -> str:
         if relevant_comments is not None:
             comment_text += f", including {relevant_comments} with relevant user feedback"
         parts.append(comment_text)
+    if reviewed_videos:
+        video_text = f"{reviewed_videos} videos were reviewed"
+        if relevant_videos is not None:
+            video_text += f", including {relevant_videos} that added usable information for the topic"
+        parts.append(video_text)
     basis = "; ".join(parts) + ". " if parts else "Collection counts remain available in the research record. "
     status = "The standard sampling requirement was met." if summary.get("sampling_status") == "complete" else "This is a bounded snapshot; the evidence still supports the report's limited decisions."
     return basis + status
@@ -303,6 +356,46 @@ def finding_comment_evidence(snapshot: dict[str, Any], topic_key: str) -> dict[s
     }
 
 
+def finding_video_evidence(snapshot: dict[str, Any], topic_key: str) -> dict[str, Any] | None:
+    """Expose only semantically reviewed media text, never raw ASR or OCR."""
+    rows: list[dict[str, Any]] = []
+    refs: list[str] = []
+    summaries: list[str] = []
+    channels: dict[str, int] = {}
+    for signal in snapshot.get("signals", []):
+        if str(signal.get("topic_key") or "") != topic_key:
+            continue
+        evidence = signal.get("content_evidence") if isinstance(signal.get("content_evidence"), dict) else {}
+        review = evidence.get("semantic_review") if isinstance(evidence.get("semantic_review"), dict) else {}
+        if review.get("status") != "reviewed" or int(review.get("relevant_excerpt_count") or 0) < 1:
+            continue
+        summaries.append(str(review.get("summary") or "").strip())
+        for excerpt in review.get("excerpts", []):
+            if not isinstance(excerpt, dict) or excerpt.get("semantic_relevance") not in {"direct", "adjacent"}:
+                continue
+            channel = str(excerpt.get("channel") or "unknown")
+            channels[channel] = channels.get(channel, 0) + 1
+            rows.append({
+                "channel": channel,
+                "text": str(excerpt.get("text") or "").strip(),
+                "timestamp_seconds": excerpt.get("timestamp_seconds"),
+                "evidence_role": str(excerpt.get("evidence_role") or "neutral"),
+            })
+        if signal.get("canonical_url"):
+            refs.append(str(signal["canonical_url"]))
+    rows = [row for row in rows if row["text"]]
+    if not rows:
+        return None
+    return {
+        "reviewed_video_count": len(set(refs)) or len(summaries),
+        "channel_counts": dict(sorted(channels.items())),
+        "summaries": list(dict.fromkeys(item for item in summaries if item))[:3],
+        "excerpts": rows[:4],
+        "source_refs": list(dict.fromkeys(refs)),
+        "boundary": "Reviewed media text adds qualitative detail and does not increase trend sample volume.",
+    }
+
+
 def follow_up_contract(context: dict[str, Any], findings: list[dict[str, Any]]) -> dict[str, Any]:
     intent = context["research_intent"]
     zh = context["language"] == "zh-CN"
@@ -342,6 +435,10 @@ def build_report(context: dict[str, Any], snapshot: dict[str, Any], findings_pay
         if (item.get("cluster_audit") or {}).get("status") in {"passed", "not_required"}
     }
     require_valid_findings(findings_payload, context, topic_keys=eligible)
+    if context.get("language") == "zh-CN":
+        language_issues = visible_plain_language_issues(findings_payload)
+        if language_issues:
+            raise SystemExit("Rewrite reader-facing findings in plain language: " + "; ".join(language_issues))
     findings = []
     for source_finding in findings_payload["findings"]:
         finding = dict(source_finding)
@@ -352,6 +449,9 @@ def build_report(context: dict[str, Any], snapshot: dict[str, Any], findings_pay
         comment_evidence = finding_comment_evidence(snapshot, topic_key)
         if comment_evidence:
             finding["comment_evidence"] = comment_evidence
+        video_evidence = finding_video_evidence(snapshot, topic_key)
+        if video_evidence:
+            finding["video_evidence"] = video_evidence
         findings.append(finding)
     finding_topic_keys = {str(item.get("topic_key") or "") for item in findings}
     excluded_topics = []
@@ -436,6 +536,23 @@ def render_markdown(report: dict[str, Any]) -> str:
                 f"Reviewed {comment_evidence['reviewed_count']} representative comments; {comment_evidence['relevant_count']} were relevant to this topic. Comments add qualitative context, not trend sample volume."
             )
             lines.extend([f"- {note}", ""])
+        video_evidence = finding.get("video_evidence")
+        if video_evidence:
+            lines.extend([f"#### {'视频核验发现' if zh else 'What the video added'}", ""])
+            for summary in video_evidence.get("summaries", []):
+                lines.append(f"- {summary}")
+            lines.extend(["", f"<details><summary>{'查看原始字幕或画面文字' if zh else 'View original subtitles or on-screen text'}</summary>", ""])
+            for excerpt in video_evidence["excerpts"]:
+                channel = excerpt["channel"]
+                label = ({"native_subtitle": "视频字幕", "asr": "语音转写（机器提取）", "ocr": "画面文字（机器提取）"}.get(channel, "视频内容") if zh else {"native_subtitle": "Video subtitles", "asr": "Speech transcript (machine-extracted)", "ocr": "On-screen text (machine-extracted)"}.get(channel, "Video content"))
+                lines.append(f"- **{label}**: {excerpt['text']}")
+            lines.extend(["", "</details>", ""])
+            note = (
+                f"已复核 {video_evidence['reviewed_video_count']} 条视频。以上内容补充帖子文案，不增加趋势样本数。"
+                if zh else
+                f"Reviewed {video_evidence['reviewed_video_count']} videos. This adds detail to the post evidence and does not increase trend sample volume."
+            )
+            lines.extend([f"- {note}", ""])
         for key in visible_report_sections(
             report["research_context"]["research_intent"],
             report["research_context"]["report_sections"],
@@ -443,8 +560,8 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines.append(f"- **{SECTION_LABELS[key][lang if lang in {'zh-CN', 'en'} else 'en']}**: {finding['report_sections'][key]}")
         lines.extend(["", f"#### {ui['action']}", ""])
         for action in finding["recommended_actions"]:
-            lines.append(f"- **{action['action']}**（测试范围：{action['intensity']}）" if zh else f"- **{action['action']}** (Scope: {action['intensity']})")
-            lines.append(f"  - {'适用前提' if zh else 'Use when'}：{action['condition']}" if zh else f"  - Use when: {action['condition']}")
+            lines.append(f"- **{action['action']}**（怎么测试：{action['intensity']}）" if zh else f"- **{action['action']}** (Scope: {action['intensity']})")
+            lines.append(f"  - {'需要满足' if zh else 'Use when'}：{action['condition']}" if zh else f"  - Use when: {action['condition']}")
             for key, value in action.items():
                 if key in {"action", "intensity", "condition"}:
                     continue
@@ -483,7 +600,7 @@ def render_html(report: dict[str, Any]) -> str:
             for key in section_keys
         )
         actions = "".join(
-            f'''<article class="action"><div><span class="tag">{('测试范围：' if zh else 'Scope: ')}{html.escape(str(action["intensity"]))}</span><h4>{html.escape(str(action["action"]))}</h4></div><p><b>{'适用前提：' if zh else 'Use when: '}</b>{html.escape(str(action["condition"]))}</p><details><summary>{'查看怎样判断有效、何时停止' if zh else 'See how to measure success and when to stop'}</summary><dl>{''.join(f'<dt>{html.escape(ACTION_FIELD_LABELS[lang].get(key, key.replace("_", " ")))}</dt><dd>{html.escape(str(value))}</dd>' for key, value in action.items() if key not in {"action", "intensity", "condition"})}</dl></details></article>'''
+            f'''<article class="action"><div><span class="tag">{('怎么测试：' if zh else 'Scope: ')}{html.escape(str(action["intensity"]))}</span><h4>{html.escape(str(action["action"]))}</h4></div><p><b>{'需要满足：' if zh else 'Use when: '}</b>{html.escape(str(action["condition"]))}</p><details><summary>{'查看怎样判断有效、何时停止' if zh else 'See how to measure success and when to stop'}</summary><dl>{''.join(f'<dt>{html.escape(ACTION_FIELD_LABELS[lang].get(key, key.replace("_", " ")))}</dt><dd>{html.escape(str(value))}</dd>' for key, value in action.items() if key not in {"action", "intensity", "condition"})}</dl></details></article>'''
             for action in finding["recommended_actions"]
         )
         scores = finding.get("score_summary")
@@ -500,11 +617,23 @@ def render_html(report: dict[str, Any]) -> str:
                 f"Reviewed {comment_evidence['reviewed_count']} representative comments; {comment_evidence['relevant_count']} were relevant to this topic. Comments add qualitative context, not trend sample volume."
             )
             comment_html = f'''<section class="comment-voice" style="margin-top:14px;padding:14px 16px;border:1px solid #dfe8e4;border-radius:14px;background:#f4fbf8"><b>{'评论中的用户反馈' if zh else 'What users said in comments'}</b><ul>{insights}</ul><p style="margin:6px 0 0;color:#667085;font-size:12px">{html.escape(note)}</p></section>'''
-        findings_html.append(f'''<section class="finding {'secondary' if index else ''}"><div class="finding-head"><div><span class="kicker">{html.escape(ui['why'])}</span><h2>{html.escape(str(finding['title']))}</h2>{score_html}</div><span class="status">{html.escape(visible_status(finding['conclusion_status'], lang))}</span></div><p class="summary">{html.escape(str(finding['decision_summary']))}</p><div class="audience"><b>{'与谁有关' if zh else 'Who this affects'}</b><span>{html.escape(str(finding['audience']))}</span></div>{comment_html}<div class="details-grid">{sections}</div><div class="action-title"><span class="kicker">{html.escape(ui['action'])}</span></div><div class="actions">{actions}</div><details class="evidence"><summary>{'查看依据和目前不能确定的部分' if zh else 'View evidence and what remains uncertain'}</summary><p>{html.escape(str(finding['evidence_boundary']))}</p><div class="refs">{_refs(finding['support_refs'], zh, 'support')}{_refs(finding['counter_refs'], zh, 'counter')}</div></details></section>''')
+        video_evidence = finding.get("video_evidence")
+        video_html = ""
+        if video_evidence:
+            channel_labels = ({"native_subtitle": "视频字幕", "asr": "语音转写（机器提取）", "ocr": "画面文字（机器提取）"} if zh else {"native_subtitle": "Video subtitles", "asr": "Speech transcript (machine-extracted)", "ocr": "On-screen text (machine-extracted)"})
+            excerpts = "".join(f'<li><b>{html.escape(channel_labels.get(str(item["channel"]), "Video content"))}</b><span>{html.escape(str(item["text"]))}</span></li>' for item in video_evidence["excerpts"])
+            summaries = "".join(f"<p class=\"media-summary\">{html.escape(str(item))}</p>" for item in video_evidence.get("summaries", []))
+            note = (
+                f"已复核 {video_evidence['reviewed_video_count']} 条视频。以上内容补充帖子文案，不增加趋势样本数。"
+                if zh else
+                f"Reviewed {video_evidence['reviewed_video_count']} videos. This adds detail to the post evidence and does not increase trend sample volume."
+            )
+            video_html = f'''<section class="media-evidence"><b>{'视频核验发现' if zh else 'What the video added'}</b>{summaries}<details><summary>{'查看原始字幕或画面文字' if zh else 'View original subtitles or on-screen text'}</summary><ul>{excerpts}</ul></details><p>{html.escape(note)}</p></section>'''
+        findings_html.append(f'''<section class="finding {'secondary' if index else ''}"><div class="finding-head"><div><span class="kicker">{html.escape(ui['why'])}</span><h2>{html.escape(str(finding['title']))}</h2>{score_html}</div><span class="status">{html.escape(visible_status(finding['conclusion_status'], lang))}</span></div><p class="summary">{html.escape(str(finding['decision_summary']))}</p><div class="audience"><b>{'与谁有关' if zh else 'Who this affects'}</b><span>{html.escape(str(finding['audience']))}</span></div>{comment_html}{video_html}<div class="details-grid">{sections}</div><div class="action-title"><span class="kicker">{html.escape(ui['action'])}</span></div><div class="actions">{actions}</div><details class="evidence"><summary>{'查看依据和目前不能确定的部分' if zh else 'View evidence and what remains uncertain'}</summary><p>{html.escape(str(finding['evidence_boundary']))}</p><div class="refs">{_refs(finding['support_refs'], zh, 'support')}{_refs(finding['counter_refs'], zh, 'counter')}</div></details></section>''')
     follow = report["follow_up_recommendation"]
     payload = html.escape(json.dumps(report, ensure_ascii=False), quote=False)
     return f'''<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(ui['name'])} · {html.escape(subject_name(report))}</title><style>
-:root{{--bg:#f3f5f9;--panel:#fff;--ink:#16202c;--muted:#667085;--line:#e4e8ef;--accent:#5364d9;--accent2:#7a55ca;--soft:#eef0ff;--good:#14775a}}*{{box-sizing:border-box}}body{{margin:0;background:linear-gradient(180deg,#eef1f7 0,#f7f8fa 320px);color:var(--ink);font:15px/1.58 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}}main{{max-width:1120px;margin:auto;padding:28px 22px 64px}}header{{padding:34px;border-radius:26px;color:#fff;background:linear-gradient(135deg,#20274d,#5b4f9c);box-shadow:0 22px 55px #30385d26}}.kicker{{display:block;color:#888fa6;font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}}header .kicker{{color:#cad0ff}}h1{{font-size:clamp(30px,5vw,52px);line-height:1.1;margin:8px 0 16px;max-width:900px}}header p{{color:#e5e7f8;max-width:850px;margin:0}}.answer{{margin:18px 0 0;background:#fff;border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 8px 26px #1520380a}}.answer h2{{margin:6px 0 0;font-size:24px;line-height:1.45}}.basis{{margin-top:12px;padding:14px 18px;border:1px solid #dfe2fa;border-radius:16px;background:#f8f8ff}}.basis p{{margin:5px 0 0;color:#4f586b}}.finding{{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 7px 24px #1520380a}}.finding-head{{display:flex;justify-content:space-between;align-items:start;gap:20px}}.finding h2{{font-size:23px;line-height:1.3;margin:5px 0 0}}.status,.tag{{border-radius:99px;padding:6px 10px;background:#e9f7f1;color:var(--good);font-size:12px;font-weight:700}}.status{{white-space:nowrap}}.tag{{display:inline-block;white-space:normal}}.score-row{{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}}.score{{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid #dfe2fa;border-radius:99px;background:#f8f8ff;font-size:12px}}.score b{{color:#343e9c}}.score em{{color:var(--muted);font-style:normal}}.score-help{{margin:8px 0 0;color:var(--muted);font-size:12px}}.summary{{font-size:18px;max-width:850px}}.audience{{display:flex;gap:12px;padding:12px 14px;border-radius:12px;background:#f7f8fb}}.audience span{{color:var(--muted)}}.details-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}}.detail{{border:1px solid var(--line);border-radius:14px;padding:15px}}.detail span{{font-size:12px;color:var(--accent);font-weight:750}}.detail p{{margin:6px 0 0}}.action-title{{margin-top:23px}}.actions{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:9px}}.action{{min-width:0;border:1px solid #dfe2fa;background:#fafaff;border-radius:16px;padding:16px}}.action h4{{font-size:17px;margin:9px 0 0}}.action p{{color:var(--muted)}}details{{border-top:1px solid var(--line);padding-top:11px;margin-top:13px}}summary{{cursor:pointer;font-weight:700}}dl{{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 10px}}dt{{color:var(--muted)}}dd{{margin:0;overflow-wrap:anywhere}}.refs{{display:flex;flex-wrap:wrap;gap:8px}}.refs a{{text-decoration:none;color:#454eb2;background:var(--soft);padding:6px 9px;border-radius:9px}}.follow{{margin-top:22px;padding:22px;border:1px solid #dbdef8;background:#f8f8ff;border-radius:20px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px}}.follow h2{{margin:5px 0 8px}}.cadence{{display:flex;gap:10px;align-items:center;flex-wrap:wrap}}.cadence b{{font-size:20px}}.prompt{{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;color:var(--muted)}}.audit{{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px}}.muted{{color:var(--muted)}}#raw{{white-space:pre-wrap;max-height:440px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace}}@media(max-width:760px){{.finding-head,.audience{{display:block}}.status{{display:inline-block;margin-top:10px}}.details-grid,.actions,.follow{{grid-template-columns:1fr}}header{{padding:26px}}main{{padding:16px}}}}@media print{{body{{background:#fff}}main{{padding:0}}.finding,.answer,header{{box-shadow:none}}}}
+:root{{--bg:#f3f5f9;--panel:#fff;--ink:#16202c;--muted:#667085;--line:#e4e8ef;--accent:#5364d9;--accent2:#7a55ca;--soft:#eef0ff;--good:#14775a}}*{{box-sizing:border-box}}body{{margin:0;background:linear-gradient(180deg,#eef1f7 0,#f7f8fa 320px);color:var(--ink);font:15px/1.58 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}}main{{max-width:1120px;margin:auto;padding:28px 22px 64px}}header{{padding:34px;border-radius:26px;color:#fff;background:linear-gradient(135deg,#20274d,#5b4f9c);box-shadow:0 22px 55px #30385d26}}.kicker{{display:block;color:#888fa6;font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}}header .kicker{{color:#cad0ff}}h1{{font-size:clamp(30px,5vw,52px);line-height:1.1;margin:8px 0 16px;max-width:900px}}header p{{color:#e5e7f8;max-width:850px;margin:0}}.answer{{margin:18px 0 0;background:#fff;border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 8px 26px #1520380a}}.answer h2{{margin:6px 0 0;font-size:24px;line-height:1.45}}.basis{{margin-top:12px;padding:14px 18px;border:1px solid #dfe2fa;border-radius:16px;background:#f8f8ff}}.basis p{{margin:5px 0 0;color:#4f586b}}.finding{{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 7px 24px #1520380a}}.finding-head{{display:flex;justify-content:space-between;align-items:start;gap:20px}}.finding h2{{font-size:23px;line-height:1.3;margin:5px 0 0}}.status,.tag{{border-radius:99px;padding:6px 10px;background:#e9f7f1;color:var(--good);font-size:12px;font-weight:700}}.status{{white-space:nowrap}}.tag{{display:inline-block;white-space:normal}}.score-row{{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}}.score{{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid #dfe2fa;border-radius:99px;background:#f8f8ff;font-size:12px}}.score b{{color:#343e9c}}.score em{{color:var(--muted);font-style:normal}}.score-help{{margin:8px 0 0;color:var(--muted);font-size:12px}}.summary{{font-size:18px;max-width:850px}}.audience{{display:flex;gap:12px;padding:12px 14px;border-radius:12px;background:#f7f8fb}}.audience span{{color:var(--muted)}}.media-evidence{{margin-top:14px;padding:15px 17px;border:1px solid #d9e3fb;border-radius:14px;background:#f5f8ff}}.media-evidence ul{{display:grid;gap:8px;margin:10px 0;padding:0;list-style:none}}.media-evidence li{{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:10px;align-items:start}}.media-evidence li b{{color:#3f4ca0;font-size:12px}}.media-evidence li span{{overflow-wrap:anywhere}}.media-evidence p{{margin:7px 0 0;color:var(--muted);font-size:12px}}.media-evidence .media-summary{{color:var(--ink);font-size:15px}}.details-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}}.detail{{border:1px solid var(--line);border-radius:14px;padding:15px}}.detail span{{font-size:12px;color:var(--accent);font-weight:750}}.detail p{{margin:6px 0 0}}.action-title{{margin-top:23px}}.actions{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:9px}}.action{{min-width:0;border:1px solid #dfe2fa;background:#fafaff;border-radius:16px;padding:16px}}.action h4{{font-size:17px;margin:9px 0 0}}.action p{{color:var(--muted)}}details{{border-top:1px solid var(--line);padding-top:11px;margin-top:13px}}summary{{cursor:pointer;font-weight:700}}dl{{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 10px}}dt{{color:var(--muted)}}dd{{margin:0;overflow-wrap:anywhere}}.refs{{display:flex;flex-wrap:wrap;gap:8px}}.refs a{{text-decoration:none;color:#454eb2;background:var(--soft);padding:6px 9px;border-radius:9px}}.follow{{margin-top:22px;padding:22px;border:1px solid #dbdef8;background:#f8f8ff;border-radius:20px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px}}.follow h2{{margin:5px 0 8px}}.cadence{{display:flex;gap:10px;align-items:center;flex-wrap:wrap}}.cadence b{{font-size:20px}}.prompt{{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;color:var(--muted)}}.audit{{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px}}.muted{{color:var(--muted)}}#raw{{white-space:pre-wrap;max-height:440px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace}}@media(max-width:760px){{.finding-head,.audience{{display:block}}.status{{display:inline-block;margin-top:10px}}.media-evidence li{{grid-template-columns:1fr;gap:2px}}.details-grid,.actions,.follow{{grid-template-columns:1fr}}header{{padding:26px}}main{{padding:16px}}}}@media print{{body{{background:#fff}}main{{padding:0}}.finding,.answer,header{{box-shadow:none}}}}
 /* Keep long research subjects readable as interface titles, not billboard copy. */
 h1{{font-size:clamp(28px,3.8vw,42px);line-height:1.15;overflow-wrap:anywhere}}
 </style></head><body><main><header><span class="kicker">{html.escape(ui['name'])} · {html.escape(str(report['platform']))}</span><h1>{html.escape(subject_name(report))}</h1><p>{html.escape(ui['question'])}</p></header><section class="answer"><span class="kicker">{'直接回答' if zh else 'Decision answer'}</span><h2>{html.escape(str(report['decision_answer']))}</h2></section><section class="basis" aria-label="{'本次研究基础' if zh else 'Research basis'}"><span class="kicker">{'本次研究基础' if zh else 'Research basis'}</span><p>{html.escape(collection_summary_text(report))}</p></section><div aria-label="{html.escape(ui['findings'])}">{''.join(findings_html)}</div><section class="follow"><div><span class="kicker">{'可选的后续检查' if zh else 'Optional follow-up check'}</span><h2>{html.escape(ui['follow_title'])}</h2><p class="muted">{'这能帮助判断信号是否持续。定时任务尚未创建，只有你明确确认后才会设置。' if zh else 'This helps establish whether the signal persists. No scheduled task has been created; it will be set up only after your explicit confirmation.'}</p><div class="cadence"><span>{'首次' if zh else 'First'}</span><b>{html.escape(str(follow['cadence']['initial']))}</b><span>· {follow['cadence']['runs']} {'次' if zh else 'runs'}</span></div></div><details><summary>{'查看下次继续研究时使用的指令' if zh else 'View instructions for the next research run'}</summary><p class="prompt">{html.escape(str(follow['automation_prompt']))}</p></details></section><details class="audit"><summary>{'查看研究方法和原始记录' if zh else 'View research method and source record'}</summary><p class="muted">{'这些信息用于复核，不影响上面的业务阅读顺序。' if zh else 'This information supports audit and does not interrupt the decision flow above.'}</p><pre id="raw">{payload}</pre></details></main></body></html>'''

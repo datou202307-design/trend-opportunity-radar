@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -23,6 +24,12 @@ def requested_command_hash(command: list[str]) -> str:
 
 def resolve_execution_command(requested_command: list[str]) -> list[str]:
     executable = shutil.which(requested_command[0])
+    if not executable and os.name == "nt":
+        appdata = os.environ.get("APPDATA", "").strip()
+        if appdata:
+            shim = Path(appdata) / "npm" / f"{requested_command[0]}.cmd"
+            if shim.is_file():
+                executable = str(shim)
     if not executable:
         raise SystemExit("DokoBot executable is not available to the capture wrapper.")
     resolved = Path(executable)

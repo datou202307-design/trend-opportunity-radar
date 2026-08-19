@@ -1,6 +1,6 @@
 # Controlled browser collection
 
-Use this workflow after the user authorizes read-only collection and personally completes any required login. Chrome browser control, OpenCLI, and DokoBot are known implementations, not hard dependencies. Run `check_collection_adapter.py` and `select_collection_adapter.py`; a PATH lookup or one successful CLI read is never sufficient acceptance evidence. Follow [opencli-orchestration.md](opencli-orchestration.md) for OpenCLI X, Xiaohongshu, or YouTube collection, or [dokobot-orchestration.md](dokobot-orchestration.md) for DokoBot.
+Use this workflow after the user authorizes read-only collection and personally completes any required login. Chrome browser control, OpenCLI, and DokoBot are known implementations, not hard dependencies. Run `check_collection_adapter.py` and `select_collection_adapter.py`; a PATH lookup or one successful CLI read is never sufficient acceptance evidence. Read and apply [collection-pacing-contract.md](collection-pacing-contract.md). Follow [opencli-orchestration.md](opencli-orchestration.md) for OpenCLI collection or [dokobot-orchestration.md](dokobot-orchestration.md) for DokoBot.
 
 ## Prepare
 
@@ -13,7 +13,7 @@ Default to `standard` for an opportunity report. Use `quick` only when the user 
 
 ## Collect safely
 
-1. Reuse one browser session and process one query at a time. Preserve DokoBot continuation sessions and OpenCLI signed Xiaohongshu detail URLs.
+1. Reuse one browser session and process one browser read at a time. Never run parallel queries, details, comments, tabs, or fallback adapters for the same browser profile. Preserve DokoBot continuation sessions and OpenCLI signed Xiaohongshu detail URLs.
 2. Cover all three query layers; keep query definitions in the ledger.
 3. Count visible result cards before filtering.
 4. Record retained, discarded, and opened-detail counts for every query, then run `append_collection_result.py` before starting the next query.
@@ -23,7 +23,7 @@ Default to `standard` for an opportunity report. Use `quick` only when the user 
 8. Preserve representative objections and adoption barriers; do not merely search for confirmation.
 9. Stop when the contract is met, useful new mechanisms cease appearing across two consecutive queries, or a safety/access condition occurs. Record the reason.
 
-Do not repeatedly refresh, scan concurrently, scroll without a bound, simulate human randomness, or use low-quality items to fill a target.
+Apply the recorded conservative interval and batch cooldown before every subsequent read. Do not repeatedly refresh, scan concurrently, scroll without a bound, simulate human randomness, or use low-quality items to fill a target.
 
 ## Bounded recovery
 
@@ -38,3 +38,4 @@ Stop on captcha, rate limits, login expiry, permission requests, abnormal redire
 - Xiaohongshu: separate search cards, details, comments, account conditions, and media availability. A public search page does not prove complete platform coverage.
 - YouTube: separate search cards, video details, bounded comments, transcript availability, channel facts, and localized ranking conditions. A successful transcript read does not prove audience agreement or product demand.
 - X: preserve the query operator, post URL, full visible text, author, publish time, and visible metrics. Label an unopened result as `search_card`; only an opened post detail or authorized API/export item qualifies as direct evidence. A profile or Grok trend summary is not a direct post. Browser results can be personalized and must not be labeled as Recent Search API data.
+- TikTok pilot: keep topic search and logged-in detail reads as separately preflighted capabilities. Match the stable content ID and author route before accepting a detail, record whether the same ID resolves as video or photo, and reject surrounding recommendations as target content. Capture at most five visible comment bodies; a displayed comment count alone does not prove comment-text coverage.

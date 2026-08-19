@@ -54,6 +54,18 @@ class ResearchContextTest(unittest.TestCase):
         self.assertEqual(compiled["platform"], "youtube")
         self.assertEqual(compiled["research_intent"], "content_opportunity")
 
+    def test_expansion_platform_names_are_inferred_without_reasking_the_user(self) -> None:
+        cases = [
+            ("在 TikTok 英语市场验证 AI 备餐规划的产品需求。", "tiktok"),
+            ("分析家庭旅行计划在抖音的商业机会。", "douyin"),
+            ("分析品牌在 Instagram 的内容机会。", "instagram"),
+        ]
+        for prompt, expected in cases:
+            with self.subTest(platform=expected):
+                compiled = research_context.compile_context(prompt)
+                self.assertEqual(compiled["status"], "ready")
+                self.assertEqual(compiled["platform"], expected)
+
     def test_explicit_english_market_is_frozen(self) -> None:
         compiled = research_context.compile_context("分析小企业 AI Agent 在 YouTube 英语市场的商业机会。")
         self.assertEqual(compiled["market"], "英语市场")
