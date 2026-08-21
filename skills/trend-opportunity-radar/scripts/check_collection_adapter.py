@@ -234,6 +234,7 @@ def diagnose_opencli(
     resolution_errors: list[str] | None = None,
     timeout: int = 15,
     runner: Runner = subprocess.run,
+    target_platform: str | None = None,
 ) -> dict[str, Any]:
     errors = resolution_errors or []
     base = {
@@ -245,9 +246,24 @@ def diagnose_opencli(
         "status": "",
         "cli": {"path": cli_path, "resolution": resolution, "version": ""},
         "browser": {"connected": False},
-        "capabilities": {"xiaohongshu": False, "x": False, "youtube": False, "tiktok": False},
+        "capabilities": {},
         "diagnostics": {"resolution_errors": errors},
     }
+    supported_sites = {
+        "xiaohongshu": "xiaohongshu",
+        "x": "twitter",
+        "youtube": "youtube",
+        "tiktok": "tiktok",
+    }
+    if target_platform is not None and target_platform not in supported_sites:
+        raise ValueError(f"Unsupported OpenCLI preflight platform: {target_platform}")
+    selected_sites = (
+        [(target_platform, supported_sites[target_platform])]
+        if target_platform is not None
+        else list(supported_sites.items())
+    )
+    base["diagnostics"]["target_platform"] = target_platform or "all"
+    base["capabilities"] = {capability: False for capability, _ in selected_sites}
     if not cli_path:
         status = "cli_not_visible" if any(item.startswith("permission_denied:") for item in errors) else "cli_not_found"
         base["status"] = status
@@ -264,7 +280,7 @@ def diagnose_opencli(
         return base
     base["cli"]["version"] = version_probe["stdout"].splitlines()[0] if version_probe["stdout"] else "unknown"
     identity_probes = {}
-    for capability, site in (("xiaohongshu", "xiaohongshu"), ("x", "twitter"), ("youtube", "youtube"), ("tiktok", "tiktok")):
+    for capability, site in selected_sites:
         identity_args = [site, "whoami", "-f", "json", "--window", "background"]
         identity_command = executable_command(cli_path, identity_args, "@jackwener/opencli", ("dist", "src", "main.js"))
         identity_probe = run_probe(identity_command, timeout, runner)
@@ -323,6 +339,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Diagnose whether a collection adapter is callable without installing or mutating it.")
     parser.add_argument("--adapter", choices=["dokobot", "opencli"], default="dokobot")
     parser.add_argument("--cli-path", default="")
+    parser.add_argument(
+        "--platform",
+        choices=["x", "xiaohongshu", "youtube", "tiktok"],
+        help="Probe only this OpenCLI platform. Omit only for legacy all-platform diagnostics.",
+    )
     parser.add_argument("--timeout", type=int, default=15)
     parser.add_argument("--output")
     parser.add_argument("--require-ready", action="store_true")
@@ -331,8 +352,10 @@ def main() -> None:
         raise SystemExit("--timeout must be between 1 and 60 seconds.")
     if args.adapter == "opencli":
         cli_path, resolution, errors = resolve_opencli(args.cli_path)
-        result = diagnose_opencli(cli_path, resolution, errors, args.timeout)
+        result = diagnose_opencli(cli_path, resolution, errors, args.timeout, target_platform=args.platform)
     else:
+        if args.platform:
+            raise SystemExit("--platform is supported only with --adapter opencli.")
         cli_path, resolution, errors = resolve_dokobot(args.cli_path)
         result = diagnose_dokobot(cli_path, resolution, errors, args.timeout)
     if args.output:

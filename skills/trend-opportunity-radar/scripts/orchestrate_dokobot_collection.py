@@ -610,6 +610,22 @@ def mark_rate_limit_resumed(state: dict[str, Any]) -> None:
         "retry_not_before": state.get("retry_not_before"),
         "resumed_at": state.get("resumed_at"),
     }
+
+
+def semantic_review_progress(state: dict[str, Any]) -> dict[str, int]:
+    snapshot_path = Path(state["snapshot"])
+    snapshot = load_data(str(snapshot_path)) if snapshot_path.exists() else {}
+    rows = snapshot.get("signals", []) if isinstance(snapshot, dict) else []
+    signals = merged_snapshot_signals(rows, as_text(state.get("platform")))
+    reviewed = sum(
+        1 for item in signals
+        if as_text(item.get("semantic_relevance")) in {"direct", "adjacent", "weak"}
+    )
+    return {
+        "retained_count": len(signals),
+        "reviewed_count": reviewed,
+        "unreviewed_count": max(0, len(signals) - reviewed),
+    }
     if event not in events:
         events.append(event)
     write_json(str(target), snapshot)
@@ -795,6 +811,16 @@ def action(state: dict[str, Any]) -> dict[str, Any]:
         pending["status"] = "in_progress"
         state["updated_at"] = now_iso()
         return action(state)
+    review = semantic_review_progress(state)
+    if review["unreviewed_count"] and pending is None:
+        return {
+            **base,
+            "status": "in_progress",
+            "action": "review_signals",
+            "snapshot": str(Path(state["snapshot"]).resolve()),
+            "review": review,
+            "instruction": "Review the retained signals before deciding whether another search is needed. Apply direct, adjacent, or weak relevance; support, counter, or neutral direction; the frozen Profile evidence role; and a concrete reason. Then invoke next again.",
+        }
     backfill = detail_backfill_plan(state)
     if backfill["targets"]:
         state["status"] = "in_progress"

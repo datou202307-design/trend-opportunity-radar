@@ -2030,6 +2030,102 @@ You may like
         self.assertFalse(status["diagnostics"]["identity_probes"]["tiktok"]["identity_ok"])
         self.assertTrue(status["diagnostics"]["identity_probes"]["tiktok"]["search_attempted"])
 
+    def test_opencli_preflight_can_be_scoped_to_one_platform(self) -> None:
+        calls: list[list[str]] = []
+
+        def ready_runner(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+            calls.append(command)
+            if "--version" in command:
+                return subprocess.CompletedProcess(command, 0, "1.8.6\n", "")
+            return subprocess.CompletedProcess(command, 0, '[{"field":"username","value":"tester"}]\n', "")
+
+        status = adapter_check.diagnose_opencli(
+            "opencli", "test", runner=ready_runner, target_platform="x"
+        )
+
+        self.assertTrue(status["ready"])
+        self.assertEqual(status["capabilities"], {"x": True})
+        self.assertEqual(status["diagnostics"]["target_platform"], "x")
+        self.assertEqual(list(status["diagnostics"]["identity_probes"]), ["x"])
+        platform_calls = [command for command in calls if "--version" not in command]
+        self.assertEqual(len(platform_calls), 1)
+        self.assertIn("twitter", platform_calls[0])
+        self.assertFalse(any("youtube" in command or "tiktok" in command or "xiaohongshu" in command for command in platform_calls))
+
+    def test_opencli_scoped_preflight_readiness_depends_on_target_platform(self) -> None:
+        def disconnected_runner(command: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+            if "--version" in command:
+                return subprocess.CompletedProcess(command, 0, "1.8.6\n", "")
+            return subprocess.CompletedProcess(command, 77, "", "AUTH_REQUIRED: not logged in")
+
+        status = adapter_check.diagnose_opencli(
+            "opencli", "test", runner=disconnected_runner, target_platform="x"
+        )
+
+        self.assertFalse(status["ready"])
+        self.assertEqual(status["status"], "browser_not_connected")
+        self.assertEqual(status["capabilities"], {"x": False})
+
+    def test_orchestrator_reviews_initial_sample_before_replanning(self) -> None:
+        signals = []
+        for index in range(30):
+            signal = self.make_signal(index)
+            signal.pop("semantic_relevance", None)
+            signal.pop("topic_key", None)
+            signal["source_type"] = "search_card"
+            signal["detail_captured"] = False
+            signals.append(signal)
+        snapshot = self.write("unreviewed-snapshot.json", {
+            "platform": "x",
+            "collection": {
+                "mode": "standard",
+                "query_runs": [
+                    {"query_term": "email overload", "query_layer": "platform_baseline", "observed_result_count": 20},
+                    {"query_term": "inbox backlog", "query_layer": "category", "observed_result_count": 20},
+                    {"query_term": "AI email assistant", "query_layer": "subject_bridge", "observed_result_count": 20},
+                ],
+            },
+            "signals": signals,
+        })
+        state = {
+            "mode": "standard", "platform": "x", "snapshot": str(snapshot),
+            "status": "in_progress", "stop_reason": "", "active_query": None,
+            "capture_dir": str(self.root / "captures"), "screens_per_chunk": 1,
+            "queries": [
+                {"id": "q1", "term": "email overload", "layer": "platform_baseline", "url": "https://x.test/1", "status": "completed"},
+                {"id": "q2", "term": "inbox backlog", "layer": "category", "url": "https://x.test/2", "status": "completed"},
+                {"id": "q3", "term": "AI email assistant", "layer": "subject_bridge", "url": "https://x.test/3", "status": "completed"},
+            ],
+        }
+
+        next_action = orchestrator.action(state)
+
+        self.assertEqual(next_action["action"], "review_signals")
+        self.assertEqual(next_action["review"]["retained_count"], 30)
+        self.assertEqual(next_action["review"]["unreviewed_count"], 30)
+        self.assertNotEqual(next_action["action"], "replan_queries")
+
+    def test_semantic_review_cli_accepts_canonical_snapshot_scope(self) -> None:
+        signal = self.make_signal(1)
+        signal["content_id"] = signal["id"]
+        signal.pop("semantic_relevance", None)
+        signal.pop("topic_key", None)
+        snapshot = self.write("semantic-snapshot.json", {"collection": {"mode": "quick"}, "signals": [signal]})
+        review = self.write("semantic-review.json", {"reviews": [{
+            "content_id": "post-1", "semantic_relevance": "direct", "evidence_role": "support",
+            "topic_key": "email-overload", "reason": "The post directly describes the target task."
+        }]})
+        output = self.root / "reviewed-snapshot.json"
+        ledger = self.root / "semantic-review-ledger.json"
+
+        run_script("apply_semantic_review.py", "--extraction", str(snapshot), "--review", str(review),
+                   "--output", str(output), "--audit-ledger", str(ledger))
+
+        reviewed = json.loads(output.read_text(encoding="utf-8"))
+        audit = json.loads(ledger.read_text(encoding="utf-8"))
+        self.assertEqual(reviewed["signals"][0]["semantic_relevance"], "direct")
+        self.assertEqual(audit["entries"][0]["scope_id"], "collection_snapshot")
+
     def test_opencli_x_parser_normalizes_metrics_and_keeps_search_evidence_unreviewed(self) -> None:
         raw = self.write("opencli-x-search.json", [{
             "id": "1234567890", "author": "builder", "text": "A long practical post about AI workflows.",

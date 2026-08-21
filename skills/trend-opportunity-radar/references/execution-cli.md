@@ -17,6 +17,16 @@ The command freezes `research-context.json`, creates and validates `subject.json
 Pass an adapter status only after the corresponding read-only preflight has actually run:
 
 ```bash
+python scripts/check_collection_adapter.py \
+  --adapter opencli \
+  --platform x \
+  --output PATH/TO/opencli-status.json \
+  --require-ready
+```
+
+For OpenCLI, `--platform` must match the current research platform. Normal runs never probe unrelated platforms. The omitted-platform mode exists only for backward-compatible diagnostics.
+
+```bash
 python scripts/trend_radar.py start \
   --prompt "Analyze AI travel planning on X for content opportunities." \
   --status PATH/TO/opencli-status.json \

@@ -8,7 +8,7 @@ TikTok pilot search completion must not trigger a fabricated or unsupported Open
 
 ## Preflight and route
 
-Run `check_collection_adapter.py --adapter opencli` without installing anything. A ready platform capability requires the CLI and Chrome extension bridge; a platform session is required when the target surface demands it. Run `select_collection_adapter.py` with every available status. X and Xiaohongshu prefer OpenCLI and fall back to DokoBot. YouTube selects OpenCLI only after its own probe succeeds; support for X or Xiaohongshu never implies YouTube support.
+Run `check_collection_adapter.py --adapter opencli --platform TARGET_PLATFORM` without installing anything. Probe only the current research platform; do not delay or contaminate one platform's readiness with unrelated platform checks. Omitting `--platform` is retained only for legacy diagnostics, not normal research runs. A ready platform capability requires the CLI and Chrome extension bridge; a platform session is required when the target surface demands it. Run `select_collection_adapter.py` with every available status. X and Xiaohongshu prefer OpenCLI and fall back to DokoBot. YouTube selects OpenCLI only after its own probe succeeds; support for X or Xiaohongshu never implies YouTube support.
 
 ## Search capture
 

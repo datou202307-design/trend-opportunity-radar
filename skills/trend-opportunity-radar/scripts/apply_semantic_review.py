@@ -87,7 +87,10 @@ def main() -> None:
     output_path = Path(args.output).resolve()
     extraction = load_data(str(extraction_path))
     query_id = as_text(extraction.get("query_id")) if isinstance(extraction, dict) else ""
-    if not query_id or query_id.casefold() not in review_path.stem.casefold() or query_id.casefold() not in output_path.stem.casefold():
+    snapshot_scope = isinstance(extraction, dict) and isinstance(extraction.get("collection"), dict)
+    if not query_id and not snapshot_scope:
+        raise SystemExit("Semantic review input requires either a query_id or a canonical collection snapshot.")
+    if query_id and (query_id.casefold() not in review_path.stem.casefold() or query_id.casefold() not in output_path.stem.casefold()):
         raise SystemExit("Semantic review and reviewed extraction filenames must include the extraction query_id.")
     context = load_context(Path(args.research_context).resolve()) if args.research_context else None
     reviewed = apply_review(extraction, load_data(str(review_path)), context)
@@ -102,9 +105,10 @@ def main() -> None:
         raise SystemExit("Semantic review audit ledger requires an entries array.")
     source_hash = hashlib.sha256(extraction_path.read_bytes()).hexdigest()
     review_hash = hashlib.sha256(review_path.read_bytes()).hexdigest()
-    key = (query_id, source_hash, review_hash)
-    if not any((as_text(item.get("query_id")), as_text(item.get("extraction_sha256")), as_text(item.get("review_sha256"))) == key for item in entries if isinstance(item, dict)):
-        entries.append({"query_id": query_id, "extraction": str(extraction_path), "review": str(review_path),
+    scope_id = query_id or "collection_snapshot"
+    key = (scope_id, source_hash, review_hash)
+    if not any((as_text(item.get("scope_id") or item.get("query_id")), as_text(item.get("extraction_sha256")), as_text(item.get("review_sha256"))) == key for item in entries if isinstance(item, dict)):
+        entries.append({"scope_id": scope_id, **({"query_id": query_id} if query_id else {}), "extraction": str(extraction_path), "review": str(review_path),
                         "reviewed_extraction": str(output_path), "extraction_sha256": source_hash,
                         "review_sha256": review_hash, "reviewed_count": reviewed["semantic_review_audit"]["reviewed_count"],
                         "unreviewed_count": reviewed["semantic_review_audit"]["unreviewed_count"],
