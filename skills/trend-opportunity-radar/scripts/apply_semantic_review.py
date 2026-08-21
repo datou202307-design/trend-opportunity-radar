@@ -5,7 +5,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-from _common import as_text, load_data, write_json
+from _common import as_text, load_data, normalize_collection, write_json
 from research_context import load_context
 
 
@@ -20,6 +20,12 @@ def apply_review(extraction: Any, review: Any, context: dict[str, Any] | None = 
     if not isinstance(items, list) or not items:
         raise SystemExit("Semantic review requires a non-empty reviews array.")
     known = {as_text(item.get("content_id")): item for item in extraction["signals"] if isinstance(item, dict)}
+    previously_reviewed = {
+        key for key, signal in known.items()
+        if isinstance(signal.get("semantic_review"), dict)
+        and signal["semantic_review"].get("status") == "agent_reviewed"
+        and as_text(signal.get("semantic_relevance")) in RELEVANCE
+    }
     reviewed: set[str] = set()
     for item in items:
         if not isinstance(item, dict):
@@ -49,11 +55,22 @@ def apply_review(extraction: Any, review: Any, context: dict[str, Any] | None = 
         else:
             signal["topic_key"] = topic_key
         reviewed.add(key)
+    all_reviewed = previously_reviewed | reviewed
     extraction["semantic_review_audit"] = {
-        "reviewed_count": len(reviewed),
-        "unreviewed_count": len(known) - len(reviewed),
+        "reviewed_count": len(all_reviewed),
+        "applied_review_count": len(reviewed),
+        "previously_reviewed_count": len(previously_reviewed),
+        "unreviewed_count": len(known) - len(all_reviewed),
         "review_file_required": True,
     }
+    if isinstance(extraction.get("collection"), dict):
+        signals = extraction["signals"]
+        unique_keys = {
+            as_text(signal.get("dedupe_hash") or signal.get("signal_id") or signal.get("content_id"))
+            for signal in signals
+            if isinstance(signal, dict) and as_text(signal.get("dedupe_hash") or signal.get("signal_id") or signal.get("content_id"))
+        }
+        extraction["collection"] = normalize_collection(extraction, len(signals), len(unique_keys), signals)
     return extraction
 
 

@@ -100,6 +100,29 @@ class DecisionProfilesM3Test(unittest.TestCase):
                 "profile_evidence_role": "unmet_need", "topic_key": "wrong-role", "reason": "Wrong profile role.",
             }]}, context)
 
+    def test_semantic_review_refreshes_collection_relevance_counts(self) -> None:
+        context = self.context("content_opportunity")
+        extraction = {
+            "collection": {
+                "mode": "quick",
+                "query_runs": [{"query_layer": "subject_bridge", "observed_result_count": 1}],
+                "counts": {"query_count": 1, "observed_result_count": 1},
+            },
+            "signals": [{
+                "signal_id": "facebook-1", "content_id": "1", "dedupe_hash": "one",
+                "query_layer": "subject_bridge", "query_layers": ["subject_bridge"],
+                "semantic_relevance": "unreviewed", "evidence_role": "neutral", "topic_key": "unreviewed",
+                "detail_captured": True, "source_type": "direct_post",
+            }],
+        }
+        reviewed = apply_semantic_review.apply_review(extraction, {"reviews": [{
+            "content_id": "1", "semantic_relevance": "direct", "evidence_role": "support",
+            "profile_evidence_role": "question", "topic_key": "bill-question", "reason": "A direct audience question.",
+        }]}, context)
+        self.assertEqual(reviewed["collection"]["layer_stats"]["subject_bridge"]["relevant_signal_count"], 1)
+        self.assertEqual(reviewed["collection"]["layer_stats"]["subject_bridge"]["direct_relevance_count"], 1)
+        self.assertTrue(reviewed["collection"]["contract_checks"]["relevance_review_coverage"])
+
     def test_brand_single_snapshot_cannot_claim_spread(self) -> None:
         context = self.context("brand_sentiment")
         errors = profile_decisions.validate_findings(self.finding(context, temporal_claim="spreading", snapshots=1), context, topic_keys={"topic-1"})
@@ -185,6 +208,9 @@ class DecisionProfilesM3Test(unittest.TestCase):
         self.assertIn("affected_audience", report["findings"][0]["report_sections"])
 
     def test_m4_visual_contract_changes_labels_and_exposes_follow_up_without_creating_it(self) -> None:
+        self.assertEqual(generate_profile_report.platform_label("facebook", "zh-CN"), "Facebook")
+        self.assertEqual(generate_profile_report.platform_label("instagram", "en"), "Instagram")
+        self.assertEqual(generate_profile_report.platform_label("tiktok", "en"), "TikTok")
         snapshot = {"platform": "x", "collection": {"contract_status": "met", "stop_reason": "sampling_contract_met", "counts": {
             "query_count": 4, "observed_result_count": 77, "unique_sample_count": 73,
             "detail_open_count": 12, "counter_signal_count": 21,
@@ -215,7 +241,7 @@ class DecisionProfilesM3Test(unittest.TestCase):
             self.assertIn("打开并核验 0 条详情", page)
             self.assertIn("检查 1 条不同意见或相反情况", page)
             self.assertIn("标准采样已完成", page)
-            self.assertEqual(report["schema_version"], "profile-research-report-v0.3")
+            self.assertEqual(report["schema_version"], "profile-research-report-v0.4")
             self.assertEqual(report["collection_summary"], {
                 "query_count": 4, "observed_result_count": 77, "unique_signal_count": 3,
                 "relevant_signal_count": 2, "detail_open_count": 0,
@@ -272,6 +298,47 @@ class DecisionProfilesM3Test(unittest.TestCase):
         self.assertIn("60 remained after deduplication", page)
         self.assertIn("12 detail pages were opened and verified", page)
         self.assertIn("The standard sampling requirement was met", page)
+
+    def test_facebook_and_instagram_reports_explain_platform_native_evidence(self) -> None:
+        facebook_context = self.context("content_opportunity")
+        facebook_context["platform"] = "facebook"
+        facebook_snapshot = {
+            "platform": "facebook",
+            "collection": {"contract_status": "met", "stop_reason": "sampling_contract_met"},
+            "signals": [
+                {"semantic_relevance": "direct", "evidence_role": "support", "platform_facts": {"content_format": "post"}},
+                {"semantic_relevance": "adjacent", "evidence_role": "counter", "platform_facts": {"content_format": "reel"}},
+            ],
+            "topics": [{"topic_key": "topic-1", "cluster_audit": {"status": "passed"}}],
+        }
+        facebook_report = generate_profile_report.build_report(facebook_context, facebook_snapshot, self.finding(facebook_context))
+        facebook_page = generate_profile_report.render_html(facebook_report)
+        self.assertIn("Facebook 帖子搜索", facebook_page)
+        self.assertIn("公开帖子中的讨论、用户经验和异议", facebook_page)
+        self.assertIn("帖子 1 条", facebook_page)
+        self.assertIn("Reel 1 条", facebook_page)
+        self.assertEqual(facebook_report["platform_native_context"]["platform"], "facebook")
+
+        instagram_context = self.context("content_opportunity")
+        instagram_context["platform"] = "instagram"
+        instagram_snapshot = {
+            "platform": "instagram",
+            "collection": {"contract_status": "met", "stop_reason": "sampling_contract_met"},
+            "signals": [
+                {"semantic_relevance": "direct", "evidence_role": "support", "platform_facts": {"content_format": "reel", "displayed_hashtag_volume_label": "12K posts"}},
+                {"semantic_relevance": "adjacent", "evidence_role": "counter", "platform_facts": {"content_format": "carousel", "displayed_hashtag_volume_label": "12K posts"}},
+            ],
+            "topics": [{"topic_key": "topic-1", "cluster_audit": {"status": "passed"}}],
+        }
+        instagram_report = generate_profile_report.build_report(instagram_context, instagram_snapshot, self.finding(instagram_context))
+        instagram_page = generate_profile_report.render_html(instagram_report)
+        self.assertIn("Instagram Hashtag 结果", instagram_page)
+        self.assertIn("Reel、图文和图片轮播采用了什么表达方式", instagram_page)
+        self.assertIn("图片轮播 1 条", instagram_page)
+        self.assertIn("12K posts", instagram_page)
+        self.assertIn("它不等于搜索需求", instagram_page)
+        self.assertEqual(instagram_report["platform_native_context"]["platform"], "instagram")
+        self.assertNotEqual(facebook_report["platform_native_context"], instagram_report["platform_native_context"])
 
     def test_profile_report_never_invents_scores_when_topic_scores_are_missing(self) -> None:
         context = self.context("business_opportunity")

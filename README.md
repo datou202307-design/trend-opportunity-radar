@@ -23,7 +23,7 @@
 
 Trend Opportunity Radar is an independent, brand-neutral Agent Skill. Give it a research topic and one platform; the Agent collects or imports signals, opens original sources, checks counterexamples, and generates a local report. The subject can be a product, business opportunity, idea, user problem, audience need, or project.
 
-Current release: **v0.10.0 candidate**. It supports evidence-backed next-step decisions; it does not predict virality, traffic, demand, or revenue.
+Current release: **v0.11.0 candidate**. It supports evidence-backed next-step decisions; it does not predict virality, traffic, demand, or revenue.
 
 ## Start in 30 seconds
 
@@ -77,6 +77,7 @@ Each study generates:
 | YouTube | Validated | Search, video details, bounded comments, captions when needed | Public content; comments and captions as available |
 | Reddit | Validated | Community discovery, post search, detail verification | User-connected third-party MCP; comment trees disabled |
 | Instagram | Hashtag topic research validated | Hashtag posts, details, bounded visible comments | Authorized, signed-in browser session |
+| Facebook | Posts topic-research Beta | Public Posts search, verified details, bounded visible comments | Explicitly enabled, authorized signed-in browser session |
 | TikTok | Topic-research Beta | Topic search, video details, bounded comment enrichment | Explicitly enabled, signed-in Chrome session |
 | JSON / CSV | General import | User-provided structured signals | No live connector required |
 
@@ -133,7 +134,7 @@ Users remain responsible for platform terms, account permissions, and applicable
 
 ## Third-party compatibility
 
-DokoBot, OpenCLI, Chrome, mcp-video-analyzer, yt-dlp, whisper-ctranslate2, X, Xiaohongshu, YouTube, Reddit, TikTok, and Instagram are optional third-party tools or platforms. Names indicate compatibility or research targets only and do not imply affiliation, endorsement, account access, or authorization.
+DokoBot, OpenCLI, Chrome, mcp-video-analyzer, yt-dlp, whisper-ctranslate2, X, Xiaohongshu, YouTube, Reddit, TikTok, Instagram, and Facebook are optional third-party tools or platforms. Names indicate compatibility or research targets only and do not imply affiliation, endorsement, account access, or authorization.
 
 ## Repository layout
 

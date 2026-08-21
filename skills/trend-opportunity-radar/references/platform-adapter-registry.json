@@ -55,6 +55,25 @@
         "topic_research": "validated",
         "account_research": "pilot"
       }
+    },
+    "facebook": {
+      "aliases": ["facebook", "fb", "脸书"],
+      "controlled_capture_preference": ["facebook_posts_browser_capture"],
+      "metric_fields": ["reactions", "comments", "shares", "views"],
+      "research_scopes": {
+        "topic_research": "pilot",
+        "account_research": "unsupported"
+      },
+      "release_gates": {
+        "topic_research": {
+          "zero_result_acceptance": "explicit_empty_twice_or_false_zero_protection",
+          "requires_live_explicit_empty": false,
+          "minimum_frozen_low_yield_probes": 2,
+          "require_query_identity_on_every_probe": true,
+          "require_no_false_verified_zero": true,
+          "require_semantic_exclusion_of_irrelevant_fallback": true
+        }
+      }
     }
   },
   "adapters": {
@@ -172,6 +191,27 @@
           "pagination": "bounded_recent_profile_grid",
           "terminal_evidence": ["profile_grid_limit_reached", "visible_recent_posts_exhausted", "success_empty_result", "adapter_error"],
           "safety_stops": ["captcha", "rate_limit", "login_expired", "private_account", "account_not_found", "permission_prompt", "abnormal_redirect", "content_mismatch"]
+        }
+      }
+    },
+    "facebook_posts_browser_capture": {
+      "source_mode": "controlled_capture",
+      "preflight_required": true,
+      "operation_allowlist": ["read_posts_search_results", "read_canonical_public_post_links", "read_public_post_detail", "read_visible_comments", "expand_exact_detail_comments_once"],
+      "operation_denylist": ["read_home_feed_as_topic", "read_friends", "read_notifications", "read_private_groups", "read_marketplace", "join_group", "add_friend", "follow_account", "like_post", "react_to_post", "comment_post", "share_post", "publish_post"],
+      "platforms": {
+        "facebook": {
+          "research_scopes": ["topic_research"],
+          "capability_key": "facebook",
+          "search_builder": "facebook_posts_capture_v1",
+          "detail_builder": "facebook_posts_capture_v1",
+          "comment_builder": "embedded_visible_comments",
+          "comment_sample_limit": 5,
+          "search_parser": "facebook_posts_capture_v1",
+          "detail_runner": "browser_control",
+          "pagination": "bounded_personalized_posts_results",
+          "terminal_evidence": ["bounded_posts_result_limit_reached", "visible_posts_results_exhausted", "success_empty_result", "adapter_error"],
+          "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect", "content_mismatch", "private_content"]
         }
       }
     },

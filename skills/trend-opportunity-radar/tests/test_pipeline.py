@@ -158,6 +158,20 @@ An entertainment interview translation thread.
         self.assertEqual(reviewed["signals"][1]["semantic_relevance"], "weak")
         self.assertEqual(reviewed["semantic_review_audit"]["unreviewed_count"], 0)
 
+    def test_semantic_review_can_append_to_previously_reviewed_signals(self) -> None:
+        extraction = {"signals": [
+            {"content_id": "1", "semantic_relevance": "direct", "evidence_role": "support", "topic_key": "existing", "semantic_review": {"status": "agent_reviewed", "reason": "Earlier review."}},
+            {"content_id": "2", "semantic_relevance": "unreviewed", "evidence_role": "neutral", "topic_key": "unreviewed"},
+        ]}
+        reviewed = semantic_reviewer.apply_review(extraction, {"reviews": [{
+            "content_id": "2", "semantic_relevance": "adjacent", "evidence_role": "counter",
+            "topic_key": "existing-alternative", "reason": "New recovery evidence.",
+        }]})
+        self.assertEqual(reviewed["semantic_review_audit"]["reviewed_count"], 2)
+        self.assertEqual(reviewed["semantic_review_audit"]["previously_reviewed_count"], 1)
+        self.assertEqual(reviewed["semantic_review_audit"]["applied_review_count"], 1)
+        self.assertEqual(reviewed["semantic_review_audit"]["unreviewed_count"], 0)
+
     def test_semantic_review_cli_appends_query_specific_audit_ledger(self) -> None:
         ledger = self.root / "semantic-review-ledger.json"
         for query_id, content_id in (("baseline-1", "101"), ("category-1", "102")):
@@ -395,6 +409,26 @@ An entertainment interview translation thread.
         raw = {
             "collection": {
                 "mode": "standard", "stop_reason": "search_collection_complete",
+                "query_runs": [{
+                    "query_term": f"q-{index}",
+                    "query_layer": ["platform_baseline", "category", "subject_bridge"][index % 3],
+                    "observed_result_count": 10,
+                } for index in range(6)],
+                "counts": {"query_count": 6, "observed_result_count": 60},
+            }
+        }
+        collection = common.normalize_collection(raw, 30, 30, signals)
+        self.assertTrue(all(collection["contract_checks"].values()))
+        self.assertEqual(collection["contract_status"], "met")
+        self.assertEqual(collection["stop_reason"], "sampling_contract_met")
+
+    def test_reviewed_ledger_marks_empty_terminal_reason_complete_when_all_checks_pass(self) -> None:
+        signals = [self.make_signal(index, "counter" if index < 3 else "support") for index in range(30)]
+        for index, signal in enumerate(signals):
+            signal["dedupe_hash"] = f"hash-{index}"
+        raw = {
+            "collection": {
+                "mode": "standard", "stop_reason": "",
                 "query_runs": [{
                     "query_term": f"q-{index}",
                     "query_layer": ["platform_baseline", "category", "subject_bridge"][index % 3],

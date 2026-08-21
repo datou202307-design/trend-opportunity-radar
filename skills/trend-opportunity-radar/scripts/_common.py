@@ -248,7 +248,7 @@ def normalize_platform(value: Any) -> str:
         "twitter": "x", "推特": "x", "抖音": "douyin", "tiktok": "tiktok", "tik tok": "tiktok", "国际抖音": "tiktok",
         "yt": "youtube", "油管": "youtube",
         "reddit": "reddit",
-        "instagram": "instagram", "ins": "instagram",
+        "instagram": "instagram", "ins": "instagram", "facebook": "facebook", "fb": "facebook", "脸书": "facebook",
         "视频号": "wechat_channels", "wechat channels": "wechat_channels",
     }
     return aliases.get(text, re.sub(r"[^a-z0-9_\-\u4e00-\u9fff]+", "_", text).strip("_"))
@@ -681,7 +681,7 @@ def normalize_collection(raw: Any, retained_count: int, unique_count: int, signa
     # Search-card acquisition may finish before semantic review and controlled
     # detail backfill.  That checkpoint is intentionally not a sampling claim,
     # but a reviewed derived ledger may close it once every contract check passes.
-    if stop_reason == "search_collection_complete" and all(minimums.values()):
+    if stop_reason in {"", "search_collection_complete"} and all(minimums.values()):
         stop_reason = "sampling_contract_met"
     status = (
         "untracked" if not tracked

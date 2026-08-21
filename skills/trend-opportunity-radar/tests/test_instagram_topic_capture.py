@@ -111,6 +111,25 @@ class InstagramTopicCaptureTest(unittest.TestCase):
         payload = self.payload()
         payload["hashtag"] = "different"
         self.assertEqual(capture.validate_capture(self.request, payload)[3], "content_mismatch")
+
+    def test_unreadable_surface_is_not_recorded_as_platform_zero(self) -> None:
+        payload = self.payload()
+        payload["result_passes"] = [[], []]
+        payload["result_cards"] = []
+        payload["posts"] = []
+        payload["stop_reason"] = "surface_unreadable"
+        status, posts, _, reason = capture.validate_capture(self.request, payload)
+        self.assertEqual(status, "unavailable")
+        self.assertEqual(posts, [])
+        self.assertEqual(reason, "surface_unreadable")
+
+    def test_verified_platform_empty_state_has_distinct_reason(self) -> None:
+        payload = self.payload()
+        payload["result_passes"] = [[], []]
+        payload["result_cards"] = []
+        payload["posts"] = []
+        payload["stop_reason"] = "verified_zero_results"
+        self.assertEqual(capture.validate_capture(self.request, payload)[3], "verified_zero_results")
         payload = self.payload()
         payload["posts"][0]["canonical_url"] = "https://www.instagram.com/p/NOTOBSERVED/"
         self.assertEqual(capture.validate_capture(self.request, payload)[3], "content_mismatch")

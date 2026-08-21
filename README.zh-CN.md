@@ -23,7 +23,7 @@
 
 这是一个独立、去品牌化的 Agent Skill。你提供研究主题和目标平台，Agent 负责采集或导入信号、打开原文、检查反例，并生成本地报告。它可以研究产品，也可以研究一个商机、想法、用户问题、受众需求或项目。
 
-当前版本是 **v0.10.0 candidate**。它帮助你形成更有依据的下一步判断，不预测爆款、流量、需求或收入。
+当前版本是 **v0.11.0 candidate**。它帮助你形成更有依据的下一步判断，不预测爆款、流量、需求或收入。
 
 ## 30 秒开始
 
@@ -77,6 +77,7 @@
 | YouTube | 已验证 | 搜索、视频详情、有限评论和按需字幕 | 公开内容；评论与字幕按可用性读取 |
 | Reddit | 已验证 | 社区发现、帖子搜索和详情核对 | 用户连接第三方 MCP；评论树暂不读取 |
 | Instagram | Hashtag 主题研究已验证 | Hashtag 内容、详情和有限可见评论 | 已登录且已授权的浏览器会话 |
+| Facebook | Posts 主题研究 Beta | 公开 Posts 搜索、详情核对和有限可见评论 | 显式启用且已授权、已登录的浏览器会话 |
 | TikTok | 主题研究 Beta | 主题搜索、视频详情和有限评论补充 | 显式启用且已登录的 Chrome 会话 |
 | JSON / CSV | 通用导入 | 用户提供的结构化信号 | 不需要实时连接器 |
 
@@ -133,7 +134,7 @@ Skill 可以使用用户上传的 JSON/CSV、公开网页、受控只读浏览�
 
 ## 第三方兼容性
 
-DokoBot、OpenCLI、Chrome、mcp-video-analyzer、yt-dlp、whisper-ctranslate2、X、小红书、YouTube、Reddit、TikTok 和 Instagram 均为可选第三方工具或平台。名称仅用于说明兼容或研究目标，不代表关联、背书、账号访问或授权。
+DokoBot、OpenCLI、Chrome、mcp-video-analyzer、yt-dlp、whisper-ctranslate2、X、小红书、YouTube、Reddit、TikTok、Instagram 和 Facebook 均为可选第三方工具或平台。名称仅用于说明兼容或研究目标，不代表关联、背书、账号访问或授权。
 
 ## 仓库结构
 

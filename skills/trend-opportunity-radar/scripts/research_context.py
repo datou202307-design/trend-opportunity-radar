@@ -28,6 +28,7 @@ PLATFORM_PATTERNS = [
     ("tiktok", [r"\btik[ -]?tok\b", r"国际抖音"]),
     ("douyin", [r"抖音", r"\bdouyin\b"]),
     ("instagram", [r"\binstagram\b", r"(?:^|[，。；、,.!?\s])ins(?:平台|$|[，。；、,.!?\s])"]),
+    ("facebook", [r"\bfacebook\b", r"(?:^|[，。；、,.!?\s])fb(?:平台|$|[，。；、,.!?\s])", r"脸书"]),
     ("x", [r"(?:^|[，。；、,.!?\s])x(?:上|平台|英语市场|$|[，。；、,.!?\s])", r"\bon\s+x\b", r"\btwitter\b"]),
 ]
 MARKET_PATTERNS = [
