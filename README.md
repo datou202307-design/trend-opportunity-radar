@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/releases"><img alt="Release" src="https://img.shields.io/github/v/release/datou202307-design/trend-opportunity-radar?include_prereleases&style=flat-square&label=release"></a>
   <img alt="Five research scenarios" src="https://img.shields.io/badge/research_scenarios-5-14b8a6?style=flat-square">
-  <img alt="Six platform research routes" src="https://img.shields.io/badge/platform_routes-6-0f766e?style=flat-square">
+  <img alt="Seven platform research routes" src="https://img.shields.io/badge/platform_routes-7-0f766e?style=flat-square">
   <img alt="HTML, Markdown, and JSON outputs" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
   <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square"></a>
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/datou202307-design/trend-opportunity-radar?style=flat-square"></a>
@@ -102,6 +102,19 @@ skills/trend-opportunity-radar/
 
 For Codex, place `trend-opportunity-radar` under `$CODEX_HOME/skills/` and reload the Agent session. Other agents can adapt `SKILL.md`, the reference contracts, and the Python scripts. Bundled scripts use the Python standard library; Python 3.10 or later is recommended.
 
+The optional deterministic entry point freezes the request and reports exactly one next action:
+
+```bash
+python skills/trend-opportunity-radar/scripts/trend_radar.py start \
+  --prompt "Analyze AI travel planning on X for content opportunities." \
+  --output-dir ./trend-research/ai-travel-x
+
+python skills/trend-opportunity-radar/scripts/trend_radar.py doctor \
+  --platform x
+```
+
+`doctor` does not install tools or change login state. A live route becomes ready only after the platform's actual read-only preflight succeeds; structured import remains available when it does not.
+
 ## Data access and privacy
 
 The Skill can use uploaded JSON/CSV, public web content, a controlled read-only browser, an authorized API, or historical snapshots. Chrome, OpenCLI, DokoBot, and third-party MCP services are optional adapters and are not bundled.
@@ -126,6 +139,7 @@ Users remain responsible for platform terms, account permissions, and applicable
 ## Method and adapter documentation
 
 - [Sampling contract](skills/trend-opportunity-radar/references/sampling-contract.md)
+- [Unified execution entry point](skills/trend-opportunity-radar/references/execution-cli.md)
 - [Scoring contract](skills/trend-opportunity-radar/references/scoring-contract.md)
 - [Platform adapters](skills/trend-opportunity-radar/references/platform-adapters.md)
 - [Browser collection](skills/trend-opportunity-radar/references/browser-collection.md)
