@@ -1469,6 +1469,8 @@ You may like
         self.assertEqual(updated_state["status"], "complete")
         self.assertEqual(updated_snapshot["collection"]["counts"]["detail_open_count"], 12)
         self.assertEqual(len(updated_snapshot["collection"]["detail_backfills"]), 2)
+        self.assertTrue(all(item["detail_open_count"] == 1 for item in updated_snapshot["collection"]["detail_backfills"]))
+        self.assertTrue(all(len(item["content_ids"]) == 1 for item in updated_snapshot["collection"]["detail_backfills"]))
         enriched = [item for item in updated_snapshot["signals"] if item.get("summary") == "Full verified detail"]
         self.assertEqual(len(enriched), 2)
         self.assertTrue(all(item.get("semantic_review") for item in enriched))
@@ -2117,14 +2119,18 @@ You may like
         }]})
         output = self.root / "reviewed-snapshot.json"
         ledger = self.root / "semantic-review-ledger.json"
+        state = self.write("semantic-review-state.json", {"snapshot": str(snapshot), "snapshot_history": []})
 
         run_script("apply_semantic_review.py", "--extraction", str(snapshot), "--review", str(review),
-                   "--output", str(output), "--audit-ledger", str(ledger))
+                   "--output", str(output), "--audit-ledger", str(ledger), "--state", str(state))
 
         reviewed = json.loads(output.read_text(encoding="utf-8"))
         audit = json.loads(ledger.read_text(encoding="utf-8"))
+        advanced = json.loads(state.read_text(encoding="utf-8"))
         self.assertEqual(reviewed["signals"][0]["semantic_relevance"], "direct")
         self.assertEqual(audit["entries"][0]["scope_id"], "collection_snapshot")
+        self.assertEqual(Path(advanced["snapshot"]), output.resolve())
+        self.assertEqual(advanced["snapshot_history"][0]["reason"], "semantic_review")
 
     def test_opencli_x_parser_normalizes_metrics_and_keeps_search_evidence_unreviewed(self) -> None:
         raw = self.write("opencli-x-search.json", [{

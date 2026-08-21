@@ -542,8 +542,11 @@ def record_detail_backfill(state: dict[str, Any], payload: Any) -> None:
             signals[target_index] = merge_signals(original, detail)
         elif stop_reason in HARD_STOPS:
             hard_stop = stop_reason
+        audited_content_id = as_text(signals[target_index].get("content_id")) if success else ""
         audit_entry = {
             "signal_key": key, "layer": allowed[key]["layer"], "success": success,
+            "detail_open_count": 1 if success else 0,
+            "content_ids": [audited_content_id] if audited_content_id else [],
             "raw_artifact": raw_artifact, "stop_reason": stop_reason,
             "execution": execution if isinstance(execution, dict) else {}, "recorded_at": now_iso(),
         }

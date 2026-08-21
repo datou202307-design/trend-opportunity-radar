@@ -5,7 +5,7 @@ import hashlib
 from pathlib import Path
 from typing import Any
 
-from _common import as_text, load_data, normalize_collection, write_json
+from _common import as_text, load_data, normalize_collection, now_iso, write_json
 from research_context import load_context
 
 
@@ -81,10 +81,13 @@ def main() -> None:
     parser.add_argument("--output", required=True)
     parser.add_argument("--audit-ledger", required=True)
     parser.add_argument("--research-context")
+    parser.add_argument("--state", help="Collection state to advance from the source snapshot to the reviewed output.")
     args = parser.parse_args()
     extraction_path = Path(args.extraction).resolve()
     review_path = Path(args.review).resolve()
     output_path = Path(args.output).resolve()
+    if args.state and output_path == extraction_path:
+        raise SystemExit("State advancement requires a distinct reviewed output so the source snapshot remains immutable.")
     extraction = load_data(str(extraction_path))
     query_id = as_text(extraction.get("query_id")) if isinstance(extraction, dict) else ""
     snapshot_scope = isinstance(extraction, dict) and isinstance(extraction.get("collection"), dict)
@@ -114,6 +117,27 @@ def main() -> None:
                         "unreviewed_count": reviewed["semantic_review_audit"]["unreviewed_count"],
                         **({"research_intent": context["research_intent"], "profile_version": context["profile_version"]} if context else {})})
     write_json(str(ledger_path), ledger)
+    if args.state:
+        state_path = Path(args.state).resolve()
+        state = load_data(str(state_path))
+        if not isinstance(state, dict) or not as_text(state.get("snapshot")):
+            raise SystemExit("Collection state requires a snapshot path.")
+        current_snapshot = Path(as_text(state["snapshot"])).resolve()
+        if current_snapshot != extraction_path:
+            raise SystemExit("Collection state snapshot does not match the semantic review input.")
+        history = state.setdefault("snapshot_history", [])
+        if not isinstance(history, list):
+            raise SystemExit("Collection state snapshot_history must be an array.")
+        history.append({
+            "previous_snapshot": str(extraction_path),
+            "reviewed_snapshot": str(output_path),
+            "reason": "semantic_review",
+            "advanced_at": now_iso(),
+            "review_sha256": review_hash,
+        })
+        state["snapshot"] = str(output_path)
+        state["updated_at"] = now_iso()
+        write_json(str(state_path), state)
 
 
 if __name__ == "__main__":

@@ -151,6 +151,13 @@ def validate_collection_state_consistency(result: dict[str, Any], base: Path) ->
             ]
             if not successful_audits:
                 raise SystemExit("Reviewed ledger contains appended details without a successful backfill audit.")
+            audited_keys = {
+                str(audit.get("signal_key"))
+                for audit in successful_audits
+                if str(audit.get("signal_key") or "")
+            }
+            if audited_keys and not appended_detail_keys.issubset(audited_keys):
+                raise SystemExit("Reviewed ledger contains detail keys missing from successful backfill audits.")
             audited_ids = {
                 str(content_id)
                 for audit in successful_audits
@@ -168,7 +175,7 @@ def validate_collection_state_consistency(result: dict[str, Any], base: Path) ->
             if audited_ids and not appended_ids.issubset(audited_ids):
                 raise SystemExit("Reviewed ledger contains detail IDs missing from successful backfill audits.")
             audited_count = sum(int(audit.get("detail_open_count") or 0) for audit in successful_audits)
-            if not audited_ids and audited_count < len(appended_detail_keys):
+            if not audited_keys and not audited_ids and audited_count < len(appended_detail_keys):
                 raise SystemExit("Successful backfill audits do not cover every appended detail.")
 
         invalid_details = [

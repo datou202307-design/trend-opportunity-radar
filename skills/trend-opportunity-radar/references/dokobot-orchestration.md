@@ -111,7 +111,7 @@ Call `run_dokobot_capture.py` again whenever the next action is `continue_query`
 
 ## Review before recovery
 
-After the initial three layers finish, the orchestrator returns `review_signals` whenever retained signals are still mechanically unreviewed. Review the canonical snapshot with `apply_semantic_review.py`, write the reviewed snapshot to a new file, and replace the working snapshot only through that deterministic output. Invoke `next` again after review. The orchestrator must never interpret `unreviewed` as irrelevant or spend recovery-query budget before this step.
+After the initial three layers finish, the orchestrator returns `review_signals` whenever retained signals are still mechanically unreviewed. Review the canonical snapshot with `apply_semantic_review.py`, write the reviewed snapshot to a new file, and pass `--state collection-state.json` so the tool verifies the input identity, preserves snapshot history, and advances the run to that reviewed output. Invoke `next` again after review. The orchestrator must never interpret `unreviewed` as irrelevant or spend recovery-query budget before this step. Never hand-edit the state snapshot path.
 
 ## Recover low-yield plans
 
