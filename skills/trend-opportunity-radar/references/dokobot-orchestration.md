@@ -109,6 +109,10 @@ The orchestrator records a genuine zero-result query as `completed_with_zero_res
 
 Call `run_dokobot_capture.py` again whenever the next action is `continue_query` or `start_query`; always follow the returned `query.id`. The orchestrator finalizes each query at its bounded target, after explicit terminal evidence, or as partial after its local retry limit, then atomically appends it to `raw-signals.json` and continues the plan.
 
+## Review before recovery
+
+After the initial three layers finish, the orchestrator returns `review_signals` whenever retained signals are still mechanically unreviewed. Review the canonical snapshot with `apply_semantic_review.py`, write the reviewed snapshot to a new file, and pass `--state collection-state.json` so the tool verifies the input identity, preserves snapshot history, and advances the run to that reviewed output. Invoke `next` again after review. The orchestrator must never interpret `unreviewed` as irrelevant or spend recovery-query budget before this step. Never hand-edit the state snapshot path.
+
 ## Recover low-yield plans
 
 When the initial plan ends below the contract and query budget remains, the orchestrator returns `replan_queries` instead of `blocked`. Its `recovery` object lists remaining query budget, deficient layers, per-layer deficits, and rewrite rules. Create a new plan containing only non-duplicative queries and add it:
@@ -137,6 +141,7 @@ For an explicitly enabled TikTok pilot, OpenCLI may remain the frozen search ada
 ## Obey the terminal decision
 
 - `complete`: all sampling minima and layer coverage passed.
+- `review_signals`: collected evidence needs semantic review before recovery or detail decisions.
 - `replan_queries`: the current plan ended below a minimum but lawful query budget remains.
 - `blocked`: the total query budget ended below a minimum or a platform-wide safety/access stop occurred. A single query's missing session or repeated timeout does not immediately block the run.
 
