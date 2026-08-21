@@ -2408,7 +2408,7 @@ You may like
         diagnostics = orchestrator.recovery_diagnostics(state)
         self.assertTrue(diagnostics["volume_recovery"]["required"])
         self.assertIn("action items", diagnostics["volume_recovery"]["recommended_terms"])
-        self.assertEqual(diagnostics["recommended_layers"][0], "category")
+        self.assertEqual(diagnostics["recommended_layers"], ["category"])
         rejected = {"queries": [{"id": "r-1", "term": "meeting owner deadline", "layer": "category", "url": "https://x.test/search?q=owner"}]}
         with self.assertRaises(SystemExit):
             orchestrator.validate_recovery_plan(rejected, state)

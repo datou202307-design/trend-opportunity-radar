@@ -384,6 +384,7 @@ def recovery_diagnostics(state: dict[str, Any]) -> dict[str, Any]:
     )
     known_terms = {as_text(item.get("query_term")).casefold() for item in runs if isinstance(item, dict)}
     recommended_terms: list[str] = []
+    recommended_terms_by_layer: dict[str, list[str]] = {}
     for seed in successful_seeds:
         distinctive = [item for item in query_tokens(seed["query_term"]) if item not in GENERIC_RECOVERY_TOKENS]
         candidates: list[str] = []
@@ -403,13 +404,17 @@ def recovery_diagnostics(state: dict[str, Any]) -> dict[str, Any]:
             folded = candidate.casefold()
             if folded not in known_terms and folded not in {item.casefold() for item in recommended_terms}:
                 recommended_terms.append(candidate)
+                recommended_terms_by_layer.setdefault(seed["query_layer"], []).append(candidate)
     volume_only = not quality_deficit and (global_deficits["observed"] > 0 or global_deficits["unique"] > 0)
     if volume_only and successful_seeds:
-        preferred_layers: list[str] = []
+        preferred_layer = ""
         for seed in successful_seeds:
-            if seed["query_layer"] and seed["query_layer"] not in preferred_layers:
-                preferred_layers.append(seed["query_layer"])
-        recommended_layers = preferred_layers
+            layer = seed["query_layer"]
+            if layer and recommended_terms_by_layer.get(layer):
+                preferred_layer = layer
+                break
+        recommended_layers = [preferred_layer] if preferred_layer else []
+        recommended_terms = recommended_terms_by_layer.get(preferred_layer, [])
     return {
         "query_budget_remaining": max(0, contract["query_target"][1] - len(state["queries"])),
         "recommended_layers": recommended_layers,
