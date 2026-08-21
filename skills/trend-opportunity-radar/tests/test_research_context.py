@@ -54,6 +54,19 @@ class ResearchContextTest(unittest.TestCase):
         self.assertEqual(compiled["platform"], "youtube")
         self.assertEqual(compiled["research_intent"], "content_opportunity")
 
+    def test_quoted_subject_is_frozen_without_invocation_or_platform_wrapper(self) -> None:
+        compiled = research_context.compile_context(
+            "使用 trend-opportunity-radar，分析“普通上班族如何用 AI 管理个人财务和日常开支”在小红书中文市场的内容机会。"
+        )
+        self.assertEqual(compiled["subject"]["name"], "普通上班族如何用 AI 管理个人财务和日常开支")
+        self.assertEqual(compiled["subject"]["summary"], "普通上班族如何用 AI 管理个人财务和日常开支")
+
+    def test_english_quoted_subject_is_frozen_without_request_wrapper(self) -> None:
+        compiled = research_context.compile_context(
+            'Use trend-opportunity-radar to analyze "AI meal planning for busy families" on Reddit for content opportunities.'
+        )
+        self.assertEqual(compiled["subject"]["name"], "AI meal planning for busy families")
+
     def test_expansion_platform_names_are_inferred_without_reasking_the_user(self) -> None:
         cases = [
             ("在 TikTok 英语市场验证 AI 备餐规划的产品需求。", "tiktok"),

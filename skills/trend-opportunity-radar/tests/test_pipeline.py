@@ -2415,6 +2415,35 @@ You may like
         accepted = {"queries": [{"id": "r-1", "term": "action items", "layer": "category", "url": "https://x.test/search?q=action-items"}]}
         self.assertEqual(orchestrator.validate_recovery_plan(accepted, state)[0]["term"], "action items")
 
+    def test_recovery_diagnostics_refresh_query_yield_from_reviewed_snapshot(self) -> None:
+        signals = []
+        for index in range(30):
+            signal = self.make_signal(index)
+            layer = ["platform_baseline", "category", "subject_bridge"][index % 3]
+            term = {"platform_baseline": "记账坚持不下去", "category": "AI记账", "subject_bridge": "AI控制开支"}[layer]
+            signal.update({
+                "query_term": term, "query_terms": [term], "query_layer": layer, "query_layers": [layer],
+                "semantic_relevance": "direct" if index < 24 else "weak",
+            })
+            signals.append(signal)
+        snapshot = self.write("reviewed-yield-snapshot.json", {
+            "collection": {
+                "counts": {"query_count": 3, "observed_result_count": 54, "unique_sample_count": 30, "detail_open_count": 12, "counter_signal_count": 3},
+                "query_runs": [
+                    {"query_term": "记账坚持不下去", "query_layer": "platform_baseline", "observed_result_count": 17, "relevant_signal_count": 0, "relevant_yield_rate": 0.0},
+                    {"query_term": "AI记账", "query_layer": "category", "observed_result_count": 20, "relevant_signal_count": 0, "relevant_yield_rate": 0.0},
+                    {"query_term": "AI控制开支", "query_layer": "subject_bridge", "observed_result_count": 17, "relevant_signal_count": 0, "relevant_yield_rate": 0.0},
+                ],
+            },
+            "signals": signals,
+        })
+        state = {"mode": "standard", "platform": "xiaohongshu", "snapshot": str(snapshot), "queries": [{} for _ in range(3)]}
+        diagnostics = orchestrator.recovery_diagnostics(state)
+        self.assertFalse(diagnostics["low_yield_queries"])
+        self.assertTrue(all(item["relevant"] > 0 for item in diagnostics["successful_query_seeds"]))
+        self.assertEqual(diagnostics["layer_current"]["category"]["relevant"], 8)
+        self.assertEqual(diagnostics["layer_deficits"]["category"]["relevant"], 0)
+
     def test_volume_recovery_continues_with_shorter_proven_phrases(self) -> None:
         signals = [self.make_signal(index) for index in range(30)]
         for signal in signals[-3:]:

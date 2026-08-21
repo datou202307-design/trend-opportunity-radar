@@ -289,8 +289,26 @@ def recovery_diagnostics(state: dict[str, Any]) -> dict[str, Any]:
     snapshot = load_data(str(snapshot_path)) if snapshot_path.exists() else {}
     raw_signals = snapshot.get("signals", []) if isinstance(snapshot, dict) else []
     runs = ((snapshot.get("collection") or {}).get("query_runs") or []) if isinstance(snapshot, dict) else []
+    reviewed_runs = []
+    for source_run in runs:
+        item = dict(source_run)
+        query_term = as_text(item.get("query_term"))
+        query_layer = as_text(item.get("query_layer"))
+        matching_signals = [
+            signal for signal in raw_signals
+            if query_term and query_term in ({as_text(signal.get("query_term"))} | set(as_list(signal.get("query_terms"))))
+            and query_layer and query_layer in ({as_text(signal.get("query_layer"))} | set(as_list(signal.get("query_layers"))))
+        ]
+        if matching_signals:
+            relevant_keys = {
+                signal_key(signal, state.get("platform", "")) for signal in matching_signals
+                if signal.get("semantic_relevance") in {"direct", "adjacent"}
+            }
+            item["relevant_signal_count"] = len(relevant_keys)
+            item["relevant_yield_rate"] = round(len(relevant_keys) / max(int(item.get("observed_result_count") or 0), 1), 3)
+        reviewed_runs.append(item)
     low_yield_queries = []
-    for item in runs:
+    for item in reviewed_runs:
         observed = int(item.get("observed_result_count") or 0)
         relevant = int(item.get("relevant_signal_count") or 0)
         if observed == 0 or (observed >= 8 and relevant <= max(1, math.floor(observed * 0.1))):
@@ -353,7 +371,7 @@ def recovery_diagnostics(state: dict[str, Any]) -> dict[str, Any]:
         or global_deficits["counters"] > 0
         or any(any(values.values()) for values in layer_deficits.values())
     )
-    completed_runs = [item for item in runs if isinstance(item, dict) and int(item.get("observed_result_count") or 0) > 0]
+    completed_runs = [item for item in reviewed_runs if isinstance(item, dict) and int(item.get("observed_result_count") or 0) > 0]
     successful_seeds = sorted(
         ({
             "query_term": as_text(item.get("query_term")),
@@ -395,6 +413,7 @@ def recovery_diagnostics(state: dict[str, Any]) -> dict[str, Any]:
     return {
         "query_budget_remaining": max(0, contract["query_target"][1] - len(state["queries"])),
         "recommended_layers": recommended_layers,
+        "layer_current": layer_current,
         "layer_deficits": layer_deficits,
         "global_deficits": global_deficits,
         "low_yield_queries": low_yield_queries,
