@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/releases"><img alt="发布版本" src="https://img.shields.io/github/v/release/datou202307-design/trend-opportunity-radar?include_prereleases&style=flat-square&label=release"></a>
   <img alt="5 个研究场景" src="https://img.shields.io/badge/research_scenarios-5-14b8a6?style=flat-square">
-  <img alt="6 条平台研究路径" src="https://img.shields.io/badge/platform_routes-6-0f766e?style=flat-square">
+  <img alt="7 条平台研究路径" src="https://img.shields.io/badge/platform_routes-7-0f766e?style=flat-square">
   <img alt="输出 HTML、Markdown 和 JSON" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
   <a href="LICENSE"><img alt="MIT 许可证" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square"></a>
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/datou202307-design/trend-opportunity-radar?style=flat-square"></a>
@@ -102,6 +102,20 @@ skills/trend-opportunity-radar/
 
 在 Codex 中，把 `trend-opportunity-radar` 放到 `$CODEX_HOME/skills/`，然后重新加载 Agent 会话。其他 Agent 可以适配 `SKILL.md`、参考契约和 Python 脚本。内置脚本只使用 Python 标准库，建议使用 Python 3.10 或更高版本。
 
+也可以使用确定性的统一入口冻结请求，并且一次只返回一个下一动作：
+
+```bash
+python skills/trend-opportunity-radar/scripts/trend_radar.py start \
+  --prompt "分析 AI 旅行规划在 X 平台的内容机会。" \
+  --output-dir ./trend-research/ai-travel-x
+
+python skills/trend-opportunity-radar/scripts/trend_radar.py doctor \
+  --platform x \
+  --language zh-CN
+```
+
+`doctor` 不会安装工具或修改登录状态。只有该平台实际使用的只读预检成功后，实时路径才会显示可用；否则仍可以使用结构化数据导入。
+
 ## 数据访问与隐私
 
 Skill 可以使用用户上传的 JSON/CSV、公开网页、受控只读浏览器、已授权 API 或历史快照。Chrome、OpenCLI、DokoBot 和第三方 MCP 都是可选适配器，不随仓库分发。
@@ -126,6 +140,7 @@ Skill 可以使用用户上传的 JSON/CSV、公开网页、受控只读浏览�
 ## 方法和适配器文档
 
 - [采样合同](skills/trend-opportunity-radar/references/sampling-contract.md)
+- [统一执行入口](skills/trend-opportunity-radar/references/execution-cli.md)
 - [评分合同](skills/trend-opportunity-radar/references/scoring-contract.md)
 - [平台适配器](skills/trend-opportunity-radar/references/platform-adapters.md)
 - [浏览器采集](skills/trend-opportunity-radar/references/browser-collection.md)

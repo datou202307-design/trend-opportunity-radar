@@ -15,6 +15,17 @@ This adapter supports bounded `topic_research` only through an explicit Facebook
 
 OpenCLI's built-in `facebook search` is a useful read-only capability diagnostic, but it currently describes a mixed people/Page/post search and exposes no Posts-only option. Its output must not enter the topic ledger unless the adapter independently proves the result came from the frozen Posts search surface.
 
+Before a live run, save one redacted capability probe from the exact authorized browser surface and validate it. The probe contains only the query URL and visible identity checks, canonical public links, one matching detail identity, boolean safety checks, and no page body beyond the bounded detail field used for capability proof:
+
+```bash
+python scripts/check_facebook_topic_adapter.py \
+  --probe facebook-preflight-probe.json \
+  --output facebook-status.json \
+  --require-ready
+```
+
+Pass `facebook-status.json` to `trend_radar.py doctor` or `start`. Do not hand-edit a ready status and do not treat generic Facebook mixed search as the Posts-only probe.
+
 Freeze each read before browser work and validate the redacted capture afterward:
 
 ```bash
