@@ -64,7 +64,11 @@ def infer_market(prompt: str) -> str | None:
 
 def subject_name(prompt: str) -> str:
     value = re.sub(r"^(使用\s+trend-opportunity-radar[，,]?\s*|use\s+trend-opportunity-radar\s+to\s+)", "", prompt.strip(), flags=re.IGNORECASE)
-    return value[:240]
+    quoted = re.search(r"[“\"]\s*([^”\"]{2,240}?)\s*[”\"]", value)
+    if quoted:
+        return re.sub(r"\s+", " ", quoted.group(1)).strip()
+    value = re.sub(r"^(?:分析|研究|验证|analy[sz]e|research|validate)\s*", "", value, flags=re.IGNORECASE)
+    return value[:240].strip()
 
 
 def clarification_question(language: str, missing: list[str]) -> str:
