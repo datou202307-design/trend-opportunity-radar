@@ -18,6 +18,8 @@ Sleeper = Callable[[float], None]
 
 CARD_JS = r"""JSON.stringify(Array.from(document.links).filter(function(a){return a.href.indexOf('/p/')>=0||a.href.indexOf('/reel/')>=0;}).map(function(a){var i=a.getElementsByTagName('img')[0];return {canonical_url:a.href.split('?')[0],preview_text:i&&i.alt?i.alt:'',author_username:''};}))"""
 
+SURFACE_JS = r"""JSON.stringify((function(){var text=(document.body&&document.body.innerText)||'';var lower=text.toLowerCase();var links=Array.from(document.links).filter(function(a){return a.href.indexOf('/p/')>=0||a.href.indexOf('/reel/')>=0;});var empty=['no results found','we didn\'t find any results','no posts yet','没有找到结果','未找到结果','暂无内容','还没有帖子'].some(function(x){return lower.indexOf(x)>=0;});return {url:location.href,title:document.title,post_link_count:links.length,visible_hashtag:(text.match(/#[^\s]+/)||[''])[0],explicit_empty:empty};})())"""
+
 DETAIL_JS = r"""JSON.stringify((function(){var metas=Array.from(document.getElementsByTagName('meta'));function m(k,v){var x=metas.find(function(e){return e.getAttribute(k)===v;});return x?x.content:'';}var ts=Array.from(document.getElementsByTagName('time'));var comments=ts.slice(1,6).map(function(t){var p=t;for(var i=0;i<4&&p;i++){p=p.parentElement;}var lines=((p&&p.innerText)||'').split('\n').map(function(x){return x.trim();}).filter(Boolean);return {author_username:lines[0]||'',text:lines.slice(2).join(' ').replace(/\b\d+ likes?\b/gi,'').replace(/\bReply\b/gi,'').trim(),published_at:t.dateTime||''};}).filter(function(x){return x.text;});return {canonical_url:location.href.split('?')[0],og_title:m('property','og:title'),description:m('property','og:description')||m('name','description'),published_at:ts.length?ts[0].dateTime:'',comments:comments};})())"""
 
 
@@ -91,9 +93,36 @@ def parse_detail(raw: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def collect_pass(cli_path: str, session: str, query_url: str, max_posts: int, scrolls: int, pause_seconds: float, timeout: int, runner: Runner, sleeper: Sleeper) -> tuple[list[str], dict[str, dict[str, str]]]:
+def inspect_surface(raw: object, query_url: str, hashtag: str) -> dict[str, Any]:
+    data = raw if isinstance(raw, dict) else {}
+    actual_url = as_text(data.get("url"))
+    target_url = query_url.split("#", 1)[0]
+    url_matches = actual_url.split("#", 1)[0] == target_url
+    visible_hashtag = as_text(data.get("visible_hashtag")).lstrip("#").casefold()
+    hashtag_identity = url_matches and visible_hashtag == hashtag.casefold()
+    post_link_count = int(data.get("post_link_count") or 0)
+    explicit_empty = bool(data.get("explicit_empty"))
+    if hashtag_identity and post_link_count > 0:
+        state = "results_visible"
+    elif hashtag_identity and explicit_empty:
+        state = "explicit_empty"
+    else:
+        state = "surface_unreadable"
+    return {
+        "state": state,
+        "url_matches_request": url_matches,
+        "hashtag_identity": hashtag_identity,
+        "post_link_count": post_link_count,
+        "explicit_empty": explicit_empty,
+    }
+
+
+def collect_pass(cli_path: str, session: str, query_url: str, hashtag: str, max_posts: int, scrolls: int, pause_seconds: float, timeout: int, runner: Runner, sleeper: Sleeper) -> tuple[list[str], dict[str, dict[str, str]], dict[str, Any]]:
     run_cli(cli_path, ["browser", session, "open", query_url, "--window", "background"], timeout, runner)
     sleeper(pause_seconds)
+    probe = inspect_surface(run_cli(cli_path, ["browser", session, "eval", SURFACE_JS], timeout, runner), query_url, hashtag)
+    if probe["state"] != "results_visible":
+        return [], {}, probe
     ordered: list[str] = []
     cards: dict[str, dict[str, str]] = {}
     for index in range(scrolls + 1):
@@ -117,22 +146,25 @@ def collect_pass(cli_path: str, session: str, query_url: str, max_posts: int, sc
             break
         run_cli(cli_path, ["browser", session, "scroll", "down", "--amount", "900"], timeout, runner)
         sleeper(pause_seconds)
-    return ordered[:max_posts], cards
+    return ordered[:max_posts], cards, probe
 
 
 def execute(request: dict[str, Any], cli_path: str, session: str, scrolls: int, pause_seconds: float, repeat_pause_seconds: float, detail_pause_seconds: float, timeout: int, runner: Runner = subprocess.run, sleeper: Sleeper = time.sleep) -> dict[str, Any]:
     max_posts = int(request["max_posts"])
     result_passes: list[list[str]] = []
+    page_probes: list[dict[str, Any]] = []
     card_index: dict[str, dict[str, str]] = {}
     for pass_index in range(2):
-        links, cards = collect_pass(cli_path, session, request["query_url"], max_posts, scrolls, pause_seconds, timeout, runner, sleeper)
+        pass_session = f"{session}-pass-{pass_index + 1}"
+        links, cards, probe = collect_pass(cli_path, pass_session, request["query_url"], request["hashtag"], max_posts, scrolls, pause_seconds, timeout, runner, sleeper)
         result_passes.append(links)
+        page_probes.append(probe)
         for url, card in cards.items():
             if url not in card_index or (not card_index[url]["preview_text"] and card["preview_text"]):
                 card_index[url] = card
         if pass_index == 0:
             sleeper(repeat_pause_seconds)
-    first_pass = result_passes[0]
+    first_pass = next((pass_links for pass_links in result_passes if pass_links), [])
     detail_candidates = sorted(first_pass, key=lambda url: (not bool(card_index.get(url, {}).get("preview_text")), first_pass.index(url)))[: int(request["max_detail_posts"])]
     posts: list[dict[str, Any]] = []
     detail_session = f"{session}-detail"
@@ -146,6 +178,10 @@ def execute(request: dict[str, Any], cli_path: str, session: str, scrolls: int, 
                 posts.append(detail)
         sleeper(detail_pause_seconds)
     result_cards = [card_index[url] for url in first_pass if card_index.get(url, {}).get("preview_text")]
+    probe_states = [probe["state"] for probe in page_probes]
+    stop_reason = ""
+    if not any(result_passes):
+        stop_reason = "verified_zero_results" if probe_states and all(state == "explicit_empty" for state in probe_states) else "surface_unreadable"
     return {
         "schema_version": CAPTURE_SCHEMA,
         "captured_at": now_iso(),
@@ -156,8 +192,10 @@ def execute(request: dict[str, Any], cli_path: str, session: str, scrolls: int, 
         "result_passes": result_passes,
         "result_cards": result_cards,
         "posts": posts,
+        "stop_reason": stop_reason,
+        "page_probes": page_probes,
         "checks": {
-            "hashtag_identity": True,
+            "hashtag_identity": all(probe["hashtag_identity"] for probe in page_probes),
             "canonical_post_links": True,
             "public_fields_only": True,
             "no_account_search_proxy": True,
@@ -176,6 +214,7 @@ def execute(request: dict[str, Any], cli_path: str, session: str, scrolls: int, 
             "observed_second_pass": len(result_passes[1]),
             "preview_card_count": len(result_cards),
             "detail_count": len(posts),
+            "terminal_state": stop_reason or "results_observed",
         },
     }
 

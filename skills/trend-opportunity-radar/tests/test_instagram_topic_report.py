@@ -41,9 +41,13 @@ class InstagramTopicReportTest(unittest.TestCase):
             self.assertEqual(report["research_basis"]["observed_post_count"], 6)
             self.assertEqual(report["research_basis"]["sampling_status"], "bounded")
             self.assertEqual(report["research_basis"]["relevant_post_count"], 1)
+            self.assertEqual(report["schema_version"], "instagram-topic-research-report-v0.2")
+            self.assertEqual(report["platform_native_context"]["platform"], "instagram")
             rendered = generator.html_page(report)
             self.assertIn("viewport", rendered)
             self.assertIn("What this can support now", rendered)
+            self.assertIn("How to read this platform evidence", rendered)
+            self.assertIn("content supply, not search demand", rendered)
             self.assertNotIn("traceback", rendered.casefold())
 
     def test_standard_multi_layer_snapshot_can_meet_sampling_contract(self) -> None:

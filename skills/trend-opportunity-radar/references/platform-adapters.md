@@ -14,6 +14,8 @@ For the Instagram known-account pilot, read [instagram-account-adapter.md](insta
 
 For validated Instagram `topic_research`, read [instagram-hashtag-topic-adapter.md](instagram-hashtag-topic-adapter.md). It supports only explicit hashtag result surfaces. Freeze each hashtag and query layer before browser work, retain bounded canonical links, open details sequentially, preserve repeatability diagnostics, and merge all three standard query layers before review. Never substitute account search, personalized Explore, or the generic Reels feed for a frozen topic query. Instagram `account_research` remains a separate pilot.
 
+For the Facebook `topic_research` Beta, read [facebook-topic-adapter.md](facebook-topic-adapter.md). The registry intentionally keeps this route as explicit-opt-in `pilot`, and every run requires a user-authorized logged-in browser preflight. Use only a frozen Posts search URL. Generic Facebook search can mix people, Pages, posts, and Groups, so it is diagnostic only unless the adapter proves every retained item came from the Posts surface. The home Feed, friends, notifications, Marketplace, private Groups, and write actions are outside the route.
+
 ## Customer export
 
 Accept JSON or CSV exported by the user. Preserve the original file and import time. Do not label an export as live data. Normalize column aliases with `normalize_signals.py`.

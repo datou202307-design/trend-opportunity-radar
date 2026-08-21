@@ -232,9 +232,107 @@ def platform_label(platform: Any, language: str) -> str:
         "x": "X",
         "xiaohongshu": "小红书" if language == "zh-CN" else "Xiaohongshu",
         "youtube": "YouTube",
+        "facebook": "Facebook",
+        "instagram": "Instagram",
+        "reddit": "Reddit",
         "tiktok": "TikTok",
     }
     return labels.get(value.casefold(), value)
+
+
+def _content_format_label(value: Any, language: str) -> str:
+    key = as_text(value).casefold().replace("-", "_").replace(" ", "_") or "unknown"
+    labels = {
+        "p": {"zh-CN": "图文帖子", "en": "Post"},
+        "post": {"zh-CN": "帖子", "en": "Post"},
+        "photo": {"zh-CN": "图片", "en": "Photo"},
+        "image": {"zh-CN": "图片", "en": "Image"},
+        "carousel": {"zh-CN": "图片轮播", "en": "Carousel"},
+        "reel": {"zh-CN": "Reel", "en": "Reel"},
+        "video": {"zh-CN": "视频", "en": "Video"},
+        "short_video": {"zh-CN": "短视频", "en": "Short video"},
+        "unknown": {"zh-CN": "形式未确认", "en": "Format unconfirmed"},
+    }
+    locale = "zh-CN" if language == "zh-CN" else "en"
+    return labels.get(key, {"zh-CN": as_text(value) or "形式未确认", "en": as_text(value) or "Format unconfirmed"})[locale]
+
+
+def platform_native_context(snapshot: dict[str, Any], platform: Any, language: str) -> dict[str, Any] | None:
+    """Describe how to read this platform's evidence without changing the shared decision model."""
+    platform_key = as_text(platform).casefold()
+    if platform_key not in {"facebook", "instagram"}:
+        return None
+    signals = snapshot.get("signals") if isinstance(snapshot.get("signals"), list) else []
+    format_counts: dict[str, int] = {}
+    supply_hints: list[str] = []
+    for signal in signals:
+        facts = signal.get("platform_facts") if isinstance(signal.get("platform_facts"), dict) else {}
+        content_format = facts.get("content_format") or signal.get("content_format")
+        label = _content_format_label(content_format, language)
+        format_counts[label] = format_counts.get(label, 0) + 1
+        hint = as_text(facts.get("displayed_hashtag_volume_label"))
+        if hint and hint not in supply_hints:
+            supply_hints.append(hint)
+    format_mix = [
+        {"label": label, "count": count}
+        for label, count in sorted(format_counts.items(), key=lambda item: (-item[1], item[0]))
+    ]
+    zh = language == "zh-CN"
+    if platform_key == "facebook":
+        return {
+            "platform": "facebook",
+            "surface": "Facebook 帖子搜索" if zh else "Facebook Posts search",
+            "focus": "公开帖子中的讨论、用户经验和异议" if zh else "Discussion, user experiences, and objections in public posts",
+            "interpretation": (
+                "优先用已核验帖子和经过审查的代表性评论理解用户遇到的问题、已有做法与不同意见；Reel、图片等形式只有在页面明确显示时才计入。"
+                if zh else
+                "Use verified posts and reviewed representative comments to understand user problems, current approaches, and differing views. Count Reels, photos, and other formats only when the page identifies them."
+            ),
+            "format_mix": format_mix,
+            "supply_hints": [],
+        }
+    return {
+        "platform": "instagram",
+        "surface": "Instagram Hashtag 结果" if zh else "Instagram hashtag results",
+        "focus": "Reel、图文和图片轮播采用了什么表达方式" if zh else "How Reels, posts, and carousels express the topic",
+        "interpretation": (
+            "优先观察内容形式、说明文字以及已核验的视频或画面信息，再用评论补充受众反馈。Hashtag 页面显示的帖子总量只说明内容供给规模，不代表搜索需求或趋势增长。"
+            if zh else
+            "Read the format, caption, and verified video or visual evidence first, then use comments as audience feedback. A displayed hashtag post total indicates content supply, not search demand or trend growth."
+        ),
+        "format_mix": format_mix,
+        "supply_hints": supply_hints[:3],
+    }
+
+
+def platform_native_context_text(context: dict[str, Any], language: str, include_lead: bool = True) -> str:
+    parts = []
+    if include_lead:
+        parts.append(f"{context['surface']} · {context['focus']}。" if language == "zh-CN" else f"{context['surface']} · {context['focus']}. ")
+    formats = context.get("format_mix") or []
+    if formats:
+        formatted = "、".join(f"{item['label']} {item['count']} 条" for item in formats) if language == "zh-CN" else ", ".join(f"{item['count']} {item['label']}" for item in formats)
+        parts.append((f"本轮内容形式：{formatted}。" if language == "zh-CN" else f"Format mix in this run: {formatted}. "))
+    hints = context.get("supply_hints") or []
+    if hints:
+        joined = "、".join(hints) if language == "zh-CN" else ", ".join(hints)
+        parts.append((f"页面供给量提示：{joined}；它不等于搜索需求。" if language == "zh-CN" else f"Displayed supply hint: {joined}; it is not search demand. "))
+    parts.append(str(context["interpretation"]))
+    return "".join(parts)
+
+
+def platform_comment_heading(platform: Any, language: str) -> str:
+    platform_key = as_text(platform).casefold()
+    if language == "zh-CN":
+        return "讨论中的用户反馈" if platform_key == "facebook" else "内容评论中的反馈" if platform_key == "instagram" else "评论中的用户反馈"
+    return "User feedback in the discussion" if platform_key == "facebook" else "Feedback in content comments" if platform_key == "instagram" else "What users said in comments"
+
+
+def platform_media_heading(platform: Any, language: str) -> str:
+    platform_key = as_text(platform).casefold()
+    if platform_key == "instagram":
+        return "视频和画面表达" if language == "zh-CN" else "Video and visual expression"
+    return "视频核验发现" if language == "zh-CN" else "What the video added"
 
 
 def collection_summary_text(report: dict[str, Any]) -> str:
@@ -478,7 +576,7 @@ def build_report(context: dict[str, Any], snapshot: dict[str, Any], findings_pay
     if findings and materially_duplicates(decision_answer, findings[0].get("decision_summary")):
         raise SystemExit("The report-level decision answer duplicates the first finding summary; make the answer shorter and decision-oriented.")
     return {
-        "schema_version": "profile-research-report-v0.3",
+        "schema_version": "profile-research-report-v0.4",
         "generated_at": now_iso(),
         "research_context": {
             "research_intent": context["research_intent"], "profile_version": context["profile_version"],
@@ -488,6 +586,7 @@ def build_report(context: dict[str, Any], snapshot: dict[str, Any], findings_pay
         "subject": context["subject"], "platform": context["platform"], "language": context["language"],
         "collection": snapshot.get("collection", {}),
         "collection_summary": collection_summary(snapshot),
+        "platform_native_context": platform_native_context(snapshot, context["platform"], context["language"]),
         "decision_answer": decision_answer,
         "decision_readiness": {"ready_findings": ready_count, "total_findings": len(findings), "status": "actionable_test" if ready_count else "exploratory"},
         "findings": findings,
@@ -512,7 +611,11 @@ def render_markdown(report: dict[str, Any]) -> str:
     ui = PROFILE_UI[report["research_context"]["research_intent"]][lang if lang in {"zh-CN", "en"} else "en"]
     lines = [f"# {ui['name']}：{subject_name(report)}" if zh else f"# {ui['name']}: {subject_name(report)}", "", f"> {ui['question']}", "",
              f"## {'直接回答' if zh else 'Decision answer'}", "", report["decision_answer"], "",
-             f"## {'本次研究基础' if zh else 'Research basis'}", "", collection_summary_text(report), "", f"## {ui['findings']}", ""]
+             f"## {'本次研究基础' if zh else 'Research basis'}", "", collection_summary_text(report), ""]
+    native_context = report.get("platform_native_context")
+    if native_context:
+        lines.extend([f"### {'这个平台的证据怎么看' if zh else 'How to read this platform evidence'}", "", platform_native_context_text(native_context, lang), ""])
+    lines.extend([f"## {ui['findings']}", ""])
     for finding_index, finding in enumerate(report["findings"]):
         lines.extend([f"### {finding['title']}", "", finding["decision_summary"], "",
                       f"- {'适用人群' if zh else 'Audience'}: {finding['audience']}",
@@ -528,7 +631,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                 lines.extend(["讨论强度看这个问题在平台上有多明显；可靠度看这项判断有多少证据支撑。" if zh else "Discussion strength shows how visible the issue is on the platform; reliability shows how much evidence supports this finding.", ""])
         comment_evidence = finding.get("comment_evidence")
         if comment_evidence:
-            lines.extend([f"#### {'评论中的用户反馈' if zh else 'What users said in comments'}", ""])
+            lines.extend([f"#### {platform_comment_heading(report['platform'], lang)}", ""])
             lines.extend([f"- {item}" for item in comment_evidence["insights"]])
             note = (
                 f"已审查 {comment_evidence['reviewed_count']} 条代表性评论，其中 {comment_evidence['relevant_count']} 条与本主题相关。评论用于理解用户反馈，不增加趋势样本数。"
@@ -538,7 +641,7 @@ def render_markdown(report: dict[str, Any]) -> str:
             lines.extend([f"- {note}", ""])
         video_evidence = finding.get("video_evidence")
         if video_evidence:
-            lines.extend([f"#### {'视频核验发现' if zh else 'What the video added'}", ""])
+            lines.extend([f"#### {platform_media_heading(report['platform'], lang)}", ""])
             for summary in video_evidence.get("summaries", []):
                 lines.append(f"- {summary}")
             lines.extend(["", f"<details><summary>{'查看原始字幕或画面文字' if zh else 'View original subtitles or on-screen text'}</summary>", ""])
@@ -616,7 +719,7 @@ def render_html(report: dict[str, Any]) -> str:
                 if zh else
                 f"Reviewed {comment_evidence['reviewed_count']} representative comments; {comment_evidence['relevant_count']} were relevant to this topic. Comments add qualitative context, not trend sample volume."
             )
-            comment_html = f'''<section class="comment-voice" style="margin-top:14px;padding:14px 16px;border:1px solid #dfe8e4;border-radius:14px;background:#f4fbf8"><b>{'评论中的用户反馈' if zh else 'What users said in comments'}</b><ul>{insights}</ul><p style="margin:6px 0 0;color:#667085;font-size:12px">{html.escape(note)}</p></section>'''
+            comment_html = f'''<section class="comment-voice" style="margin-top:14px;padding:14px 16px;border:1px solid #dfe8e4;border-radius:14px;background:#f4fbf8"><b>{html.escape(platform_comment_heading(report['platform'], lang))}</b><ul>{insights}</ul><p style="margin:6px 0 0;color:#667085;font-size:12px">{html.escape(note)}</p></section>'''
         video_evidence = finding.get("video_evidence")
         video_html = ""
         if video_evidence:
@@ -628,15 +731,19 @@ def render_html(report: dict[str, Any]) -> str:
                 if zh else
                 f"Reviewed {video_evidence['reviewed_video_count']} videos. This adds detail to the post evidence and does not increase trend sample volume."
             )
-            video_html = f'''<section class="media-evidence"><b>{'视频核验发现' if zh else 'What the video added'}</b>{summaries}<details><summary>{'查看原始字幕或画面文字' if zh else 'View original subtitles or on-screen text'}</summary><ul>{excerpts}</ul></details><p>{html.escape(note)}</p></section>'''
+            video_html = f'''<section class="media-evidence"><b>{html.escape(platform_media_heading(report['platform'], lang))}</b>{summaries}<details><summary>{'查看原始字幕或画面文字' if zh else 'View original subtitles or on-screen text'}</summary><ul>{excerpts}</ul></details><p>{html.escape(note)}</p></section>'''
         findings_html.append(f'''<section class="finding {'secondary' if index else ''}"><div class="finding-head"><div><span class="kicker">{html.escape(ui['why'])}</span><h2>{html.escape(str(finding['title']))}</h2>{score_html}</div><span class="status">{html.escape(visible_status(finding['conclusion_status'], lang))}</span></div><p class="summary">{html.escape(str(finding['decision_summary']))}</p><div class="audience"><b>{'与谁有关' if zh else 'Who this affects'}</b><span>{html.escape(str(finding['audience']))}</span></div>{comment_html}{video_html}<div class="details-grid">{sections}</div><div class="action-title"><span class="kicker">{html.escape(ui['action'])}</span></div><div class="actions">{actions}</div><details class="evidence"><summary>{'查看依据和目前不能确定的部分' if zh else 'View evidence and what remains uncertain'}</summary><p>{html.escape(str(finding['evidence_boundary']))}</p><div class="refs">{_refs(finding['support_refs'], zh, 'support')}{_refs(finding['counter_refs'], zh, 'counter')}</div></details></section>''')
     follow = report["follow_up_recommendation"]
     payload = html.escape(json.dumps(report, ensure_ascii=False), quote=False)
+    native_context = report.get("platform_native_context")
+    native_html = ""
+    if native_context:
+        native_html = f'''<section class="platform-context"><span class="kicker">{'这个平台的证据怎么看' if zh else 'How to read this platform evidence'}</span><h3>{html.escape(str(native_context['focus']))}</h3><p>{html.escape(platform_native_context_text(native_context, lang, include_lead=False))}</p></section>'''
     return f'''<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(ui['name'])} · {html.escape(subject_name(report))}</title><style>
-:root{{--bg:#f3f5f9;--panel:#fff;--ink:#16202c;--muted:#667085;--line:#e4e8ef;--accent:#5364d9;--accent2:#7a55ca;--soft:#eef0ff;--good:#14775a}}*{{box-sizing:border-box}}body{{margin:0;background:linear-gradient(180deg,#eef1f7 0,#f7f8fa 320px);color:var(--ink);font:15px/1.58 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}}main{{max-width:1120px;margin:auto;padding:28px 22px 64px}}header{{padding:34px;border-radius:26px;color:#fff;background:linear-gradient(135deg,#20274d,#5b4f9c);box-shadow:0 22px 55px #30385d26}}.kicker{{display:block;color:#888fa6;font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}}header .kicker{{color:#cad0ff}}h1{{font-size:clamp(30px,5vw,52px);line-height:1.1;margin:8px 0 16px;max-width:900px}}header p{{color:#e5e7f8;max-width:850px;margin:0}}.answer{{margin:18px 0 0;background:#fff;border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 8px 26px #1520380a}}.answer h2{{margin:6px 0 0;font-size:24px;line-height:1.45}}.basis{{margin-top:12px;padding:14px 18px;border:1px solid #dfe2fa;border-radius:16px;background:#f8f8ff}}.basis p{{margin:5px 0 0;color:#4f586b}}.finding{{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 7px 24px #1520380a}}.finding-head{{display:flex;justify-content:space-between;align-items:start;gap:20px}}.finding h2{{font-size:23px;line-height:1.3;margin:5px 0 0}}.status,.tag{{border-radius:99px;padding:6px 10px;background:#e9f7f1;color:var(--good);font-size:12px;font-weight:700}}.status{{white-space:nowrap}}.tag{{display:inline-block;white-space:normal}}.score-row{{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}}.score{{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid #dfe2fa;border-radius:99px;background:#f8f8ff;font-size:12px}}.score b{{color:#343e9c}}.score em{{color:var(--muted);font-style:normal}}.score-help{{margin:8px 0 0;color:var(--muted);font-size:12px}}.summary{{font-size:18px;max-width:850px}}.audience{{display:flex;gap:12px;padding:12px 14px;border-radius:12px;background:#f7f8fb}}.audience span{{color:var(--muted)}}.media-evidence{{margin-top:14px;padding:15px 17px;border:1px solid #d9e3fb;border-radius:14px;background:#f5f8ff}}.media-evidence ul{{display:grid;gap:8px;margin:10px 0;padding:0;list-style:none}}.media-evidence li{{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:10px;align-items:start}}.media-evidence li b{{color:#3f4ca0;font-size:12px}}.media-evidence li span{{overflow-wrap:anywhere}}.media-evidence p{{margin:7px 0 0;color:var(--muted);font-size:12px}}.media-evidence .media-summary{{color:var(--ink);font-size:15px}}.details-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}}.detail{{border:1px solid var(--line);border-radius:14px;padding:15px}}.detail span{{font-size:12px;color:var(--accent);font-weight:750}}.detail p{{margin:6px 0 0}}.action-title{{margin-top:23px}}.actions{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:9px}}.action{{min-width:0;border:1px solid #dfe2fa;background:#fafaff;border-radius:16px;padding:16px}}.action h4{{font-size:17px;margin:9px 0 0}}.action p{{color:var(--muted)}}details{{border-top:1px solid var(--line);padding-top:11px;margin-top:13px}}summary{{cursor:pointer;font-weight:700}}dl{{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 10px}}dt{{color:var(--muted)}}dd{{margin:0;overflow-wrap:anywhere}}.refs{{display:flex;flex-wrap:wrap;gap:8px}}.refs a{{text-decoration:none;color:#454eb2;background:var(--soft);padding:6px 9px;border-radius:9px}}.follow{{margin-top:22px;padding:22px;border:1px solid #dbdef8;background:#f8f8ff;border-radius:20px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px}}.follow h2{{margin:5px 0 8px}}.cadence{{display:flex;gap:10px;align-items:center;flex-wrap:wrap}}.cadence b{{font-size:20px}}.prompt{{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;color:var(--muted)}}.audit{{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px}}.muted{{color:var(--muted)}}#raw{{white-space:pre-wrap;max-height:440px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace}}@media(max-width:760px){{.finding-head,.audience{{display:block}}.status{{display:inline-block;margin-top:10px}}.media-evidence li{{grid-template-columns:1fr;gap:2px}}.details-grid,.actions,.follow{{grid-template-columns:1fr}}header{{padding:26px}}main{{padding:16px}}}}@media print{{body{{background:#fff}}main{{padding:0}}.finding,.answer,header{{box-shadow:none}}}}
+:root{{--bg:#f3f5f9;--panel:#fff;--ink:#16202c;--muted:#667085;--line:#e4e8ef;--accent:#5364d9;--accent2:#7a55ca;--soft:#eef0ff;--good:#14775a}}*{{box-sizing:border-box}}body{{margin:0;background:linear-gradient(180deg,#eef1f7 0,#f7f8fa 320px);color:var(--ink);font:15px/1.58 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}}main{{max-width:1120px;margin:auto;padding:28px 22px 64px}}header{{padding:34px;border-radius:26px;color:#fff;background:linear-gradient(135deg,#20274d,#5b4f9c);box-shadow:0 22px 55px #30385d26}}.kicker{{display:block;color:#888fa6;font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}}header .kicker{{color:#cad0ff}}h1{{font-size:clamp(30px,5vw,52px);line-height:1.1;margin:8px 0 16px;max-width:900px}}header p{{color:#e5e7f8;max-width:850px;margin:0}}.answer{{margin:18px 0 0;background:#fff;border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 8px 26px #1520380a}}.answer h2{{margin:6px 0 0;font-size:24px;line-height:1.45}}.basis{{margin-top:12px;padding:14px 18px;border:1px solid #dfe2fa;border-radius:16px;background:#f8f8ff}}.basis p{{margin:5px 0 0;color:#4f586b}}.platform-context{{margin-top:10px;padding:16px 18px;border:1px solid #dbe9e3;border-radius:16px;background:#f5fbf8}}.platform-context h3{{font-size:17px;margin:5px 0 3px}}.platform-context p{{margin:0;color:#4f5f58}}.finding{{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 7px 24px #1520380a}}.finding-head{{display:flex;justify-content:space-between;align-items:start;gap:20px}}.finding h2{{font-size:23px;line-height:1.3;margin:5px 0 0}}.status,.tag{{border-radius:99px;padding:6px 10px;background:#e9f7f1;color:var(--good);font-size:12px;font-weight:700}}.status{{white-space:nowrap}}.tag{{display:inline-block;white-space:normal}}.score-row{{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}}.score{{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid #dfe2fa;border-radius:99px;background:#f8f8ff;font-size:12px}}.score b{{color:#343e9c}}.score em{{color:var(--muted);font-style:normal}}.score-help{{margin:8px 0 0;color:var(--muted);font-size:12px}}.summary{{font-size:18px;max-width:850px}}.audience{{display:flex;gap:12px;padding:12px 14px;border-radius:12px;background:#f7f8fb}}.audience span{{color:var(--muted)}}.media-evidence{{margin-top:14px;padding:15px 17px;border:1px solid #d9e3fb;border-radius:14px;background:#f5f8ff}}.media-evidence ul{{display:grid;gap:8px;margin:10px 0;padding:0;list-style:none}}.media-evidence li{{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:10px;align-items:start}}.media-evidence li b{{color:#3f4ca0;font-size:12px}}.media-evidence li span{{overflow-wrap:anywhere}}.media-evidence p{{margin:7px 0 0;color:var(--muted);font-size:12px}}.media-evidence .media-summary{{color:var(--ink);font-size:15px}}.details-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}}.detail{{border:1px solid var(--line);border-radius:14px;padding:15px}}.detail span{{font-size:12px;color:var(--accent);font-weight:750}}.detail p{{margin:6px 0 0}}.action-title{{margin-top:23px}}.actions{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:9px}}.action{{min-width:0;border:1px solid #dfe2fa;background:#fafaff;border-radius:16px;padding:16px}}.action h4{{font-size:17px;margin:9px 0 0}}.action p{{color:var(--muted)}}details{{border-top:1px solid var(--line);padding-top:11px;margin-top:13px}}summary{{cursor:pointer;font-weight:700}}dl{{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 10px}}dt{{color:var(--muted)}}dd{{margin:0;overflow-wrap:anywhere}}.refs{{display:flex;flex-wrap:wrap;gap:8px}}.refs a{{text-decoration:none;color:#454eb2;background:var(--soft);padding:6px 9px;border-radius:9px}}.follow{{margin-top:22px;padding:22px;border:1px solid #dbdef8;background:#f8f8ff;border-radius:20px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px}}.follow h2{{margin:5px 0 8px}}.cadence{{display:flex;gap:10px;align-items:center;flex-wrap:wrap}}.cadence b{{font-size:20px}}.prompt{{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;color:var(--muted)}}.audit{{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px}}.muted{{color:var(--muted)}}#raw{{white-space:pre-wrap;max-height:440px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace}}@media(max-width:760px){{.finding-head,.audience{{display:block}}.status{{display:inline-block;margin-top:10px}}.media-evidence li{{grid-template-columns:1fr;gap:2px}}.details-grid,.actions,.follow{{grid-template-columns:1fr}}header{{padding:26px}}main{{padding:16px}}}}@media print{{body{{background:#fff}}main{{padding:0}}.finding,.answer,header{{box-shadow:none}}}}
 /* Keep long research subjects readable as interface titles, not billboard copy. */
 h1{{font-size:clamp(28px,3.8vw,42px);line-height:1.15;overflow-wrap:anywhere}}
-</style></head><body><main><header><span class="kicker">{html.escape(ui['name'])} · {html.escape(str(report['platform']))}</span><h1>{html.escape(subject_name(report))}</h1><p>{html.escape(ui['question'])}</p></header><section class="answer"><span class="kicker">{'直接回答' if zh else 'Decision answer'}</span><h2>{html.escape(str(report['decision_answer']))}</h2></section><section class="basis" aria-label="{'本次研究基础' if zh else 'Research basis'}"><span class="kicker">{'本次研究基础' if zh else 'Research basis'}</span><p>{html.escape(collection_summary_text(report))}</p></section><div aria-label="{html.escape(ui['findings'])}">{''.join(findings_html)}</div><section class="follow"><div><span class="kicker">{'可选的后续检查' if zh else 'Optional follow-up check'}</span><h2>{html.escape(ui['follow_title'])}</h2><p class="muted">{'这能帮助判断信号是否持续。定时任务尚未创建，只有你明确确认后才会设置。' if zh else 'This helps establish whether the signal persists. No scheduled task has been created; it will be set up only after your explicit confirmation.'}</p><div class="cadence"><span>{'首次' if zh else 'First'}</span><b>{html.escape(str(follow['cadence']['initial']))}</b><span>· {follow['cadence']['runs']} {'次' if zh else 'runs'}</span></div></div><details><summary>{'查看下次继续研究时使用的指令' if zh else 'View instructions for the next research run'}</summary><p class="prompt">{html.escape(str(follow['automation_prompt']))}</p></details></section><details class="audit"><summary>{'查看研究方法和原始记录' if zh else 'View research method and source record'}</summary><p class="muted">{'这些信息用于复核，不影响上面的业务阅读顺序。' if zh else 'This information supports audit and does not interrupt the decision flow above.'}</p><pre id="raw">{payload}</pre></details></main></body></html>'''
+</style></head><body><main><header><span class="kicker">{html.escape(ui['name'])} · {html.escape(platform_label(report['platform'], lang))}</span><h1>{html.escape(subject_name(report))}</h1><p>{html.escape(ui['question'])}</p></header><section class="answer"><span class="kicker">{'直接回答' if zh else 'Decision answer'}</span><h2>{html.escape(str(report['decision_answer']))}</h2></section><section class="basis" aria-label="{'本次研究基础' if zh else 'Research basis'}"><span class="kicker">{'本次研究基础' if zh else 'Research basis'}</span><p>{html.escape(collection_summary_text(report))}</p></section>{native_html}<div aria-label="{html.escape(ui['findings'])}">{''.join(findings_html)}</div><section class="follow"><div><span class="kicker">{'可选的后续检查' if zh else 'Optional follow-up check'}</span><h2>{html.escape(ui['follow_title'])}</h2><p class="muted">{'这能帮助判断信号是否持续。定时任务尚未创建，只有你明确确认后才会设置。' if zh else 'This helps establish whether the signal persists. No scheduled task has been created; it will be set up only after your explicit confirmation.'}</p><div class="cadence"><span>{'首次' if zh else 'First'}</span><b>{html.escape(str(follow['cadence']['initial']))}</b><span>· {follow['cadence']['runs']} {'次' if zh else 'runs'}</span></div></div><details><summary>{'查看下次继续研究时使用的指令' if zh else 'View instructions for the next research run'}</summary><p class="prompt">{html.escape(str(follow['automation_prompt']))}</p></details></section><details class="audit"><summary>{'查看研究方法和原始记录' if zh else 'View research method and source record'}</summary><p class="muted">{'这些信息用于复核，不影响上面的业务阅读顺序。' if zh else 'This information supports audit and does not interrupt the decision flow above.'}</p><pre id="raw">{payload}</pre></details></main></body></html>'''
 
 
 def main() -> None:

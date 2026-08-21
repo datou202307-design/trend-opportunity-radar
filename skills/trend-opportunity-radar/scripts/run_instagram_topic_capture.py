@@ -22,6 +22,7 @@ POST_URL = re.compile(
 HASHTAG = re.compile(r"^[^\s#/?:&]{1,100}$", re.UNICODE)
 QUERY_LAYERS = {"platform_baseline", "category", "subject_bridge"}
 HARD_STOPS = {"captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect", "content_mismatch"}
+UNAVAILABLE_STOPS = {"timeout", "no_visible_posts", "details_unavailable", "surface_unreadable", "controller_connection_failed", "verified_zero_results"}
 FORBIDDEN_KEYS = {"cookies", "cookie", "session", "token", "password", "followers", "following"}
 
 
@@ -122,7 +123,7 @@ def validate_capture(request: dict[str, Any], capture: dict[str, Any]) -> tuple[
         raise SystemExit("Instagram hashtag capture contains credentials or follow-graph fields.")
     stop_reason = as_text(capture.get("stop_reason")).casefold()
     if stop_reason:
-        if stop_reason not in HARD_STOPS | {"timeout", "no_visible_posts", "details_unavailable"}:
+        if stop_reason not in HARD_STOPS | UNAVAILABLE_STOPS:
             raise SystemExit("Unsupported Instagram hashtag stop_reason.")
         return ("blocked" if stop_reason in HARD_STOPS else "unavailable"), [], {}, stop_reason
     if normalize_hashtag(capture.get("hashtag")) != request["hashtag"]:

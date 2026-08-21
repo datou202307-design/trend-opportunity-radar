@@ -59,6 +59,7 @@ class ResearchContextTest(unittest.TestCase):
             ("在 TikTok 英语市场验证 AI 备餐规划的产品需求。", "tiktok"),
             ("分析家庭旅行计划在抖音的商业机会。", "douyin"),
             ("分析品牌在 Instagram 的内容机会。", "instagram"),
+            ("分析 AI 旅行规划在 Facebook 的趋势机会。", "facebook"),
         ]
         for prompt, expected in cases:
             with self.subTest(platform=expected):

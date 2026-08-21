@@ -33,9 +33,11 @@ class PlatformAdapterContractTest(unittest.TestCase):
         self.assertEqual(contract.normalize_platform("Tik Tok", registry), "tiktok")
         self.assertEqual(contract.normalize_platform("Reddit", registry), "reddit")
         self.assertEqual(contract.normalize_platform("INS", registry), "instagram")
+        self.assertEqual(contract.normalize_platform("脸书", registry), "facebook")
         self.assertEqual(common.normalize_platform("TikTok"), "tiktok")
         self.assertEqual(common.normalize_platform("抖音"), "douyin")
         self.assertEqual(common.normalize_platform("Instagram"), "instagram")
+        self.assertEqual(common.normalize_platform("FB"), "facebook")
         self.assertEqual(contract.platform_scope_status("youtube", "topic_research", registry), "validated")
         self.assertEqual(contract.platform_scope_status("youtube", "account_research", registry), "unsupported")
 
@@ -114,6 +116,31 @@ class PlatformAdapterContractTest(unittest.TestCase):
             self.assertTrue(contract.adapter_operation_allowed("instagram_hashtag_browser_capture", operation))
         for operation in ("read_account_search_as_topic", "read_personalized_explore_feed", "follow_account", "like_post"):
             self.assertFalse(contract.adapter_operation_allowed("instagram_hashtag_browser_capture", operation))
+
+    def test_facebook_pilot_is_posts_only_and_blocks_personal_surfaces_and_writes(self) -> None:
+        registry = contract.load_registry()
+        self.assertEqual(contract.platform_scope_status("facebook", "topic_research", registry), "pilot")
+        self.assertEqual(contract.platform_scope_status("facebook", "account_research", registry), "unsupported")
+        gate = contract.platform_scope_release_gate("facebook", "topic_research", registry)
+        self.assertEqual(gate["zero_result_acceptance"], "explicit_empty_twice_or_false_zero_protection")
+        self.assertFalse(gate["requires_live_explicit_empty"])
+        self.assertEqual(gate["minimum_frozen_low_yield_probes"], 2)
+        for operation in ("read_posts_search_results", "read_canonical_public_post_links", "read_public_post_detail", "read_visible_comments", "expand_exact_detail_comments_once"):
+            self.assertTrue(contract.adapter_operation_allowed("facebook_posts_browser_capture", operation))
+        for operation in ("read_home_feed_as_topic", "read_friends", "read_notifications", "read_private_groups", "join_group", "like_post", "comment_post"):
+            self.assertFalse(contract.adapter_operation_allowed("facebook_posts_browser_capture", operation))
+
+    def test_false_zero_release_gate_requires_two_probes_and_semantic_exclusion(self) -> None:
+        registry = contract.load_registry()
+        broken = copy.deepcopy(registry)
+        gate = broken["platforms"]["facebook"]["release_gates"]["topic_research"]
+        gate["minimum_frozen_low_yield_probes"] = 1
+        with self.assertRaises(ValueError):
+            contract.validate_registry(broken)
+        broken = copy.deepcopy(registry)
+        broken["platforms"]["facebook"]["release_gates"]["topic_research"]["require_semantic_exclusion_of_irrelevant_fallback"] = False
+        with self.assertRaises(ValueError):
+            contract.validate_registry(broken)
 
     def test_reddit_operation_allowlist_blocks_comments_batches_and_feed_writes(self) -> None:
         for operation in ("discover_subreddits", "search_subreddit", "fetch_posts"):

@@ -14,6 +14,7 @@ SCHEMA_VERSION = "platform-adapter-registry-v0.2"
 CONTRACT_VERSION = "platform-adapter-contract-v0.2"
 RESEARCH_SCOPES = {"topic_research", "account_research"}
 RELEASE_STATUSES = {"validated", "pilot", "import_only", "unsupported"}
+ZERO_RESULT_ACCEPTANCE_MODES = {"explicit_empty_twice", "explicit_empty_twice_or_false_zero_protection"}
 REQUIRED_CAPABILITY_FIELDS = {
     "capability_key", "search_builder", "detail_builder", "search_parser",
     "detail_runner", "pagination", "terminal_evidence", "safety_stops", "research_scopes",
@@ -56,6 +57,27 @@ def validate_registry(registry: Any) -> None:
             raise ValueError(f"Platform {platform} must declare every supported research scope.")
         if any(status not in RELEASE_STATUSES for status in research_scopes.values()):
             raise ValueError(f"Platform {platform} has an invalid research-scope release status.")
+        release_gates = spec.get("release_gates", {})
+        if not isinstance(release_gates, dict) or any(scope not in RESEARCH_SCOPES for scope in release_gates):
+            raise ValueError(f"Platform {platform} has invalid release gates.")
+        for scope, gate in release_gates.items():
+            if not isinstance(gate, dict):
+                raise ValueError(f"Platform {platform}/{scope} release gate must be an object.")
+            mode = as_text(gate.get("zero_result_acceptance"))
+            if mode not in ZERO_RESULT_ACCEPTANCE_MODES:
+                raise ValueError(f"Platform {platform}/{scope} has an invalid zero-result acceptance mode.")
+            if not isinstance(gate.get("requires_live_explicit_empty"), bool):
+                raise ValueError(f"Platform {platform}/{scope} must declare whether live explicit empty is required.")
+            if mode == "explicit_empty_twice_or_false_zero_protection":
+                if not isinstance(gate.get("minimum_frozen_low_yield_probes"), int) or gate["minimum_frozen_low_yield_probes"] < 2:
+                    raise ValueError(f"Platform {platform}/{scope} requires at least two frozen low-yield probes.")
+                for key in (
+                    "require_query_identity_on_every_probe",
+                    "require_no_false_verified_zero",
+                    "require_semantic_exclusion_of_irrelevant_fallback",
+                ):
+                    if gate.get(key) is not True:
+                        raise ValueError(f"Platform {platform}/{scope} must enable {key}.")
     for adapter, spec in adapters.items():
         if not isinstance(spec, dict) or not as_text(spec.get("source_mode")):
             raise ValueError(f"Adapter {adapter} requires source_mode.")
@@ -113,6 +135,17 @@ def platform_scope_status(platform: str, research_scope: str = "topic_research",
     if not isinstance(spec, dict) or scope not in RESEARCH_SCOPES:
         return "unsupported"
     return as_text(spec.get("research_scopes", {}).get(scope)).casefold() or "unsupported"
+
+
+def platform_scope_release_gate(platform: str, research_scope: str = "topic_research", registry: dict[str, Any] | None = None) -> dict[str, Any]:
+    source = registry or load_registry()
+    platform_key = normalize_platform(platform, source)
+    scope = as_text(research_scope).casefold()
+    spec = source["platforms"].get(platform_key)
+    if not isinstance(spec, dict) or scope not in RESEARCH_SCOPES:
+        return {}
+    gate = spec.get("release_gates", {}).get(scope, {})
+    return dict(gate) if isinstance(gate, dict) else {}
 
 
 def adapter_capability(adapter: str, platform: str, registry: dict[str, Any] | None = None, research_scope: str = "topic_research") -> dict[str, Any] | None:

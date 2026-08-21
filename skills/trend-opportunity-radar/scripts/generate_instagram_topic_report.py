@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import Any
 
 from _common import as_text, now_iso, write_json
+from generate_profile_report import platform_native_context, platform_native_context_text
 
 
-SCHEMA_VERSION = "instagram-topic-research-report-v0.1"
+SCHEMA_VERSION = "instagram-topic-research-report-v0.2"
 
 
 def validate(snapshot: dict[str, Any], analysis: dict[str, Any]) -> None:
@@ -94,6 +95,7 @@ def build(snapshot: dict[str, Any], analysis: dict[str, Any], language: str) -> 
             "action": "建议动作", "why": "为什么值得关注", "status": "研究状态", "bounded": "本轮可用于设计验证", "complete": "采样要求已满足",
             "likes": "点赞", "comment_total": "评论", "date": "发布时间", "monitor": "建议后续复采",
             "feedback": "评论里出现的实际要求", "reviewed_comments": "已审查评论", "relevant_comments": "相关评论",
+            "platform_context": "这个平台的证据怎么看",
         },
         "en": {
             "title": "Instagram topic research", "basis": "Research basis", "queries": "Completed search themes", "observed": "Observed post links",
@@ -103,6 +105,7 @@ def build(snapshot: dict[str, Any], analysis: dict[str, Any], language: str) -> 
             "action": "Recommended action", "why": "Why it matters", "status": "Research status", "bounded": "Useful for designing a validation test", "complete": "Sampling contract met",
             "likes": "Likes", "comment_total": "Comments", "date": "Published", "monitor": "Suggested follow-up",
             "feedback": "What people asked for or objected to", "reviewed_comments": "Reviewed comments", "relevant_comments": "Relevant comments",
+            "platform_context": "How to read this platform evidence",
         },
     }[language]
     by_id = {item["signal_id"]: item for item in signals}
@@ -154,6 +157,7 @@ def build(snapshot: dict[str, Any], analysis: dict[str, Any], language: str) -> 
             "sampling_checks": standard_checks,
             "layer_audit": layer_audit,
         },
+        "platform_native_context": platform_native_context(snapshot, "instagram", "zh-CN" if language == "zh" else "en"),
         "decision_support": {
             "can_support": as_text(analysis["can_support"]),
             "cannot_support": as_text(analysis["cannot_support"]),
@@ -197,6 +201,7 @@ def markdown(report: dict[str, Any]) -> str:
         f"- {l['queries']}: {b['query_count']}", f"- {l['observed']}: {b['observed_post_count']}", f"- {l['unique']}: {b['unique_post_count']}",
         f"- {l['details']}: {b['detail_post_count']}", f"- {l['relevant']}: {b['relevant_post_count']}", f"- {l['counter']}: {b['counter_signal_count']}",
         f"- {l['comments']}: {b['visible_comment_count']}", f"- {l['status']}: {l['complete'] if b['sampling_status']=='complete' else l['bounded']}", "",
+        f"### {l['platform_context']}", "", platform_native_context_text(report["platform_native_context"], "zh-CN" if report["language"] == "zh" else "en"), "",
         f"## {l['supports']}", "", d["can_support"], "", f"## {l['cannot']}", "", d["cannot_support"], "", f"## {l['resolution']}", "", d["resolution"], "",
         f"## {l['findings']}", ""]
     for finding in report["findings"]:
@@ -226,7 +231,8 @@ def html_page(report: dict[str, Any]) -> str:
     feedback_section = f"<h2>{esc(l['feedback'])}</h2><section class='grid'>{feedback}</section>" if report["comment_evidence"]["status"] == "reviewed" else ""
     payload = html.escape(json.dumps(report, ensure_ascii=False, separators=(",", ":")))
     status = l["complete"] if b["sampling_status"] == "complete" else l["bounded"]
-    return f"""<!doctype html><html lang='{report['language']}'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{esc(l['title'])} · {esc(report['subject'])}</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#071421;color:#eef8f8;font:16px/1.65 system-ui,sans-serif}}main{{width:min(1120px,calc(100% - 32px));margin:36px auto 80px}}header{{padding:34px;border:1px solid #24485a;border-radius:28px;background:linear-gradient(135deg,#0b2032,#0d3e3d)}}h1{{font-size:clamp(34px,7vw,64px);line-height:1.06;margin:8px 0}}h2{{margin-top:44px}}.muted{{color:#9bc1c8}}.answer{{font-size:clamp(20px,3vw,28px);max-width:900px}}.stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:20px}}.stat,.card,.evidence,.decision{{padding:18px;border:1px solid #24485a;border-radius:18px;background:#0c1d2a}}.stat strong{{display:block;font-size:30px;color:#62e6d6}}.stat span{{color:#b9d1d5;font-size:13px}}.decision-grid,.grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}}.decision-grid{{margin-top:32px}}.grid{{grid-template-columns:repeat(2,1fr)}}.pill{{display:inline-block;padding:4px 10px;border-radius:999px;background:#123d47;color:#7ff3e6;font-size:12px}}a{{color:#70dff2}}.refs,.extra{{display:flex;gap:10px;flex-wrap:wrap}}details{{margin-top:20px;padding:16px;border:1px solid #24485a;border-radius:16px}}ul{{padding-left:22px}}@media(max-width:820px){{.stats{{grid-template-columns:repeat(2,1fr)}}.decision-grid,.grid{{grid-template-columns:1fr}}main{{width:min(100% - 22px,1120px);margin-top:18px}}header{{padding:24px}}}}</style></head><body><main><header><p class='muted'>INSTAGRAM · {esc(report['query'].get('term',''))}</p><h1>{esc(report['subject'])}</h1><p class='answer'>{esc(report['direct_answer'])}</p><span class='pill'>{esc(status)}</span></header><h2>{esc(l['basis'])}</h2><section class='stats'>{stat_html}</section><section class='decision-grid'><article class='decision'><h3>{esc(l['supports'])}</h3><p>{esc(d['can_support'])}</p></article><article class='decision'><h3>{esc(l['cannot'])}</h3><p>{esc(d['cannot_support'])}</p></article><article class='decision'><h3>{esc(l['resolution'])}</h3><p>{esc(d['resolution'])}</p></article></section><h2>{esc(l['findings'])}</h2><section class='grid'>{finding_cards}</section>{feedback_section}<h2>{esc(l['evidence'])}</h2><section class='grid'>{evidence}</section><details><summary>{esc(l['more'])} ({len(report['evidence_items'])-len(detailed)})</summary><div class='extra'>{extra}</div></details><h2>{esc(l['boundary'])}</h2><ul>{limits}</ul><h2>{esc(l['monitor'])}</h2><article class='decision'><p>{esc(report['monitoring_recommendation']['reason'])}</p><p class='muted'>{esc(report['monitoring_recommendation']['automation_prompt'])}</p></article><script id='report-data' type='application/json'>{payload}</script></main></body></html>"""
+    platform_context = platform_native_context_text(report["platform_native_context"], "zh-CN" if report["language"] == "zh" else "en", include_lead=False)
+    return f"""<!doctype html><html lang='{report['language']}'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>{esc(l['title'])} · {esc(report['subject'])}</title><style>*{{box-sizing:border-box}}body{{margin:0;background:#071421;color:#eef8f8;font:16px/1.65 system-ui,sans-serif}}main{{width:min(1120px,calc(100% - 32px));margin:36px auto 80px}}header{{padding:34px;border:1px solid #24485a;border-radius:28px;background:linear-gradient(135deg,#0b2032,#0d3e3d)}}h1{{font-size:clamp(34px,7vw,64px);line-height:1.06;margin:8px 0}}h2{{margin-top:44px}}.muted{{color:#9bc1c8}}.answer{{font-size:clamp(20px,3vw,28px);max-width:900px}}.stats{{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-top:20px}}.stat,.card,.evidence,.decision,.platform-context{{padding:18px;border:1px solid #24485a;border-radius:18px;background:#0c1d2a}}.platform-context{{margin-top:14px;background:#0c2c31}}.platform-context h3{{margin:10px 0 6px;color:#7ff3e6}}.platform-context p{{margin:0;color:#c6dcdf}}.stat strong{{display:block;font-size:30px;color:#62e6d6}}.stat span{{color:#b9d1d5;font-size:13px}}.decision-grid,.grid{{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}}.decision-grid{{margin-top:32px}}.grid{{grid-template-columns:repeat(2,1fr)}}.pill{{display:inline-block;padding:4px 10px;border-radius:999px;background:#123d47;color:#7ff3e6;font-size:12px}}a{{color:#70dff2}}.refs,.extra{{display:flex;gap:10px;flex-wrap:wrap}}details{{margin-top:20px;padding:16px;border:1px solid #24485a;border-radius:16px}}ul{{padding-left:22px}}@media(max-width:820px){{.stats{{grid-template-columns:repeat(2,1fr)}}.decision-grid,.grid{{grid-template-columns:1fr}}main{{width:min(100% - 22px,1120px);margin-top:18px}}header{{padding:24px}}}}</style></head><body><main><header><p class='muted'>INSTAGRAM · {esc(report['query'].get('term',''))}</p><h1>{esc(report['subject'])}</h1><p class='answer'>{esc(report['direct_answer'])}</p><span class='pill'>{esc(status)}</span></header><h2>{esc(l['basis'])}</h2><section class='stats'>{stat_html}</section><section class='platform-context'><span class='pill'>{esc(l['platform_context'])}</span><h3>{esc(report['platform_native_context']['focus'])}</h3><p>{esc(platform_context)}</p></section><section class='decision-grid'><article class='decision'><h3>{esc(l['supports'])}</h3><p>{esc(d['can_support'])}</p></article><article class='decision'><h3>{esc(l['cannot'])}</h3><p>{esc(d['cannot_support'])}</p></article><article class='decision'><h3>{esc(l['resolution'])}</h3><p>{esc(d['resolution'])}</p></article></section><h2>{esc(l['findings'])}</h2><section class='grid'>{finding_cards}</section>{feedback_section}<h2>{esc(l['evidence'])}</h2><section class='grid'>{evidence}</section><details><summary>{esc(l['more'])} ({len(report['evidence_items'])-len(detailed)})</summary><div class='extra'>{extra}</div></details><h2>{esc(l['boundary'])}</h2><ul>{limits}</ul><h2>{esc(l['monitor'])}</h2><article class='decision'><p>{esc(report['monitoring_recommendation']['reason'])}</p><p class='muted'>{esc(report['monitoring_recommendation']['automation_prompt'])}</p></article><script id='report-data' type='application/json'>{payload}</script></main></body></html>"""
 
 
 def main() -> None:
