@@ -75,6 +75,9 @@ class TrendRadarDoctorTest(unittest.TestCase):
         self.assertFalse(report["live"]["ready"])
         self.assertTrue(report["structured_import"]["ready"])
         self.assertEqual(report["checked_adapters"], [])
+        self.assertTrue(report["prerequisites"]["required"])
+        self.assertIn("Chrome", report["prerequisites"]["message"])
+        self.assertIn("sign_in_to_platform", report["prerequisites"]["items"])
 
     def test_ready_status_selects_live_adapter_without_raw_diagnostics(self) -> None:
         status = ready_opencli("x")
@@ -84,6 +87,8 @@ class TrendRadarDoctorTest(unittest.TestCase):
         report = trend_radar.build_doctor_report("x", [status], language="en")
         self.assertEqual(report["state"], "ready_live")
         self.assertEqual(report["live"]["search_adapter"], "opencli")
+        self.assertFalse(report["prerequisites"]["required"])
+        self.assertEqual(report["prerequisites"]["message"], "")
         rendered = json.dumps(report)
         self.assertNotIn("C:/private", rendered)
         self.assertNotIn("private machine output", rendered)
@@ -148,11 +153,13 @@ class TrendRadarStartTest(unittest.TestCase):
             run_dir = root / "run"
             first = trend_radar.start_run(self.make_args(run_dir))
             self.assertEqual(first["state"], "preflight_required")
+            self.assertTrue(first["prerequisites"]["required"])
             status_path = root / "opencli-status.json"
             status_path.write_text(json.dumps(ready_opencli("x")), encoding="utf-8")
             second = trend_radar.start_run(self.make_args(run_dir, status=[str(status_path)]))
             self.assertEqual(second["state"], "query_plan_required")
             self.assertEqual(second["created_at"], first["created_at"])
+            self.assertFalse(second["prerequisites"]["required"])
 
     def test_clarification_can_be_resolved_in_the_same_run_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

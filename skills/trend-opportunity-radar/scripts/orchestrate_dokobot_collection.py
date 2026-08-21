@@ -5,11 +5,13 @@ import hashlib
 import json
 import math
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
 from _common import SAMPLING_CONTRACTS, as_bool, as_list, as_text, load_data, merge_signals, now_iso, write_json
 from append_collection_result import append_query_result, signal_key
+from collection_pacing import RATE_LIMIT_COOLDOWN_SECONDS
 from platform_adapter_contract import CONTRACT_VERSION, SCHEMA_VERSION as ADAPTER_REGISTRY_VERSION, adapter_capability, build_detail_command, build_search_command, normalize_platform, status_supports
 from research_context import load_context
 
@@ -594,6 +596,25 @@ def set_snapshot_stop(state: dict[str, Any], reason: str) -> None:
     write_json(str(target), snapshot)
 
 
+def mark_rate_limit_resumed(state: dict[str, Any]) -> None:
+    """Move a recovered rate limit out of the active limitation while preserving its audit event."""
+    target = Path(state["snapshot"])
+    if not target.exists():
+        return
+    snapshot = load_data(str(target))
+    collection = snapshot.setdefault("collection", {})
+    limitations = collection.setdefault("limitations", [])
+    limitations[:] = [item for item in limitations if as_text(item) != "rate_limit"]
+    events = collection.setdefault("rate_limit_events", [])
+    event = {
+        "retry_not_before": state.get("retry_not_before"),
+        "resumed_at": state.get("resumed_at"),
+    }
+    if event not in events:
+        events.append(event)
+    write_json(str(target), snapshot)
+
+
 def attach_detail_adapter(state: dict[str, Any], selection_path: Path, selection: Any) -> None:
     if not isinstance(selection, dict) or selection.get("schema_version") != "collection-adapter-selection-v0.2":
         raise SystemExit("Detail adapter attachment requires a validated adapter-selection artifact.")
@@ -669,6 +690,42 @@ def action(state: dict[str, Any]) -> dict[str, Any]:
     counts = snapshot_counts(state)
     checks = contract_checks(state)
     base = {"status": state["status"], "counts": counts, "contract_checks": checks}
+    if state["status"] == "paused" and as_text(state.get("stop_reason")) == "rate_limit":
+        retry_at = datetime.fromisoformat(as_text(state.get("retry_not_before")).replace("Z", "+00:00"))
+        now = datetime.now(timezone.utc)
+        if now < retry_at:
+            remaining_seconds = max(1, math.ceil((retry_at - now).total_seconds()))
+            language = "en"
+            context_path = as_text(state.get("research_context"))
+            if context_path and Path(context_path).is_file():
+                context = load_data(context_path)
+                if isinstance(context, dict) and as_text(context.get("language")) == "zh-CN":
+                    language = "zh-CN"
+            next_action = (
+                "平台正在冷却，研究进度已保存。到达可重试时间后再次调用即可从当前查询继续；通常不需要重新输入主题或登录。"
+                if language == "zh-CN"
+                else "The platform is cooling down and the research progress is saved. Invoke the run again after the retry time to continue the active query; the topic and login usually do not need to be repeated."
+            )
+            return {
+                **base,
+                "action": "wait_for_cooldown",
+                "stop_reason": "rate_limit",
+                "retry_not_before": state.get("retry_not_before"),
+                "remaining_seconds": remaining_seconds,
+                "next_action": next_action,
+            }
+        state["status"] = "in_progress"
+        state["stop_reason"] = ""
+        state["resumed_at"] = now_iso()
+        base["status"] = "in_progress"
+        active = state.get("active_query")
+        if isinstance(active, dict):
+            active["stop_reason"] = ""
+            active["can_continue"] = True
+            active["continuation_status"] = "unknown"
+            active["next_screens"] = 1
+        mark_rate_limit_resumed(state)
+        set_snapshot_stop(state, "collection_in_progress")
     if state["status"] == "complete" and all(checks.values()):
         state["stop_reason"] = "sampling_contract_met"
         set_snapshot_stop(state, "sampling_contract_met")
@@ -1008,15 +1065,23 @@ def record_chunk(state: dict[str, Any], state_path: Path, chunk: Any) -> None:
         if active["continuation_unknown_count"] >= 2:
             stop_reason = "continuation_unresolved"
             active["stop_reason"] = stop_reason
+    recoverable_rate_limit = hard_stop == "rate_limit"
     should_finalize = (
         len(active["observed_result_keys"]) >= per_query_target
         or continuation_status == "exhausted"
         or stop_reason in QUERY_LOCAL_STOPS
-        or bool(hard_stop)
+        or bool(hard_stop and not recoverable_rate_limit)
     )
     if should_finalize:
         finalize_active(state, state_path, hard_stop or active["stop_reason"])
-    if hard_stop:
+    if recoverable_rate_limit:
+        cooldown = int(chunk.get("retry_after_seconds") or RATE_LIMIT_COOLDOWN_SECONDS)
+        state["status"] = "paused"
+        state["stop_reason"] = "rate_limit"
+        state["retry_after_seconds"] = cooldown
+        state["retry_not_before"] = (datetime.now(timezone.utc) + timedelta(seconds=cooldown)).isoformat().replace("+00:00", "Z")
+        set_snapshot_stop(state, "rate_limit")
+    elif hard_stop:
         state["status"] = "blocked"
         state["stop_reason"] = hard_stop
         set_snapshot_stop(state, hard_stop)
@@ -1039,7 +1104,7 @@ def record_capture(state: dict[str, Any], state_path: Path, metadata: Any, extra
     extraction.pop("query_id", None)
     forbidden = {
         "read_status", "session_id", "can_continue", "continuation_status",
-        "terminal_evidence", "raw_artifact", "stop_reason", "hard_stop", "execution",
+        "terminal_evidence", "raw_artifact", "stop_reason", "hard_stop", "retry_after_seconds", "execution",
     }
     supplied_forbidden = sorted(forbidden.intersection(extraction))
     if supplied_forbidden:
@@ -1071,6 +1136,7 @@ def record_capture(state: dict[str, Any], state_path: Path, metadata: Any, extra
         "raw_artifact": metadata.get("raw_artifact"),
         "stop_reason": metadata.get("stop_reason"),
         "hard_stop": metadata.get("hard_stop"),
+        "retry_after_seconds": metadata.get("retry_after_seconds"),
         "execution": {
             "requested_command_sha256": metadata.get("requested_command_sha256"),
             "exit_code": metadata.get("exit_code"),

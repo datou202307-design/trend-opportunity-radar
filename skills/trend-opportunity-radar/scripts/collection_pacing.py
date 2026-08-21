@@ -8,6 +8,7 @@ POLICY_VERSION = "controlled-read-pacing-v0.1"
 MAX_PARALLEL_READS = 1
 BATCH_SIZE = 5
 DEFAULT_BATCH_COOLDOWN_SECONDS = 30
+RATE_LIMIT_COOLDOWN_SECONDS = 30 * 60
 PLATFORM_INTERVALS: dict[str, dict[str, int]] = {
     "x": {"search": 10, "detail": 10, "comment": 10},
     "xiaohongshu": {"search": 15, "detail": 20, "comment": 20},

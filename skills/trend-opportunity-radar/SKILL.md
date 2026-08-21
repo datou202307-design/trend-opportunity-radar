@@ -37,6 +37,8 @@ Follow the single `state` and `next_action` in `run-manifest.json`:
 - For `import_required`, use a lawful structured dataset or resolve the named login/connection action.
 - For `query_plan_required`, continue with the frozen context and collection workflow below.
 
+If `prerequisites.required` is true, show its one concise `message` before asking the user to restore the browser, platform login, read-only adapter, or connected service. Do not show a generic setup warning when it is false. Re-run the same start request after the user completes the named action; never ask them to repeat the research topic.
+
 Never infer readiness from PATH lookup, an installed extension, a browser tab, or login appearance. A successful redacted read probe is required for the capability the run will use. Keep recoverable adapter diagnostics internal unless the user must restore login, connect a browser, approve a narrow read, or choose import fallback.
 
 ## Route only the relevant instructions
@@ -75,7 +77,7 @@ Create `raw-signals.json` before searching. Count observed cards before filterin
 
 Use `scripts/orchestrate_collection.py` for the deterministic query loop. Start `standard` mode unless the user explicitly requests a quick scan or a lawful source constraint requires `quick`; use `deep` only when the source can support it. Do not silently downgrade.
 
-Collect sequentially with the shared pacing ledger. Preserve every completed query and resume from its checkpoint. Do not repeat successful queries, exceed the frozen query budget, run browser reads in parallel, or invent additional searches merely to fill a quota. A timeout, blank shell, wrong redirect, parser miss, or connection loss is not a zero-result finding. Only a verified target identity plus an explicit platform empty state can support zero results.
+Collect sequentially with the shared pacing ledger across query boundaries. Preserve every completed query and resume from its checkpoint. A platform rate limit pauses the active query, saves a `retry_not_before` time, and resumes that same query only after the cooldown; it must not finalize an empty query or require the user to re-enter the topic or log in again. Do not repeat successful queries, exceed the frozen query budget, run browser reads in parallel, or invent additional searches merely to fill a quota. A timeout, blank shell, wrong redirect, parser miss, or connection loss is not a zero-result finding. Only a verified target identity plus an explicit platform empty state can support zero results.
 
 Every retained signal requires independent semantic review as `direct`, `adjacent`, or `weak`, plus shared `support`, `counter`, or `neutral` direction and the selected Profile's evidence role. Reviews must state a concrete reason. Unreviewed signals cannot satisfy sampling gates or generate findings.
 

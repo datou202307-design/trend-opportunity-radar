@@ -43,6 +43,26 @@ def _status_summaries(statuses: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return summaries
 
 
+def _prerequisites(platform: str, state: str, language: str) -> dict[str, Any]:
+    """Show setup guidance only when the current live route actually needs user action."""
+    platform_name = {
+        "x": "X", "xiaohongshu": "小红书", "youtube": "YouTube",
+        "tiktok": "TikTok", "instagram": "Instagram", "facebook": "Facebook",
+        "reddit": "Reddit",
+    }.get(platform, platform)
+    if state not in {"preflight_required", "live_unavailable_import_ready"}:
+        return {"required": False, "items": [], "message": ""}
+    if platform == "reddit":
+        items = ["connect_read_only_service", "authorize_platform_read"]
+        zh = f"开始实时采集前，请连接可读取 {platform_name} 的服务并完成只读授权。系统会再次验证；请勿发送密码、Cookie 或 Token。"
+        en = f"Before live collection, connect a service that can read {platform_name} and grant read-only access. The system will verify it again; never send passwords, cookies, or tokens."
+    else:
+        items = ["start_supported_browser", "sign_in_to_platform", "connect_read_adapter"]
+        zh = f"开始实时采集前，请启动 Chrome 或适配器明确支持的浏览器，在 {platform_name} 完成登录，并确保只读采集连接已启用。系统会自动复检；请勿发送密码、Cookie 或 Token。"
+        en = f"Before live collection, start Chrome or the browser supported by the adapter, sign in to {platform_name}, and enable the read-only collection connection. The system will verify it automatically; never send passwords, cookies, or tokens."
+    return {"required": True, "items": items, "message": _language_text(language, zh, en)}
+
+
 def build_doctor_report(
     platform: str,
     statuses: list[dict[str, Any]],
@@ -92,6 +112,7 @@ def build_doctor_report(
             "No released live adapter exists for this scope; continue with a compliant structured import.",
         )
 
+    prerequisites = _prerequisites(str(selection.get("platform") or platform), state, language)
     return {
         "schema_version": DOCTOR_SCHEMA_VERSION,
         "platform": selection.get("platform"),
@@ -109,6 +130,7 @@ def build_doctor_report(
             "source_mode": "customer_export",
         },
         "checked_adapters": _status_summaries(statuses),
+        "prerequisites": prerequisites,
         "next_action": action,
         "checked_at": now_iso(),
     }
@@ -251,6 +273,7 @@ def start_run(args: argparse.Namespace) -> dict[str, Any]:
         "platform": context["platform"],
         "research_intent": context["research_intent"],
         "profile_version": context["profile_version"],
+        "prerequisites": doctor["prerequisites"],
         "next_action": next_action,
         "created_at": existing.get("created_at") if existing else now_iso(),
         "updated_at": now_iso(),

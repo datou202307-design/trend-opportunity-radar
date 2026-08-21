@@ -628,12 +628,48 @@ An entertainment interview translation thread.
         self.assertEqual(waits, [20, 65, 40])
 
     def test_query_read_count_preserves_serial_cadence_across_queries(self) -> None:
-        state = {"queries": [
-            {"capture_executions": [{"read_status": "success"}]},
-            {"capture_executions": [{"read_status": "timeout"}, {"read_status": "success"}]},
-            {"capture_executions": []},
-        ]}
-        self.assertEqual(collection_capture_runner.prior_query_read_count(state), 3)
+        completed = self.write("query-completed.json", {
+            "capture_executions": [{"read_status": "success"}, {"read_status": "success"}],
+        })
+        state = {
+            "queries": [
+                {"status": "completed", "query_result": str(completed)},
+                {"capture_executions": [{"read_status": "timeout"}]},
+            ],
+            "active_query": {"capture_executions": [{"read_status": "success"}]},
+        }
+        self.assertEqual(collection_capture_runner.prior_query_read_count(state), 4)
+
+    def test_rate_limit_pauses_active_query_and_resumes_after_cooldown(self) -> None:
+        state = self.root / "rate-limit-state.json"
+        snapshot = self.root / "rate-limit-raw.json"
+        run_script_json(
+            "orchestrate_dokobot_collection.py", "init", "--state", str(state), "--snapshot", str(snapshot),
+            "--plan", str(self.write("rate-limit-plan.json", self.make_standard_query_plan())),
+            "--adapter-status", str(self.make_ready_adapter_status()), "--platform", "x", "--mode", "standard",
+        )
+        chunk = self.write("rate-limit-chunk.json", {
+            "query_id": "query-0", "read_status": "error", "hard_stop": "rate_limit",
+            "retry_after_seconds": 1800, "session_id": "", "can_continue": False,
+            "observed_result_keys": [], "signals": [], "detail_open_keys": [],
+            "raw_artifact": str(self.root / "rate-limited.json"),
+        })
+        paused = run_script_json(
+            "orchestrate_dokobot_collection.py", "record-chunk", "--state", str(state), "--chunk", str(chunk)
+        )
+        self.assertEqual(paused["action"], "wait_for_cooldown")
+        state_data = json.loads(state.read_text(encoding="utf-8"))
+        self.assertEqual(state_data["status"], "paused")
+        self.assertEqual(state_data["queries"][0]["status"], "in_progress")
+        self.assertEqual(state_data["active_query"]["id"], "query-0")
+        self.assertGreater(paused["remaining_seconds"], 0)
+        self.assertIn("progress is saved", paused["next_action"])
+        state_data["retry_not_before"] = "2000-01-01T00:00:00Z"
+        state.write_text(json.dumps(state_data), encoding="utf-8")
+        resumed = run_script_json("orchestrate_dokobot_collection.py", "next", "--state", str(state))
+        self.assertEqual(resumed["status"], "in_progress")
+        self.assertEqual(resumed["action"], "start_query")
+        self.assertEqual(resumed["query"]["id"], "query-0")
 
     def test_reader_titles_translate_internal_jargon_for_general_audience(self) -> None:
         profile = {"language": "zh-CN", "audience": "general"}
