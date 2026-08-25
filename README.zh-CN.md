@@ -5,7 +5,7 @@
 <h1 align="center">Trend Opportunity Radar</h1>
 
 <p align="center">
-  围绕一个主题研究一个平台，把公开信号整理成可核对的依据和下一步行动建议。
+  面向 AI Agent 的证据型社交聆听与趋势研究：一个主题、一个平台、一个清晰的下一步判断。
 </p>
 
 <p align="center">
@@ -21,11 +21,26 @@
   <a href="README.md">English</a> · <strong>简体中文</strong>
 </p>
 
-这是一个独立、去品牌化的 Agent Skill。你提供研究主题和目标平台，Agent 负责采集或导入信号、打开原文、检查反例，并生成本地报告。它可以研究产品，也可以研究一个商机、想法、用户问题、受众需求或项目。
+<p align="center">
+  <a href="#开始第一次研究"><strong>开始研究</strong></a> ·
+  <a href="#先看看最后会得到什么"><strong>查看合成报告</strong></a> ·
+  <a href="#五种研究场景"><strong>选择研究场景</strong></a>
+</p>
+
+这是一个独立、去品牌化的 Agent Skill，可用于社交聆听、市场研究、竞品用户研究、内容机会分析和产品需求验证。你提供研究主题和目标平台，Agent 负责采集或导入信号、打开原文、检查反例，并生成帮助决策的本地报告。它可以研究产品，也可以研究一个商机、想法、用户问题、受众需求或项目。
+
+### 为什么不只用一句搜索提示词？
+
+| 常见的搜索总结 | Trend Opportunity Radar |
+|---|---|
+| 找到什么就总结什么 | 冻结一个主题、一个平台和有边界的采样计划 |
+| 可能跳过原文，混淆事实与推断 | 打开来源，并区分平台事实、机器提取和模型判断 |
+| 主要展示支持观点的例子 | 完整检查相关性、反例和证据边界 |
+| 最后给出宽泛建议 | 生成本地 HTML、Markdown、JSON 和具体的下一项验证 |
 
 当前版本是 **v0.12.0 candidate**。它帮助你形成更有依据的下一步判断，不预测爆款、流量、需求或收入。兼容快照监测目前属于候选工作流：合成回放与响应式报告验收已经通过，首次真实三天前向对比仍待完成。
 
-## 30 秒开始
+## 开始第一次研究
 
 只需要两个输入：
 
@@ -184,6 +199,14 @@ python tools/audit_open_source_release.py
 python tools/validate_skill.py skills/trend-opportunity-radar
 python -m unittest discover -s skills/trend-opportunity-radar/tests -v
 ```
+
+维护者可以保存仅包含仓库级数据的私有 GitHub Traffic 快照，不需要给 Skill 增加遥测：
+
+```text
+python tools/snapshot_github_traffic.py --repo owner/name --output-dir ../private-github-traffic
+```
+
+命令只读取当前 GitHub 身份有权查看的仓库指标；同一天重复运行默认跳过，API 出错时不会写入半成品，并明确记录 clone 不等于已验证的安装或用户。真实 Traffic 快照不要提交到这个公开仓库。
 
 ## 许可证
 
