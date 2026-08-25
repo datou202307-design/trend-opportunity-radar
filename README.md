@@ -23,7 +23,7 @@
 
 Trend Opportunity Radar is an independent, brand-neutral Agent Skill. Give it a research topic and one platform; the Agent collects or imports signals, opens original sources, checks counterexamples, and generates a local report. The subject can be a product, business opportunity, idea, user problem, audience need, or project.
 
-Current release: **v0.11.0 candidate**. It supports evidence-backed next-step decisions; it does not predict virality, traffic, demand, or revenue.
+Current release: **v0.12.0 candidate**. It supports evidence-backed next-step decisions; it does not predict virality, traffic, demand, or revenue. Compatible monitoring is a candidate workflow: synthetic replay and responsive-report QA have passed, while the first real three-day forward comparison remains pending.
 
 ## Start in 30 seconds
 
