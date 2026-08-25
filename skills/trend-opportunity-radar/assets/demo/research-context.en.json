@@ -1,0 +1,43 @@
+{
+  "schema_version": "research-context-v0.1",
+  "status": "ready",
+  "research_intent": "product_demand",
+  "profile_version": "product_demand_v1",
+  "profile_implementation_status": "available",
+  "subject": {
+    "name": "An AI tool that helps people organize phone photos",
+    "subject_type": "idea",
+    "summary": "Test whether people need automatic duplicate filtering, event grouping, and share-ready albums.",
+    "facts": [],
+    "hypotheses": ["A large photo backlog may create a recurring task"],
+    "audiences": ["Phone users with many photos and little time to organize them"],
+    "scenarios": ["Organizing photos after a trip", "Archiving family photos"],
+    "constraints": ["Do not claim that willingness to pay has been validated"],
+    "source_refs": [],
+    "communication": {"language": "en", "goal": "validate_product_demand", "audience": "general"}
+  },
+  "platform": "x",
+  "market": null,
+  "language": "en",
+  "audience": null,
+  "decision_question": "Which real tasks, workarounds, and adoption barriers determine product demand?",
+  "analysis_unit": "workflow_or_adoption_friction",
+  "evidence_roles": ["task", "workaround", "failure", "friction", "adoption_signal"],
+  "counterevidence_targets": ["adequate_workaround", "low_frequency", "low_adoption_intent"],
+  "query_profile": "product_demand_queries_v1",
+  "query_intents": ["task", "workflow", "workaround", "failure", "friction", "adoption"],
+  "decision_thresholds": {
+    "minimum_support_refs": 2,
+    "minimum_counter_refs_or_searched_none": 1,
+    "minimum_profile_roles": 2,
+    "requires_direct_source": true
+  },
+  "action_contract": {
+    "primary_action": "mvp_demand_test",
+    "required_fields": ["action", "intensity", "condition", "validation_metric", "stop_condition", "human_boundary"]
+  },
+  "report_profile": "product_demand_report_v1",
+  "report_sections": ["decision_answer", "user_tasks", "workarounds_and_failures", "mvp_scope", "validation_metrics", "stop_conditions", "evidence_boundary"],
+  "assumptions": ["This is a synthetic demo, not live platform research."],
+  "source_prompt_sha256": "f999280e7d814be3c8fcff8642687262462cf0df28d16aa4f588be2828d0bff5"
+}

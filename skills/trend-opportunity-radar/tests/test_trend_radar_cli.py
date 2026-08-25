@@ -395,5 +395,80 @@ class TrendRadarResumeTest(unittest.TestCase):
         self.assertIn("resume", completed.stdout)
 
 
+class TrendRadarFirstSuccessTest(unittest.TestCase):
+    def test_demo_generates_three_marked_formats_and_is_idempotent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            args = argparse.Namespace(output_dir=directory, language="en")
+            first = trend_radar.run_demo(args)
+            second = trend_radar.run_demo(args)
+            self.assertEqual(first["files"], second["files"])
+            self.assertTrue(first["synthetic"])
+            report = json.loads((Path(directory) / "opportunities.json").read_text(encoding="utf-8"))
+            markdown = (Path(directory) / "trend-report.md").read_text(encoding="utf-8")
+            page = (Path(directory) / "trend-report.html").read_text(encoding="utf-8")
+            self.assertTrue(report["demo"]["synthetic"])
+            self.assertIn("Synthetic demo", markdown)
+            self.assertIn("Synthetic demo", page)
+            self.assertEqual(first["generator"], "generate_profile_report.py")
+
+    def test_demo_refuses_to_overwrite_a_changed_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            args = argparse.Namespace(output_dir=directory, language="zh-CN")
+            trend_radar.run_demo(args)
+            (Path(directory) / "trend-report.md").write_text("changed", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "Refusing to overwrite"):
+                trend_radar.run_demo(args)
+
+    def test_init_persists_only_the_minimum_request_and_feeds_start(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            request_dir = Path(directory) / "request"
+            result = trend_radar.init_workspace(argparse.Namespace(
+                topic="AI support for small online shops",
+                platform="x",
+                output_dir=str(request_dir),
+                intent="product_demand",
+                language="en",
+            ))
+            self.assertEqual(result["status"], "ready")
+            request = json.loads((request_dir / "research-request.json").read_text(encoding="utf-8"))
+            self.assertEqual(request["platform"], "x")
+            serialized = json.dumps(request).casefold()
+            self.assertNotIn("cookie", serialized)
+            self.assertNotIn("token", serialized)
+            args = argparse.Namespace(
+                request=str(request_dir / "research-request.json"),
+                prompt=None,
+                platform="",
+                intent="",
+                language="",
+            )
+            trend_radar._apply_start_request(args)
+            self.assertIn("AI support for small online shops", args.prompt)
+            self.assertEqual(args.platform, "x")
+            self.assertEqual(args.intent, "product_demand")
+            self.assertEqual(args.language, "en")
+
+    def test_help_exposes_demo_init_and_request_start(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "trend_radar.py"), "--help"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="strict",
+            check=True,
+        )
+        self.assertIn("demo", completed.stdout)
+        self.assertIn("init", completed.stdout)
+        start_help = subprocess.run(
+            [sys.executable, str(SCRIPTS / "trend_radar.py"), "start", "--help"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="strict",
+            check=True,
+        )
+        self.assertIn("--request", start_help.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

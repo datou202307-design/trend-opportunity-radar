@@ -2,6 +2,33 @@
 
 Use `scripts/trend_radar.py` to start a run and diagnose one platform scope. It never installs software, changes credentials, logs in, or performs platform writes.
 
+## Run the synthetic Demo
+
+Use the Demo when a user wants to inspect a complete report before live collection:
+
+```bash
+python scripts/trend_radar.py demo --output-dir PATH/TO/DEMO --language en
+```
+
+The command produces `trend-report.html`, `trend-report.md`, `opportunities.json`, and `demo-manifest.json`. It is deterministic and idempotent: an identical rerun keeps the existing files, while a non-matching file in the destination stops the command instead of overwriting it. Every format marks the output as synthetic and not a live platform conclusion. The Demo calls the formal Profile report builder and renderers, but it does not create a live `run-manifest.json`, satisfy a sampling contract, or enter monitoring.
+
+## Initialize the two minimum inputs
+
+`init` persists a topic and platform without collecting anything:
+
+```bash
+python scripts/trend_radar.py init \
+  --topic "AI support for small online shops" \
+  --platform x \
+  --output-dir PATH/TO/REQUEST
+
+python scripts/trend_radar.py start \
+  --request PATH/TO/REQUEST/research-request.json \
+  --output-dir PATH/TO/RUN
+```
+
+The request file contains no platform data, credentials, session, or capability claim. `start --request` compiles it into the same frozen context and preflight flow as `start --prompt`; explicit command-line platform, intent, or language values may refine the initialized defaults but do not bypass validation.
+
 ## Start a run
 
 ```bash

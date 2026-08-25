@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="#start-your-first-study"><strong>Start a study</strong></a> ·
+  <a href="#try-the-complete-report-without-platform-login"><strong>Run the synthetic demo</strong></a> ·
   <a href="#see-the-result-before-you-run-it"><strong>View a synthetic report</strong></a> ·
   <a href="#five-research-scenarios"><strong>Choose a scenario</strong></a>
 </p>
@@ -40,6 +40,24 @@ Trend Opportunity Radar is an independent, brand-neutral Agent Skill for social 
 
 Current release: **v0.12.0 candidate**. It supports evidence-backed next-step decisions; it does not predict virality, traffic, demand, or revenue. Compatible monitoring is a candidate workflow: synthetic replay and responsive-report QA have passed, while the first real three-day forward comparison remains pending.
 
+## Try the complete report without platform login
+
+The bundled Demo uses explicit synthetic evidence and the same report generator as a real study. It does not open a browser, read a platform, or require an account.
+
+**Windows PowerShell**
+
+```powershell
+py -3 skills/trend-opportunity-radar/scripts/trend_radar.py demo --output-dir ./trend-radar-demo
+```
+
+**Ubuntu, macOS, or another Python 3 shell**
+
+```bash
+python3 skills/trend-opportunity-radar/scripts/trend_radar.py demo --output-dir ./trend-radar-demo
+```
+
+Open `trend-radar-demo/trend-report.html`. The banner, Markdown, JSON, and manifest all state that this is synthetic and not a live platform conclusion. Add `--language zh-CN` for the Chinese report.
+
 ## Start your first study
 
 You only need two inputs:
@@ -49,6 +67,13 @@ You only need two inputs:
 
 ```text
 Use $trend-opportunity-radar to validate product demand for “an AI assistant that reduces repetitive support replies for small online shops” on X.
+```
+
+For a deterministic two-input setup, initialize a request and then start it:
+
+```bash
+python3 skills/trend-opportunity-radar/scripts/trend_radar.py init --topic "AI support for small online shops" --platform x --output-dir ./first-study
+python3 skills/trend-opportunity-radar/scripts/trend_radar.py start --request ./first-study/research-request.json --output-dir ./first-study/run
 ```
 
 If the decision goal is not explicit, the Agent infers it from the request and asks only when a different choice would materially change the result. A standard study targets 60–100 observed result cards, 30–50 unique retained signals, 12–18 opened sources, and at least three counterexamples. Weakly related content never fills a quota.
@@ -116,6 +141,8 @@ skills/trend-opportunity-radar/
 ```
 
 For Codex, place `trend-opportunity-radar` under `$CODEX_HOME/skills/` and reload the Agent session. Other agents can adapt `SKILL.md`, the reference contracts, and the Python scripts. Bundled scripts use the Python standard library; Python 3.10 or later is recommended.
+
+Published v0.13+ releases attach an installable ZIP, SHA-256 checksum, and complete file manifest on the [Releases page](https://github.com/datou202307-design/trend-opportunity-radar/releases). The archive has one `trend-opportunity-radar/` folder ready to copy into an Agent's Skill directory; it excludes tests, caches, local outputs, credentials, browser sessions, and live platform data.
 
 The optional deterministic entry point freezes the request and reports exactly one next action:
 
