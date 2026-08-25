@@ -7,6 +7,7 @@ import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 
 SKILL_ROOT = Path(__file__).resolve().parents[1]
@@ -17,6 +18,7 @@ import check_collection_adapter as adapter_check
 import _common as common
 import research_context
 import generate_opportunities as opportunity_generator
+import generate_profile_report as profile_report
 import orchestrate_dokobot_collection as orchestrator
 import parse_opencli_xhs_search as opencli_parser
 import parse_opencli_x_search as opencli_x_parser
@@ -47,6 +49,55 @@ def run_script_json(name: str, *args: str) -> dict:
 
 
 class PipelineTest(unittest.TestCase):
+    def test_merge_signals_preserves_agent_review_over_later_pending_duplicate(self) -> None:
+        reviewed = {
+            "content_id": "post-1",
+            "summary": "Reviewed budgeting frustration.",
+            "semantic_relevance": "direct",
+            "semantic_review": {"status": "agent_reviewed", "reason": "Direct user frustration."},
+            "evidence_role": "counter",
+            "profile_evidence_role": "friction",
+            "topic_key": "budgeting-app-friction",
+        }
+        later_pending = {
+            "content_id": "post-1",
+            "summary": "A much longer duplicate search-card summary that wins source richness.",
+            "semantic_relevance": "unreviewed",
+            "semantic_review": {"status": "pending", "reason": "Mechanical extraction."},
+            "evidence_role": "neutral",
+            "topic_key": "unreviewed",
+        }
+
+        merged = common.merge_signals(reviewed, later_pending)
+
+        self.assertEqual(merged["semantic_relevance"], "direct")
+        self.assertEqual(merged["semantic_review"]["status"], "agent_reviewed")
+        self.assertEqual(merged["evidence_role"], "counter")
+        self.assertEqual(merged["profile_evidence_role"], "friction")
+        self.assertEqual(merged["topic_key"], "budgeting-app-friction")
+
+    def test_merge_signals_does_not_treat_pending_review_as_completed(self) -> None:
+        left = {
+            "content_id": "post-1",
+            "semantic_relevance": "unreviewed",
+            "semantic_review": {"status": "pending", "reason": "Mechanical extraction."},
+            "evidence_role": "neutral",
+            "topic_key": "unreviewed",
+        }
+        right = {
+            "content_id": "post-1",
+            "semantic_relevance": "unreviewed",
+            "semantic_review": {"status": "pending", "reason": "Mechanical extraction."},
+            "evidence_role": "neutral",
+            "topic_key": "unreviewed",
+        }
+
+        merged = common.merge_signals(left, right)
+
+        self.assertEqual(merged["semantic_relevance"], "unreviewed")
+        self.assertEqual(merged["evidence_role"], "neutral")
+        self.assertEqual(merged["topic_key"], "unreviewed")
+
     def test_comment_review_is_complete_auditable_and_does_not_change_trend_volume(self) -> None:
         snapshot = {
             "platform": "x",
@@ -65,8 +116,8 @@ class PipelineTest(unittest.TestCase):
             "schema_version": comment_reviewer.SCHEMA_VERSION,
             "queue_sha256": queue["queue_sha256"],
             "reviews": [
-                {"comment_key": queue["comments"][0]["comment_key"], "category": "need", "semantic_relevance": "direct", "evidence_role": "support", "insight": "Users ask for simpler recurring-bill splitting.", "reason": "The commenter states the need directly."},
-                {"comment_key": queue["comments"][1]["comment_key"], "category": "workaround", "semantic_relevance": "direct", "evidence_role": "counter", "insight": "Some users consider a spreadsheet sufficient.", "reason": "The commenter names an existing workaround."},
+                {"comment_key": queue["comments"][0]["comment_key"], "category": "need", "semantic_relevance": "direct", "evidence_role": "support", "demand_topic_key": "recurring-bill-splitting", "insight": "Users ask for simpler recurring-bill splitting.", "reason": "The commenter states the need directly."},
+                {"comment_key": queue["comments"][1]["comment_key"], "category": "workaround", "semantic_relevance": "direct", "evidence_role": "counter", "demand_topic_key": "recurring-bill-splitting", "insight": "Some users consider a spreadsheet sufficient.", "reason": "The commenter names an existing workaround."},
             ],
         }
         enriched = comment_reviewer.apply(snapshot, queue, review)
@@ -671,6 +722,45 @@ An entertainment interview translation thread.
         self.assertEqual(resumed["action"], "start_query")
         self.assertEqual(resumed["query"]["id"], "query-0")
 
+    def test_process_restart_after_completed_query_resumes_next_query_without_recounting(self) -> None:
+        state = self.root / "restart-after-query-state.json"
+        snapshot = self.root / "restart-after-query-raw.json"
+        run_script_json(
+            "orchestrate_dokobot_collection.py", "init", "--state", str(state), "--snapshot", str(snapshot),
+            "--plan", str(self.write("restart-after-query-plan.json", self.make_standard_query_plan())),
+            "--adapter-status", str(self.make_ready_adapter_status()), "--platform", "x", "--mode", "standard",
+        )
+        raw_artifact = self.root / "restart-query-0.json"
+        raw_artifact.write_text("{}", encoding="utf-8")
+        signals = [self.make_signal(2100 + index) for index in range(14)]
+        chunk = self.write("restart-query-0-chunk.json", {
+            "query_id": "query-0",
+            "read_status": "success",
+            "session_id": "",
+            "can_continue": False,
+            "continuation_status": "exhausted",
+            "terminal_evidence": "no_more_results",
+            "observed_result_keys": [f"restart-{index}" for index in range(14)],
+            "signals": signals,
+            "detail_open_keys": [],
+            "raw_artifact": str(raw_artifact),
+            "stop_reason": "visible_results_exhausted",
+        })
+        after_first = run_script_json(
+            "orchestrate_dokobot_collection.py", "record-chunk", "--state", str(state), "--chunk", str(chunk)
+        )
+        self.assertEqual(after_first["query"]["id"], "query-1")
+        before_restart = json.loads(snapshot.read_text(encoding="utf-8"))["collection"]["counts"]
+
+        resumed = run_script_json("orchestrate_dokobot_collection.py", "next", "--state", str(state))
+        after_restart = json.loads(snapshot.read_text(encoding="utf-8"))["collection"]["counts"]
+        state_data = json.loads(state.read_text(encoding="utf-8"))
+        self.assertEqual(resumed["query"]["id"], "query-1")
+        self.assertEqual(state_data["queries"][0]["status"], "completed")
+        self.assertEqual(state_data["queries"][1]["status"], "in_progress")
+        self.assertEqual(before_restart, after_restart)
+        self.assertEqual(after_restart["observed_result_count"], 14)
+
     def test_reader_titles_translate_internal_jargon_for_general_audience(self) -> None:
         profile = {"language": "zh-CN", "audience": "general"}
         cases = {
@@ -1119,6 +1209,40 @@ An entertainment interview translation thread.
         self.assertEqual(data["collection"]["counts"]["unique_sample_count"], 60)
         self.assertEqual(data["collection"]["counts"]["detail_open_count"], 12)
         self.assertEqual(data["collection"]["counts"]["counter_signal_count"], 3)
+        self.assertEqual(data["adapter"], "dokobot")
+        self.assertEqual(data["platform_adapter"]["adapter"], "dokobot")
+        normalized = self.root / "normalized-route-bound.json"
+        run_script("normalize_signals.py", "--input", str(snapshot), "--output", str(normalized), "--platform", "x", "--source-mode", "controlled_capture")
+        normalized_data = json.loads(normalized.read_text(encoding="utf-8"))
+        self.assertEqual(normalized_data["adapter"], "dokobot")
+        self.assertEqual(normalized_data["platform_adapter"]["adapter"], "dokobot")
+
+    def test_completed_legacy_run_binds_adapter_identity_on_resume(self) -> None:
+        snapshot = self.write("legacy-completed-signals.json", {
+            "platform": "youtube",
+            "source_mode": "controlled_capture",
+            "signals": [self.make_signal(901)],
+        })
+        state = {
+            "schema_version": orchestrator.SCHEMA_VERSION,
+            "platform_adapter_contract": orchestrator.CONTRACT_VERSION,
+            "platform_adapter_registry": orchestrator.ADAPTER_REGISTRY_VERSION,
+            "adapter": "opencli",
+            "platform": "youtube",
+            "source_mode": "controlled_capture",
+            "snapshot": str(snapshot),
+            "mode": "standard",
+            "status": "complete",
+            "stop_reason": "sampling_contract_met",
+            "queries": [],
+            "active_query": None,
+        }
+        self.assertTrue(orchestrator.bind_snapshot_adapter(state))
+        self.assertFalse(orchestrator.bind_snapshot_adapter(state))
+        data = json.loads(snapshot.read_text(encoding="utf-8"))
+        self.assertEqual(data["adapter"], "opencli")
+        self.assertEqual(data["platform_adapter"]["adapter"], "opencli")
+        self.assertTrue(data["platform_adapter"]["live_collection"])
 
     def test_dokobot_orchestrator_replans_then_blocks_at_query_budget(self) -> None:
         plan = self.write("query-plan.json", self.make_standard_query_plan())
@@ -2106,6 +2230,69 @@ You may like
         self.assertEqual(next_action["review"]["retained_count"], 30)
         self.assertEqual(next_action["review"]["unreviewed_count"], 30)
         self.assertNotEqual(next_action["action"], "replan_queries")
+
+    def test_formal_run_reviews_recovery_signals_before_completion(self) -> None:
+        reviewed = self.make_signal(1)
+        reviewed["semantic_relevance"] = "direct"
+        recovery = self.make_signal(2)
+        recovery["semantic_relevance"] = "unreviewed"
+        snapshot = self.write("recovery-unreviewed.json", {
+            "platform": "x",
+            "collection": {"mode": "standard", "contract_status": "met"},
+            "signals": [reviewed, recovery],
+        })
+        state = {
+            "mode": "standard", "platform": "x", "snapshot": str(snapshot),
+            "status": "complete", "stop_reason": "sampling_contract_met", "active_query": None,
+            "capture_dir": str(self.root / "captures"), "screens_per_chunk": 1, "queries": [],
+        }
+        with mock.patch.object(orchestrator, "snapshot_counts", return_value={"unique_sample_count": 2}), mock.patch.object(
+            orchestrator, "contract_checks", return_value={"sampling": True}
+        ):
+            next_action = orchestrator.action(state)
+
+        self.assertEqual(next_action["action"], "review_signals")
+        self.assertEqual(next_action["review"]["unreviewed_count"], 1)
+        self.assertEqual(state["status"], "in_progress")
+        self.assertEqual(state["stop_reason"], "semantic_review_required")
+
+    def test_formal_review_gate_does_not_interrupt_remaining_initial_queries(self) -> None:
+        recovery = self.make_signal(2)
+        recovery["semantic_relevance"] = "unreviewed"
+        snapshot = self.write("initial-query-unreviewed.json", {
+            "platform": "x", "collection": {"mode": "standard"}, "signals": [recovery],
+        })
+        state = {
+            "mode": "standard", "platform": "x", "snapshot": str(snapshot),
+            "status": "in_progress", "stop_reason": "", "active_query": None,
+            "capture_dir": str(self.root / "captures"), "screens_per_chunk": 1,
+            "adapter": "dokobot", "adapter_status": "ready",
+            "queries": [{
+                "id": "category-1", "term": "personal budgeting", "layer": "category",
+                "url": "https://x.test/category", "status": "pending",
+            }],
+        }
+        with mock.patch.object(orchestrator, "snapshot_counts", return_value={"unique_sample_count": 1}), mock.patch.object(
+            orchestrator, "contract_checks", return_value={"sampling": False}
+        ), mock.patch.object(orchestrator, "search_budget", return_value={"may_start_search": True}):
+            next_action = orchestrator.action(state)
+
+        self.assertEqual(next_action["action"], "start_query")
+        self.assertEqual(next_action["query"]["id"], "category-1")
+
+    def test_formal_report_rejects_any_unreviewed_recovery_signal(self) -> None:
+        snapshot = {
+            "collection": {"mode": "standard"},
+            "signals": [
+                {"semantic_relevance": "direct"},
+                {"semantic_relevance": "unreviewed"},
+            ],
+        }
+        with self.assertRaisesRegex(SystemExit, "100% semantic review"):
+            profile_report.require_complete_semantic_review(snapshot)
+
+        snapshot["signals"][1]["semantic_relevance"] = "weak"
+        profile_report.require_complete_semantic_review(snapshot)
 
     def test_semantic_review_cli_accepts_canonical_snapshot_scope(self) -> None:
         signal = self.make_signal(1)

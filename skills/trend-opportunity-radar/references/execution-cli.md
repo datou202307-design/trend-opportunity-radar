@@ -43,9 +43,53 @@ Current start states:
 - `import_required`: use a compliant structured dataset or repair the diagnosed live capability.
 - `query_plan_required`: generate the three frozen query layers, then continue with the platform adapter and shared orchestrator.
 
+## Resume a run
+
+After every completed stage, call the same deterministic entry point again:
+
+```bash
+python scripts/trend_radar.py resume --run-dir PATH/TO/RUN
+```
+
+`resume` inspects the frozen run in strict order and returns the first missing or stale required artifact. It will not advance past an in-progress sampling contract, an unreviewed retained signal, a missing or stale route proof, inconsistent report formats, or a failed/stale HTML visual-QA receipt. This makes the workflow independent of whether the host model remembers every internal step.
+
+Resume states after query planning are `collection_required`, `semantic_review_required`, `normalization_required`, `cluster_plan_required`, `clustering_required`, `scoring_required`, `decision_synthesis_required`, `route_proof_required`, `report_required`, `visual_qa_required`, and `complete`. Execute only the returned `next_action`, create its listed `required_artifacts`, then call `resume` again. Do not infer completion from the existence of a later file.
+
+By default, `resume` directly runs safe deterministic stages when their required inputs already exist: normalization, materializing an explicit cluster plan, cluster auditing, scoring, frozen-route proof, and three-format report generation. It stops before semantic review, authoring the cluster configuration, decision synthesis, browser collection, and visual QA because those stages require model judgment, a live authorized environment, or actual visual inspection. Use `--no-execute` to inspect the next state without running deterministic stages. For a frozen split-adapter route, repeat `--receipt role=PATH` with each required secondary receipt.
+
+Every passed stage writes an immutable SHA-256 receipt under `.trend-radar-receipts/`. Re-running `resume` is idempotent: completed deterministic outputs are not regenerated. If an upstream or output artifact changes after its receipt is recorded, the run stops instead of silently blessing the changed chain; create a new run or perform an explicitly reviewed migration rather than deleting audit receipts.
+
 During collection, `wait_for_cooldown` means the active query and evidence ledger are preserved after a platform rate limit. Do not restart the run or repeat completed queries. Invoke the orchestrator again after `retry_not_before`; it resumes the same query.
 
-`start` is the stable front door, not permission to collect. It prepares the run and routes the next authorized step. Collection remains bounded by the platform adapter, sampling contract, pacing ledger, and safety stops.
+`start` is the stable front door, not permission to collect. It prepares the run and routes the next authorized step. `resume` is the required continuation gate. Collection remains bounded by the platform adapter, sampling contract, pacing ledger, and safety stops.
+
+## Monitor compatible completed runs
+
+After a run reaches `complete`, use the monitoring subcommands to freeze a baseline, append newer compatible completed runs, and compare the latest two snapshots:
+
+```bash
+python scripts/trend_radar.py monitor create --run-dir PATH/TO/RUN --monitor-dir PATH/TO/MONITOR
+python scripts/trend_radar.py monitor append --monitor-dir PATH/TO/MONITOR --run-dir PATH/TO/NEW-RUN
+python scripts/trend_radar.py monitor compare --monitor-dir PATH/TO/MONITOR
+```
+
+Read [monitoring.md](monitoring.md) for the compatibility, cadence, idempotency, scheduling, stop, and interpretation contract. These commands do not create a scheduled task.
+
+## Prove the frozen route before reporting
+
+After collection, detail backfill, comment or media enrichment, and semantic review have produced the final signal snapshot, bind that exact file to the frozen route:
+
+```bash
+python scripts/prove_collection_route.py \
+  --manifest PATH/TO/RUN/run-manifest.json \
+  --signals PATH/TO/RUN/scored-signals.json \
+  --output PATH/TO/RUN/route-execution-proof.json \
+  --require-passed
+```
+
+When search and detail use the same registered adapter, the immutable final signal ledger can prove both roles. For a split route, provide the actual secondary adapter artifact, for example `--receipt detail=PATH/TO/DETAIL-RECEIPT.json`. Comments and media require a matching role receipt only when their evidence is present in the final snapshot.
+
+The proof binds the request, frozen route, adapter roles, final signals hash, evidence counts, and receipt hashes. `generate_profile_report.py` automatically enforces it whenever `research-context.json` belongs to a unified live run. A missing or stale proof is an internal incomplete state, not a platform conclusion and not a user-facing research limitation. Historical snapshot replay and explicit structured import remain compatible when no frozen live route is present.
 
 ## Diagnose a platform
 

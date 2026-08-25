@@ -111,9 +111,22 @@ python skills/trend-opportunity-radar/scripts/trend_radar.py start \
 
 python skills/trend-opportunity-radar/scripts/trend_radar.py doctor \
   --platform x
+
+python skills/trend-opportunity-radar/scripts/trend_radar.py resume \
+  --run-dir ./trend-research/ai-travel-x
 ```
 
-`doctor` does not install tools or change login state. A live route becomes ready only after the platform's actual read-only preflight succeeds; structured import remains available when it does not.
+`doctor` does not install tools or change login state. A live route becomes ready only after the platform's actual read-only preflight succeeds; structured import remains available when it does not. Call `resume` after every stage; it automatically runs safe deterministic steps, records immutable stage receipts, and stops at live, judgment, or visual-inspection boundaries. The run is deliverable only when its manifest reaches `complete`.
+
+For repeated research, freeze a completed run as a compatible monitoring baseline, append each newer completed snapshot, then generate a three-format time comparison:
+
+```bash
+python skills/trend-opportunity-radar/scripts/trend_radar.py monitor create --run-dir ./run-1 --monitor-dir ./monitor
+python skills/trend-opportunity-radar/scripts/trend_radar.py monitor append --monitor-dir ./monitor --run-dir ./run-2
+python skills/trend-opportunity-radar/scripts/trend_radar.py monitor compare --monitor-dir ./monitor
+```
+
+Monitoring defaults to four snapshots (every three days for X/TikTok, weekly elsewhere). The command records state and cadence but never claims or creates an external schedule without explicit user confirmation. Snapshot movement describes visible signal differences, not demand growth or future performance.
 
 ## Data access and privacy
 

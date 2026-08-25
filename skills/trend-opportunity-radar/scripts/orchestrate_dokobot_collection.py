@@ -180,6 +180,33 @@ def load_state(path: Path) -> dict[str, Any]:
     return state
 
 
+def bind_snapshot_adapter(state: dict[str, Any]) -> bool:
+    """Persist the frozen live adapter identity on the canonical evidence ledger."""
+    snapshot_value = as_text(state.get("snapshot"))
+    adapter = as_text(state.get("adapter"))
+    if not snapshot_value or not adapter:
+        return False
+    snapshot_path = Path(snapshot_value)
+    if not snapshot_path.is_file():
+        return False
+    snapshot = load_data(str(snapshot_path))
+    if not isinstance(snapshot, dict):
+        raise SystemExit("Canonical snapshot must remain a JSON object when binding its adapter identity.")
+    expected_audit = {
+        "adapter": adapter,
+        "source_mode": as_text(state.get("source_mode")) or "controlled_capture",
+        "contract_version": state.get("platform_adapter_contract"),
+        "registry_version": state.get("platform_adapter_registry"),
+        "live_collection": True,
+    }
+    changed = snapshot.get("adapter") != adapter or snapshot.get("platform_adapter") != expected_audit
+    if changed:
+        snapshot["adapter"] = adapter
+        snapshot["platform_adapter"] = expected_audit
+        write_json(str(snapshot_path), snapshot)
+    return changed
+
+
 def normalized_platform(value: str) -> str:
     return normalize_platform(value)
 
@@ -769,6 +796,27 @@ def action(state: dict[str, Any]) -> dict[str, Any]:
             active["next_screens"] = 1
         mark_rate_limit_resumed(state)
         set_snapshot_stop(state, "collection_in_progress")
+    review = semantic_review_progress(state)
+    if (
+        as_text(state.get("mode")) in {"standard", "deep"}
+        and review["unreviewed_count"]
+        and not isinstance(state.get("active_query"), dict)
+        and not any(
+            as_text(query.get("status")) in {"pending", "in_progress"}
+            for query in state.get("queries", [])
+        )
+    ):
+        state["status"] = "in_progress"
+        state["stop_reason"] = "semantic_review_required"
+        set_snapshot_stop(state, "collection_in_progress")
+        return {
+            **base,
+            "status": "in_progress",
+            "action": "review_signals",
+            "snapshot": str(Path(state["snapshot"]).resolve()),
+            "review": review,
+            "instruction": "Review every retained signal before completing a standard or deep report. Apply direct, adjacent, or weak relevance; support, counter, or neutral direction; the frozen Profile evidence role; and a concrete reason. Then invoke next again.",
+        }
     if state["status"] == "complete" and all(checks.values()):
         state["stop_reason"] = "sampling_contract_met"
         set_snapshot_stop(state, "sampling_contract_met")
@@ -838,7 +886,6 @@ def action(state: dict[str, Any]) -> dict[str, Any]:
         pending["status"] = "in_progress"
         state["updated_at"] = now_iso()
         return action(state)
-    review = semantic_review_progress(state)
     if review["unreviewed_count"] and pending is None:
         return {
             **base,
@@ -997,6 +1044,7 @@ def finalize_active(state: dict[str, Any], state_path: Path, stop_reason: str = 
         append_query_result(
             snapshot_path, result_path, state["platform"], "controlled_capture", state["mode"]
         )
+    bind_snapshot_adapter(state)
     set_budget_audit(state)
     for query in state["queries"]:
         if query["id"] == active["id"]:
@@ -1279,6 +1327,7 @@ def main() -> None:
         }
     else:
         state = load_state(state_path)
+        bind_snapshot_adapter(state)
         if args.command == "record-chunk":
             record_chunk(state, state_path, load_data(args.chunk))
         elif args.command == "record-capture":

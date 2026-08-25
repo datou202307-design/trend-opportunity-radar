@@ -112,9 +112,22 @@ python skills/trend-opportunity-radar/scripts/trend_radar.py start \
 python skills/trend-opportunity-radar/scripts/trend_radar.py doctor \
   --platform x \
   --language zh-CN
+
+python skills/trend-opportunity-radar/scripts/trend_radar.py resume \
+  --run-dir ./trend-research/ai-travel-x
 ```
 
-`doctor` 不会安装工具或修改登录状态。只有该平台实际使用的只读预检成功后，实时路径才会显示可用；否则仍可以使用结构化数据导入。
+`doctor` 不会安装工具或修改登录状态。只有该平台实际使用的只读预检成功后，实时路径才会显示可用；否则仍可以使用结构化数据导入。每完成一个阶段后调用 `resume`：它会自动执行安全的确定性步骤、保存不可变阶段收据，并在实时采集、模型判断或视觉验收边界停下；只有运行清单进入 `complete` 才表示报告真正完成。
+
+如果需要持续观察，可以把一次已完成研究冻结为监测基线，追加后续兼容快照，再生成三种格式的时间对比：
+
+```bash
+python skills/trend-opportunity-radar/scripts/trend_radar.py monitor create --run-dir ./run-1 --monitor-dir ./monitor
+python skills/trend-opportunity-radar/scripts/trend_radar.py monitor append --monitor-dir ./monitor --run-dir ./run-2
+python skills/trend-opportunity-radar/scripts/trend_radar.py monitor compare --monitor-dir ./monitor
+```
+
+默认观察四次：X/TikTok 每三天一次，其他平台每周一次。命令会保存监测状态和建议频率，但未获得用户明确确认且外部定时任务未真实创建成功前，不会声称已经安排监测。快照变化只表示两次采集中可见信号的差异，不等于需求增长或未来表现。
 
 ## 数据访问与隐私
 

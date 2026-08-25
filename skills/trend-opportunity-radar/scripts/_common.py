@@ -431,7 +431,20 @@ def merge_signals(left: dict[str, Any], right: dict[str, Any]) -> dict[str, Any]
     merged["semantic_relevance"] = max((left.get("semantic_relevance", "unreviewed"), right.get("semantic_relevance", "unreviewed")), key=lambda item: relevance_rank.get(item, 0))
     # Detail reads enrich source content; they do not replace the independent
     # semantic decision already recorded for the search card.
-    reviewed = left if left.get("semantic_review") else right if right.get("semantic_review") else None
+    def reviewed_candidate(item: dict[str, Any]) -> bool:
+        review = item.get("semantic_review")
+        return (
+            isinstance(review, dict)
+            and review.get("status") == "agent_reviewed"
+            and item.get("semantic_relevance") in {"direct", "adjacent", "weak"}
+        )
+
+    reviewed_items = [item for item in (left, right) if reviewed_candidate(item)]
+    reviewed = max(
+        reviewed_items,
+        key=lambda item: relevance_rank.get(item.get("semantic_relevance", "unreviewed"), 0),
+        default=None,
+    )
     if reviewed:
         merged["semantic_review"] = reviewed["semantic_review"]
     for field in ("evidence_role", "profile_evidence_role", "query_intent", "topic_key"):

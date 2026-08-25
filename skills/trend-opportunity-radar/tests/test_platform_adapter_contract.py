@@ -90,6 +90,9 @@ class PlatformAdapterContractTest(unittest.TestCase):
         self.assertIsNone(contract.adapter_capability("opencli", "tiktok")["detail_builder"])
         self.assertEqual(contract.adapter_capability("dokobot", "tiktok")["detail_builder"], "dokobot_tiktok_detail_v1")
         self.assertEqual(contract.adapter_capability("dokobot", "tiktok")["comment_sample_limit"], 5)
+        self.assertEqual(route["collection_route"]["roles"]["search"]["adapter"], "opencli")
+        self.assertEqual(route["collection_route"]["roles"]["detail"]["adapter"], "dokobot")
+        self.assertFalse(route["collection_route"]["fallback_policy"]["silent_fallback_allowed"])
 
     def test_reddit_validated_route_preserves_authorized_api_source(self) -> None:
         status = {"adapter": "reddit_research_mcp", "ready": True, "status": "ready", "capabilities": {"reddit": True}}
@@ -129,6 +132,16 @@ class PlatformAdapterContractTest(unittest.TestCase):
             self.assertTrue(contract.adapter_operation_allowed("facebook_posts_browser_capture", operation))
         for operation in ("read_home_feed_as_topic", "read_friends", "read_notifications", "read_private_groups", "join_group", "like_post", "comment_post"):
             self.assertFalse(contract.adapter_operation_allowed("facebook_posts_browser_capture", operation))
+
+        status = {"adapter": "facebook_posts_browser_capture", "ready": True, "status": "ready", "capabilities": {"facebook": True}}
+        route = selector.select_adapter("facebook", [status], allow_pilot=True)
+        frozen = route["collection_route"]
+        self.assertEqual(frozen["research_surface"], "facebook_posts_search")
+        self.assertEqual(frozen["roles"]["search"]["runner"], "run_facebook_opencli_capture.py")
+        self.assertEqual(frozen["roles"]["detail"]["runner"], "run_facebook_opencli_capture.py")
+        self.assertEqual(frozen["roles"]["comments"]["runner"], "run_facebook_opencli_capture.py")
+        self.assertTrue(frozen["roles"]["search"]["receipt_required"])
+        self.assertFalse(frozen["fallback_policy"]["silent_fallback_allowed"])
 
     def test_false_zero_release_gate_requires_two_probes_and_semantic_exclusion(self) -> None:
         registry = contract.load_registry()

@@ -52,6 +52,10 @@ class TrendRadarDoctorTest(unittest.TestCase):
         ready = trend_radar.build_doctor_report("facebook", [status], allow_pilot=True, language="en")
         self.assertEqual(ready["state"], "ready_live")
         self.assertEqual(ready["live"]["search_adapter"], "facebook_posts_browser_capture")
+        route = ready["live"]["collection_route"]
+        self.assertEqual(route["research_surface"], "facebook_posts_search")
+        self.assertEqual(route["roles"]["search"]["runner"], "run_facebook_opencli_capture.py")
+        self.assertFalse(route["fallback_policy"]["silent_fallback_allowed"])
 
     def test_facebook_probe_rejects_generic_search_or_missing_detail(self) -> None:
         status = check_facebook_topic_adapter.build_status({
@@ -133,6 +137,8 @@ class TrendRadarStartTest(unittest.TestCase):
             self.assertEqual(manifest["state"], "query_plan_required")
             self.assertEqual(manifest["research_intent"], "content_opportunity")
             self.assertEqual(manifest["platform"], "x")
+            self.assertEqual(manifest["collection_route"]["roles"]["search"]["adapter"], "opencli")
+            self.assertTrue(manifest["collection_route"]["roles"]["search"]["receipt_required"])
             self.assertTrue((run_dir / "research-context.json").exists())
             self.assertTrue((run_dir / "subject.json").exists())
             self.assertTrue((run_dir / "environment-doctor.json").exists())
@@ -251,6 +257,142 @@ class TrendRadarStartTest(unittest.TestCase):
         )
         payload = json.loads(completed.stdout)
         self.assertIn("明确同意", payload["next_action"])
+
+
+class TrendRadarResumeTest(unittest.TestCase):
+    def start_ready_run(self, root: Path) -> Path:
+        status_path = root / "opencli-status.json"
+        status_path.write_text(json.dumps(ready_opencli("x")), encoding="utf-8")
+        run_dir = root / "run"
+        args = argparse.Namespace(
+            prompt="分析 AI 旅行规划在 X 的内容机会。",
+            output_dir=str(run_dir),
+            intent="",
+            platform="",
+            language="",
+            subject=None,
+            research_scope="topic_research",
+            status=[str(status_path)],
+            allow_pilot=False,
+            mode="standard",
+        )
+        trend_radar.start_run(args)
+        return run_dir
+
+    def resume(self, run_dir: Path) -> dict:
+        return trend_radar.resume_run(argparse.Namespace(run_dir=str(run_dir)))
+
+    def test_resume_stops_at_first_missing_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = self.start_ready_run(Path(directory))
+            first = self.resume(run_dir)
+            self.assertEqual(first["state"], "query_plan_required")
+            self.assertEqual(first["required_artifacts"], ["query-plan.json"])
+
+            (run_dir / "query-plan.json").write_text(
+                json.dumps({"queries": [{"query": "AI travel planner"}]}), encoding="utf-8"
+            )
+            second = self.resume(run_dir)
+            self.assertEqual(second["state"], "collection_required")
+            self.assertIn("不得静默更换采集器", second["next_action"])
+
+            (run_dir / "collection-state.json").write_text(
+                json.dumps({"status": "complete", "stop_reason": "sampling_contract_met"}),
+                encoding="utf-8",
+            )
+            third = self.resume(run_dir)
+            self.assertEqual(third["state"], "semantic_review_required")
+
+    def test_resume_requires_every_retained_signal_to_be_reviewed(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = self.start_ready_run(Path(directory))
+            (run_dir / "query-plan.json").write_text(json.dumps({"queries": [{}]}), encoding="utf-8")
+            (run_dir / "collection-state.json").write_text(
+                json.dumps({"status": "complete", "stop_reason": "sampling_contract_met"}),
+                encoding="utf-8",
+            )
+            reviewed_path = run_dir / "reviewed-signals-final.json"
+            reviewed_path.write_text(json.dumps({
+                "signals": [
+                    {"semantic_review": {"status": "agent_reviewed"}},
+                    {"semantic_review": {"status": "pending"}},
+                ]
+            }), encoding="utf-8")
+            self.assertEqual(self.resume(run_dir)["state"], "semantic_review_required")
+
+            reviewed_path.write_text(json.dumps({
+                "signals": [
+                    {"semantic_review": {"status": "agent_reviewed"}},
+                    {"semantic_review": {"status": "agent_reviewed"}},
+                ]
+            }), encoding="utf-8")
+            advanced = self.resume(run_dir)
+            self.assertEqual(advanced["state"], "cluster_plan_required")
+            self.assertTrue((run_dir / "normalized-signals.json").is_file())
+
+    def test_resume_does_not_advance_on_collection_in_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = self.start_ready_run(Path(directory))
+            (run_dir / "query-plan.json").write_text(json.dumps({"queries": [{}]}), encoding="utf-8")
+            (run_dir / "collection-state.json").write_text(
+                json.dumps({"status": "running", "stop_reason": "collection_in_progress"}),
+                encoding="utf-8",
+            )
+            manifest = self.resume(run_dir)
+            self.assertEqual(manifest["state"], "collection_required")
+
+    def test_resume_receipts_are_immutable_and_detect_upstream_changes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = self.start_ready_run(Path(directory))
+            (run_dir / "query-plan.json").write_text(json.dumps({"queries": [{}]}), encoding="utf-8")
+            (run_dir / "collection-state.json").write_text(
+                json.dumps({"status": "complete", "stop_reason": "sampling_contract_met"}),
+                encoding="utf-8",
+            )
+            reviewed = run_dir / "reviewed-signals-final.json"
+            reviewed.write_text(json.dumps({
+                "signals": [{"semantic_review": {"status": "agent_reviewed"}}]
+            }), encoding="utf-8")
+            self.resume(run_dir)
+            receipt = run_dir / ".trend-radar-receipts" / "03-semantic_review.json"
+            self.assertTrue(receipt.is_file())
+
+            reviewed.write_text(json.dumps({
+                "signals": [
+                    {"semantic_review": {"status": "agent_reviewed"}},
+                    {"semantic_review": {"status": "agent_reviewed"}},
+                ]
+            }), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "immutable receipt"):
+                self.resume(run_dir)
+
+    def test_resume_no_execute_only_inspects_the_next_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            run_dir = self.start_ready_run(Path(directory))
+            (run_dir / "query-plan.json").write_text(json.dumps({"queries": [{}]}), encoding="utf-8")
+            (run_dir / "collection-state.json").write_text(
+                json.dumps({"status": "complete", "stop_reason": "sampling_contract_met"}),
+                encoding="utf-8",
+            )
+            (run_dir / "reviewed-signals-final.json").write_text(json.dumps({
+                "signals": [{"semantic_review": {"status": "agent_reviewed"}}]
+            }), encoding="utf-8")
+            manifest = trend_radar.resume_run(argparse.Namespace(
+                run_dir=str(run_dir), receipt=[], no_execute=True
+            ))
+            self.assertEqual(manifest["state"], "normalization_required")
+            self.assertFalse((run_dir / "normalized-signals.json").exists())
+
+    def test_resume_cli_is_available(self) -> None:
+        completed = subprocess.run(
+            [sys.executable, str(SCRIPTS / "trend_radar.py"), "--help"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="strict",
+            check=True,
+        )
+        self.assertIn("resume", completed.stdout)
 
 
 if __name__ == "__main__":

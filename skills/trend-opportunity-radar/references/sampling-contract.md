@@ -70,3 +70,5 @@ Relevant unique signals must also reach 4 / 18 / 48 globally in quick / standard
 | `deep` | 3 | 15 | 8 | 8 | 3 | 3 | 3 | 90% |
 
 Direct subject-bridge evidence must have `semantic_relevance: direct` and either an opened detail or a direct/exported source. A query count may be complete while its layer quality is blocked.
+
+The table's 80% and 90% review values are collection-progress gates, not final delivery permission. They allow the orchestrator to judge whether another query or detail backfill is warranted. A `standard` or `deep` run must reach 100% semantic review across the final retained, deduplicated signal set—including recovery-query additions—before it can enter `complete` or generate a formal report. `quick` remains an exploratory scan and cannot silently present itself as a formal standard/deep report.

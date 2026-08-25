@@ -37,6 +37,20 @@ Follow the single `state` and `next_action` in `run-manifest.json`:
 - For `import_required`, use a lawful structured dataset or resolve the named login/connection action.
 - For `query_plan_required`, continue with the frozen context and collection workflow below.
 
+After producing the required artifact for any state, run:
+
+```bash
+python scripts/trend_radar.py resume --run-dir PATH/TO/RUN
+```
+
+Execute only the returned `next_action`, create the listed `required_artifacts`, and call `resume` again. Do not skip ahead because a later artifact happens to exist, and do not claim delivery until the manifest state is `complete`. `resume` is the deterministic guard against weaker host models omitting collection, full semantic review, route proof, report consistency, or browser visual QA.
+
+Allow `resume` to run its safe deterministic stages by default. It must stop for live collection, full semantic review, cluster configuration, decision synthesis, and real browser visual QA. Do not delete or edit `.trend-radar-receipts/` to force progress: those immutable hashes prove which inputs and outputs actually passed each stage. Use `--no-execute` only for diagnosis.
+
+Treat `collection_route` as an execution contract, not a tool suggestion. Keep its research surface and its search, detail, comment, and media roles separate. Execute each available role through the frozen adapter and runner, and preserve the matching receipt. Do not replace a ready route with generic browsing, public-web search, or another installed collector merely because it is easier. A different live executor requires a new successful preflight and a newly frozen route; structured import must be explicit. Never issue a standard live report when the evidence ledger does not match the frozen route or its required receipts.
+
+After the final reviewed signal snapshot is frozen, run `scripts/prove_collection_route.py` as documented in [execution-cli.md](references/execution-cli.md). The standard report generator automatically rejects a unified live run whose proof is missing, stale, adapter-mismatched, or bound to different signals. Do not hand-author, repair, or reinterpret the proof; resolve the named collection role and rerun the deterministic command.
+
 If `prerequisites.required` is true, show its one concise `message` before asking the user to restore the browser, platform login, read-only adapter, or connected service. Do not show a generic setup warning when it is false. Re-run the same start request after the user completes the named action; never ask them to repeat the research topic.
 
 Never infer readiness from PATH lookup, an installed extension, a browser tab, or login appearance. A successful redacted read probe is required for the capability the run will use. Keep recoverable adapter diagnostics internal unless the user must restore login, connect a browser, approve a narrow read, or choose import fallback.
@@ -81,7 +95,13 @@ Collect sequentially with the shared pacing ledger across query boundaries. Pres
 
 Every retained signal requires independent semantic review as `direct`, `adjacent`, or `weak`, plus shared `support`, `counter`, or `neutral` direction and the selected Profile's evidence role. Reviews must state a concrete reason. Unreviewed signals cannot satisfy sampling gates or generate findings. When the orchestrator returns `review_signals`, review the existing snapshot before any recovery query; never treat `unreviewed` as irrelevant.
 
+The 80% standard and 90% deep coverage thresholds guide collection recovery only. Before a standard or deep run can complete or generate its formal report, every retained signal—including signals added by recovery queries—must have completed semantic review.
+
 If the orchestrator requests detail backfill, exhaust eligible retained identities using the selected adapter before reporting. Comments are bounded qualitative evidence attached to an opened detail: they never increase the trend sample count and must be reviewed before informing a finding. Keep raw evidence unchanged and keep the only copy outside browser memory.
+
+When visible comment likes or reply counts exist, apply the candidate prominence and diversity rule in [comment-evidence-contract.md](references/comment-evidence-contract.md). Use engagement to surface more visible discussion while preserving support, counter, neutral, and category diversity. Never equate popular comments with truthful, representative, or credible comments.
+
+Treat reviewed comments as a separate demand-discovery layer. Assign the same stable `demand_topic_key` only when comments describe materially the same need, pain, question, workaround, intent, objection, outcome, or comparison. `apply_comment_review.py` may mark a topic `eligible_comment_demand` only after it recurs across at least two independent parent posts and two identified independent commenters; this may become a finding candidate in any of the five research Profiles. Cross-post recurrence without captured commenter identity remains `cross_post_recurrence_unverified_commenters`, a visible validation candidate rather than a qualified conclusion. A high-engagement comment in one thread is only `salient_single_thread`: surface it as an attitude or validation hypothesis, never as broad demand. Comment-derived topics do not increase post trend volume, and their support/counter direction must remain visible.
 
 ## Normalize, score, and form findings
 
@@ -97,6 +117,8 @@ python scripts/validate_profile_decisions.py --research-context research-context
 ```
 
 Apply comment review when the queue is non-empty. Run the clustering audit before a topic can generate a finding. Keep support and counter references disjoint after URL normalization.
+
+After comment review, read `comment_demand_topics` before drafting findings. Use eligible recurring comment topics to sharpen the user task, unmet need, objection, message angle, competitor gap, or validation action required by the selected Profile. Do not silently omit eligible topics; either incorporate them into a qualified finding or explain in the audit why they were not decision-relevant. Keep `salient_single_thread` items in the report's validation layer rather than promoting them to conclusions.
 
 Report `observed_heat` and `evidence_confidence` separately. Missing dimensions contribute zero; never redistribute their weights. Platform engagement weights are calibration assumptions, not cross-platform exchange rates. A single snapshot cannot establish growth, decline, virality, market demand, traffic, revenue, or causality.
 
@@ -116,7 +138,7 @@ python scripts/generate_profile_report.py \
   --html-output profile-report.html
 ```
 
-Lead with the direct decision answer, followed by a compact research basis showing query themes, observed results, deduplicated and relevant signals, opened details, counter signals, and sampling status. Then show findings, source evidence, actions, and the boundaries that could change the decision. Keep machine states, complete limitations, formulas, and raw audit fields collapsed or JSON-only.
+Lead with the direct decision answer and up to three concrete actions. Show the qualified findings next. Put the collection basis, platform-reading guidance, recurring comment topics, exact score values, source evidence, formulas, machine states, and raw audit fields behind progressive disclosure or in JSON. Visible score labels should communicate plain-language grades; retain exact audited values in the expandable evidence layer.
 
 Use platform-native interpretation without changing shared gates:
 
@@ -132,7 +154,7 @@ Validate all three artifacts and inspect HTML through temporary loopback HTTP on
 
 For a cross-platform comparison, require completed reports with the same subject, research intent, Profile version, analysis unit, and report language. Keep each platform's collection basis, heat, and confidence separate; never total, average, normalize, or rank them. Use `scripts/generate_platform_comparison.py` and link back to the original reports.
 
-After a single snapshot, recommend optional repeated collection when time change matters: every three days for fast-moving platforms such as X, or weekly elsewhere, for four runs by default. Reuse the frozen subject, platform, language, region, query layers, sampling contract, and output history. Never claim monitoring exists until the user confirms it and task creation succeeds.
+After a single snapshot, recommend optional repeated collection when time change matters: every three days for fast-moving platforms such as X or TikTok, or weekly elsewhere, for four runs by default. Read [monitoring.md](references/monitoring.md), then use `trend_radar.py monitor create`, `append`, and `compare`. Reuse the frozen subject, platform, Profile, analysis unit, language, region, exact query plan, sampling mode, and scoring versions. Never claim monitoring exists until the user confirms it and task creation succeeds.
 
 ## Safety and delivery boundaries
 
