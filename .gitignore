@@ -8,3 +8,4 @@ outputs/
 .env
 .env.*
 !.env.example
+.agents/product-marketing.md

@@ -5,7 +5,7 @@
 <h1 align="center">Trend Opportunity Radar</h1>
 
 <p align="center">
-  Research one topic on one platform, then turn public signals into reviewable evidence and a clear next action.
+  Evidence-backed social listening and trend research for AI Agents — one topic, one platform, one clear next decision.
 </p>
 
 <p align="center">
@@ -21,11 +21,26 @@
   <strong>English</strong> · <a href="README.zh-CN.md">简体中文</a>
 </p>
 
-Trend Opportunity Radar is an independent, brand-neutral Agent Skill. Give it a research topic and one platform; the Agent collects or imports signals, opens original sources, checks counterexamples, and generates a local report. The subject can be a product, business opportunity, idea, user problem, audience need, or project.
+<p align="center">
+  <a href="#start-your-first-study"><strong>Start a study</strong></a> ·
+  <a href="#see-the-result-before-you-run-it"><strong>View a synthetic report</strong></a> ·
+  <a href="#five-research-scenarios"><strong>Choose a scenario</strong></a>
+</p>
+
+Trend Opportunity Radar is an independent, brand-neutral Agent Skill for social listening, market research, competitor-user research, content research, and product-demand validation. Give it a research topic and one platform; the Agent collects or imports signals, opens original sources, checks counterexamples, and generates a local decision report. The subject can be a product, business opportunity, idea, user problem, audience need, or project.
+
+### Why use a Skill instead of a one-line search prompt?
+
+| A typical search summary | Trend Opportunity Radar |
+|---|---|
+| Uses whichever results were easiest to find | Freezes one topic, one platform, and a bounded sampling plan |
+| Can skip sources or mix observation with inference | Opens sources and labels platform facts, machine extraction, and model judgment |
+| Highlights supporting examples | Requires semantic review, counterexamples, and visible evidence limits |
+| Ends with a generic summary | Produces local HTML, Markdown, and JSON with a concrete next test |
 
 Current release: **v0.12.0 candidate**. It supports evidence-backed next-step decisions; it does not predict virality, traffic, demand, or revenue. Compatible monitoring is a candidate workflow: synthetic replay and responsive-report QA have passed, while the first real three-day forward comparison remains pending.
 
-## Start in 30 seconds
+## Start your first study
 
 You only need two inputs:
 
@@ -183,6 +198,14 @@ python tools/audit_open_source_release.py
 python tools/validate_skill.py skills/trend-opportunity-radar
 python -m unittest discover -s skills/trend-opportunity-radar/tests -v
 ```
+
+Maintainers can save a private, repository-level GitHub Traffic snapshot without adding telemetry to the Skill:
+
+```text
+python tools/snapshot_github_traffic.py --repo owner/name --output-dir ../private-github-traffic
+```
+
+The command reads authenticated GitHub repository metrics only. It keeps same-day runs idempotent, stops without writing partial data on API errors, and records that clones are not verified installations or users. Do not commit real Traffic snapshots to this public repository.
 
 ## License
 
