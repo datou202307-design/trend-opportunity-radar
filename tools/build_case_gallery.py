@@ -80,6 +80,7 @@ UI = {
         "nav_demo": "运行免登录 Demo",
         "eyebrow": "五种决策 · 五个完整示例",
         "headline": "先选你要做的决定，再开始研究",
+        "headline_lines": ["先选你要做的决定，", "再开始研究"],
         "subhead": "看看同一套证据标准，如何根据五种常见研究目的改变问题、证据检查和下一步行动。",
         "choose": "选择一个研究场景",
         "view": "查看完整示例 →",
@@ -203,6 +204,9 @@ def page_shell(*, language: str, title: str, description: str, canonical: str, a
 def render_hub(gallery: dict, language: str) -> str:
     ui = UI[language]
     prefix = ""
+    headline = esc(ui["headline"])
+    if ui.get("headline_lines"):
+        headline = "".join(f'<span class="headline-line">{esc(line)}</span>' for line in ui["headline_lines"])
     cards: list[str] = []
     for index, item in enumerate(gallery["cases"], 1):
         content = item[language]
@@ -224,7 +228,7 @@ def render_hub(gallery: dict, language: str) -> str:
     body = f"""<main>
   <section class="wrap hero">
     <div class="eyebrow">{esc(ui['eyebrow'])}</div>
-    <h1>{esc(ui['headline'])}</h1>
+    <h1 aria-label="{esc(ui['headline'])}">{headline}</h1>
     <p>{esc(ui['subhead'])}</p>
     <div class="hero-actions">
       <a class="button primary" href="#cases">{esc(ui['choose'])}</a>
