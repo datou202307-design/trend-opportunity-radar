@@ -1,0 +1,43 @@
+{
+  "schema_version": "profile-decision-findings-v0.1",
+  "research_intent": "product_demand",
+  "profile_version": "product_demand_v1",
+  "findings": [
+    {
+      "id": "photo-backlog-demand",
+      "title": "先验证旅行结束后的自动整理",
+      "topic_key": "photo-backlog",
+      "analysis_unit_statement": "用户旅行结束后想分享照片，但筛选重复照片和重新分组耗时。",
+      "decision_summary": "当前最值得验证的不是完整照片管理工具，而是旅行结束后自动筛选和分组这一项具体任务。",
+      "audience": "旅行后积累数百张照片、想分享但不愿逐张筛选的手机用户",
+      "profile_evidence_roles": ["task", "workaround", "friction"],
+      "support_refs": ["https://example.invalid/synthetic-post-001", "https://example.invalid/synthetic-post-002"],
+      "counter_refs": ["https://example.invalid/synthetic-post-003"],
+      "counter_search_status": "found",
+      "direct_source_present": true,
+      "conclusion_status": "review_ready",
+      "evidence_boundary": "这份合成证据只展示如何设计小范围需求测试，不能判断市场规模、长期留存或付费意愿。",
+      "temporal_claim": "current_snapshot",
+      "compatible_snapshot_count": 1,
+      "recommended_actions": [
+        {
+          "action": "用可点击原型测试导入一次旅行照片后自动去重并按地点分组",
+          "intensity": "低成本、5—8 人",
+          "condition": "只测试旅行结束后的第一次整理，不扩展到长期图库管理",
+          "validation_metric": "至少 5 人中有 3 人愿意导入真实照片并完成分享",
+          "stop_condition": "多数用户只想保留现有系统相册，或不愿授予照片访问权限",
+          "human_boundary": "真实照片导入、删除和对外分享必须由用户确认"
+        }
+      ],
+      "report_sections": {
+        "decision_answer": "优先验证旅行照片的一次性自动整理，不要先开发完整照片管理产品。",
+        "user_tasks": "从大量旅行照片中快速选出值得保留和分享的内容。",
+        "workarounds_and_failures": "用户目前依赖系统相册、手动收藏或一直不整理；主要困难是重复照片多、选择成本高。",
+        "mvp_scope": "导入一个旅行相册、识别明显重复照片、按时间地点分组、生成待确认相册。",
+        "validation_metrics": "观察真实照片导入率、整理完成率、用户主动分享率和保留结果的比例。",
+        "stop_conditions": "若用户不愿授权真实照片、现有系统相册已足够，或自动分组没有减少整理时间，则停止扩大功能。",
+        "evidence_boundary": "这里只展示报告结构和判断方法，不代表 X 平台存在相应需求。"
+      }
+    }
+  ]
+}

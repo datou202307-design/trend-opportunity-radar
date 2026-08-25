@@ -1,0 +1,43 @@
+{
+  "schema_version": "profile-decision-findings-v0.1",
+  "research_intent": "product_demand",
+  "profile_version": "product_demand_v1",
+  "findings": [
+    {
+      "id": "photo-backlog-demand",
+      "title": "Test automatic organization immediately after a trip",
+      "topic_key": "photo-backlog",
+      "analysis_unit_statement": "People want to share trip photos, but filtering duplicates and regrouping images takes time.",
+      "decision_summary": "The smallest useful test is automatic filtering and grouping after a trip, not a complete photo-management product.",
+      "audience": "Phone users who return from a trip with hundreds of photos and want to share without reviewing every image",
+      "profile_evidence_roles": ["task", "workaround", "friction"],
+      "support_refs": ["https://example.invalid/synthetic-post-001", "https://example.invalid/synthetic-post-002"],
+      "counter_refs": ["https://example.invalid/synthetic-post-003"],
+      "counter_search_status": "found",
+      "direct_source_present": true,
+      "conclusion_status": "review_ready",
+      "evidence_boundary": "This synthetic evidence only demonstrates how to design a small demand test; it cannot establish market size, retention, or willingness to pay.",
+      "temporal_claim": "current_snapshot",
+      "compatible_snapshot_count": 1,
+      "recommended_actions": [
+        {
+          "action": "Test a clickable prototype that imports one trip album, removes obvious duplicates, and groups photos by location",
+          "intensity": "Low cost, 5–8 participants",
+          "condition": "Test only the first organization task after a trip, not long-term library management",
+          "validation_metric": "At least 3 of 5 participants import real photos and complete a share-ready album",
+          "stop_condition": "Most participants prefer their existing photo app or will not grant photo access",
+          "human_boundary": "Users must confirm access, deletion, and external sharing of real photos"
+        }
+      ],
+      "report_sections": {
+        "decision_answer": "Test one-time automatic trip-photo organization before building a complete photo-management product.",
+        "user_tasks": "Select the photos worth keeping and sharing from a large trip album.",
+        "workarounds_and_failures": "People use the system photo app, manually favorite images, or leave the album untouched; duplicate volume and selection effort are the main problems.",
+        "mvp_scope": "Import one trip album, identify obvious duplicates, group by time and location, and produce an album for confirmation.",
+        "validation_metrics": "Measure real-photo import, completion, active sharing, and the proportion of suggested photos retained.",
+        "stop_conditions": "Stop expanding if users reject photo access, existing tools are sufficient, or automatic grouping does not reduce organization time.",
+        "evidence_boundary": "This demonstrates the report structure and decision method; it does not show that demand exists on X."
+      }
+    }
+  ]
+}

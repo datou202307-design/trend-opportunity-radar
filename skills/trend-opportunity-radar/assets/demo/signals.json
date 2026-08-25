@@ -1,0 +1,26 @@
+{
+  "platform": "x",
+  "collection": {
+    "mode": "standard",
+    "contract_status": "met",
+    "stop_reason": "sampling_contract_met",
+    "counts": {
+      "query_count": 3,
+      "observed_result_count": 42,
+      "unique_sample_count": 24,
+      "relevant_signal_count": 19,
+      "detail_open_count": 8,
+      "counter_signal_count": 2
+    }
+  },
+  "signals": [],
+  "topics": [
+    {
+      "topic_key": "photo-backlog",
+      "title": "Travel photo backlog",
+      "observed_heat": 58,
+      "evidence_confidence": 66,
+      "cluster_audit": {"status": "passed"}
+    }
+  ]
+}

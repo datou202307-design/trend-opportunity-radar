@@ -17,6 +17,25 @@ Default invocation:
 
 Infer the report language from the request language. Infer the decision goal, audience, region, time window, and collection mode when safe. Ask one concise question only when the topic or platform is indeterminate, the intended decision is materially ambiguous, or login/paid access needs authorization. Never request passwords, cookies, sessions, or tokens in chat.
 
+## Preview safely before live research
+
+When the user asks to try, preview, evaluate, or understand the output before connecting a platform, generate the bundled synthetic Demo:
+
+```bash
+python scripts/trend_radar.py demo --output-dir PATH/TO/DEMO --language en
+```
+
+Use `--language zh-CN` for Chinese. The Demo requires no platform login or adapter and must preserve its synthetic marker in JSON, Markdown, HTML, and `demo-manifest.json`. It reuses the formal report generator but is never platform evidence, a completed live run, or proof that the sample subject has real demand. Do not remove the marker or mix Demo artifacts into monitoring or platform comparison.
+
+For a first live study that should persist the two minimum inputs, initialize a request:
+
+```bash
+python scripts/trend_radar.py init --topic "TOPIC" --platform PLATFORM --output-dir PATH/TO/REQUEST
+python scripts/trend_radar.py start --request PATH/TO/REQUEST/research-request.json --output-dir PATH/TO/RUN
+```
+
+`init` saves no platform content or login state. It feeds the same `start` entry point below; it does not bypass preflight, sampling, review, or report gates.
+
 ## Start through the unified entry point
 
 Read [execution-cli.md](references/execution-cli.md), then start the run:

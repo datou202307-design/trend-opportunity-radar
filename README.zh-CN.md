@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="#开始第一次研究"><strong>开始研究</strong></a> ·
+  <a href="#不登录平台先跑通完整报告"><strong>运行合成 Demo</strong></a> ·
   <a href="#先看看最后会得到什么"><strong>查看合成报告</strong></a> ·
   <a href="#五种研究场景"><strong>选择研究场景</strong></a>
 </p>
@@ -40,6 +40,24 @@
 
 当前版本是 **v0.12.0 candidate**。它帮助你形成更有依据的下一步判断，不预测爆款、流量、需求或收入。兼容快照监测目前属于候选工作流：合成回放与响应式报告验收已经通过，首次真实三天前向对比仍待完成。
 
+## 不登录平台先跑通完整报告
+
+内置 Demo 使用明确标注的合成证据，并与真实研究共用同一个报告生成器。它不会打开浏览器、读取平台，也不需要任何账号。
+
+**Windows PowerShell**
+
+```powershell
+py -3 skills/trend-opportunity-radar/scripts/trend_radar.py demo --language zh-CN --output-dir ./trend-radar-demo
+```
+
+**Ubuntu、macOS 或其他 Python 3 环境**
+
+```bash
+python3 skills/trend-opportunity-radar/scripts/trend_radar.py demo --language zh-CN --output-dir ./trend-radar-demo
+```
+
+打开 `trend-radar-demo/trend-report.html` 即可查看。页面提示、Markdown、JSON 和运行清单都会说明这是合成演示，不是真实平台结论。
+
 ## 开始第一次研究
 
 只需要两个输入：
@@ -49,6 +67,13 @@
 
 ```text
 使用 $trend-opportunity-radar，分析“帮助小网店减少重复售后回复的 AI 助手”在 X 平台的产品需求。
+```
+
+如果希望用两个输入确定性地开始，可以先生成请求文件，再启动正式研究：
+
+```bash
+python3 skills/trend-opportunity-radar/scripts/trend_radar.py init --topic "帮助小网店减少重复售后回复的 AI 助手" --platform x --language zh-CN --output-dir ./first-study
+python3 skills/trend-opportunity-radar/scripts/trend_radar.py start --request ./first-study/research-request.json --output-dir ./first-study/run
 ```
 
 如果没有指定研究目的，Agent 会结合你的问题推断；只有不同选择会明显改变结果时，才会请你确认。标准研究会尽量采集 60–100 条观察结果、保留 30–50 条去重信号、打开 12–18 条原文，并寻找至少 3 条反例。数据不足时不会用弱相关内容凑数。
@@ -116,6 +141,8 @@ skills/trend-opportunity-radar/
 ```
 
 在 Codex 中，把 `trend-opportunity-radar` 放到 `$CODEX_HOME/skills/`，然后重新加载 Agent 会话。其他 Agent 可以适配 `SKILL.md`、参考契约和 Python 脚本。内置脚本只使用 Python 标准库，建议使用 Python 3.10 或更高版本。
+
+从 v0.13 开始，正式发布会在 [Releases 页面](https://github.com/datou202307-design/trend-opportunity-radar/releases)附带可安装 ZIP、SHA-256 校验文件和完整清单。压缩包内只有一个可直接复制到 Agent Skill 目录的 `trend-opportunity-radar/` 文件夹，不包含测试、缓存、本机输出、凭据、浏览器会话或真实平台数据。
 
 也可以使用确定性的统一入口冻结请求，并且一次只返回一个下一动作：
 

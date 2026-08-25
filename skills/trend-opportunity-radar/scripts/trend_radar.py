@@ -25,6 +25,9 @@ from validate_subject import validate_subject
 SCHEMA_VERSION = "trend-radar-run-v0.1"
 DOCTOR_SCHEMA_VERSION = "trend-radar-doctor-v0.1"
 MODES = {"quick", "standard", "deep"}
+DEMO_GENERATED_AT = "2026-08-25T00:00:00Z"
+DEMO_SCHEMA_VERSION = "trend-radar-synthetic-demo-v0.1"
+INIT_SCHEMA_VERSION = "trend-radar-request-v0.1"
 
 
 RESUME_STAGES = (
@@ -106,6 +109,153 @@ AUTOMATIC_STAGES = {
 
 def _language_text(language: str, zh: str, en: str) -> str:
     return zh if language == "zh-CN" else en
+
+
+def _serialized_json(value: dict[str, Any]) -> str:
+    return json.dumps(value, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def _write_idempotent_artifacts(artifacts: dict[Path, str]) -> None:
+    conflicts = [path for path, content in artifacts.items() if path.exists() and path.read_text(encoding="utf-8") != content]
+    if conflicts:
+        names = ", ".join(path.name for path in conflicts)
+        raise ValueError(f"Refusing to overwrite non-matching first-success artifacts: {names}")
+    for path, content in artifacts.items():
+        if path.exists():
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8", newline="\n")
+
+
+def _artifact_hash(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
+
+
+def run_demo(args: argparse.Namespace) -> dict[str, Any]:
+    from generate_profile_report import build_report, render_html, render_markdown
+
+    language = str(args.language)
+    assets = Path(__file__).resolve().parents[1] / "assets" / "demo"
+    context = load_data(assets / f"research-context.{language}.json")
+    signals = load_data(assets / "signals.json")
+    findings = load_data(assets / f"findings.{language}.json")
+    report = build_report(context, signals, findings)
+    report["generated_at"] = DEMO_GENERATED_AT
+    report["demo"] = {
+        "synthetic": True,
+        "not_live_platform_evidence": True,
+        "label": "合成演示，不是真实平台结论" if language == "zh-CN" else "Synthetic demo — not a live platform conclusion",
+    }
+    json_text = _serialized_json(report)
+    markdown = render_markdown(report)
+    page = render_html(report)
+
+    output_dir = Path(args.output_dir).resolve()
+    manifest = {
+        "schema_version": DEMO_SCHEMA_VERSION,
+        "status": "complete",
+        "synthetic": True,
+        "language": language,
+        "generated_at": DEMO_GENERATED_AT,
+        "generator": "generate_profile_report.py",
+        "files": {
+            "opportunities.json": _artifact_hash(json_text),
+            "trend-report.md": _artifact_hash(markdown),
+            "trend-report.html": _artifact_hash(page),
+        },
+        "next_action": (
+            "打开 trend-report.html 查看结构；准备真实研究时，使用 init 或 start。"
+            if language == "zh-CN" else
+            "Open trend-report.html to inspect the result; use init or start when you are ready for live research."
+        ),
+    }
+    artifacts = {
+        output_dir / "opportunities.json": json_text,
+        output_dir / "trend-report.md": markdown,
+        output_dir / "trend-report.html": page,
+        output_dir / "demo-manifest.json": _serialized_json(manifest),
+    }
+    _write_idempotent_artifacts(artifacts)
+    return {**manifest, "output_dir": str(output_dir)}
+
+
+def init_workspace(args: argparse.Namespace) -> dict[str, Any]:
+    language = str(args.language)
+    topic = str(args.topic).strip()
+    platform = str(args.platform).strip()
+    if not topic or not platform:
+        raise ValueError("init requires a non-empty topic and platform.")
+    intent = str(args.intent or "").strip()
+    if language == "zh-CN":
+        prompt = f'分析“{topic}”在 {platform} 平台的趋势机会。'
+        if intent:
+            prompt = f'使用 {intent} 研究目标，分析“{topic}”在 {platform} 平台的趋势机会。'
+        guide = """# 开始第一次真实研究
+
+本目录只保存研究请求，不包含平台数据、登录状态或凭据。
+
+1. 检查 `research-request.json` 中的主题和平台。
+2. 在已安装 Skill 的环境中运行：
+
+```text
+python scripts/trend_radar.py start --request research-request.json --output-dir run
+```
+
+3. 按 `run/run-manifest.json` 中唯一的 `next_action` 继续。只有需要本次实时读取时，系统才会提示浏览器登录或适配器连接。
+"""
+    else:
+        prompt = f'Analyze "{topic}" on {platform} for trend opportunities.'
+        if intent:
+            prompt = f'Analyze "{topic}" on {platform} for {intent}.'
+        guide = """# Start your first live study
+
+This directory stores a research request only. It contains no platform data, login state, or credentials.
+
+1. Check the topic and platform in `research-request.json`.
+2. From the installed Skill directory, run:
+
+```text
+python scripts/trend_radar.py start --request research-request.json --output-dir run
+```
+
+3. Follow the single `next_action` in `run/run-manifest.json`. Browser login or adapter setup is shown only when this run actually requires it.
+"""
+    request = {
+        "schema_version": INIT_SCHEMA_VERSION,
+        "status": "ready",
+        "topic": topic,
+        "platform": platform,
+        "intent": intent or None,
+        "language": language,
+        "prompt": prompt,
+    }
+    output_dir = Path(args.output_dir).resolve()
+    artifacts = {
+        output_dir / "research-request.json": _serialized_json(request),
+        output_dir / "START-HERE.md": guide,
+    }
+    _write_idempotent_artifacts(artifacts)
+    return {
+        "schema_version": INIT_SCHEMA_VERSION,
+        "status": "ready",
+        "output_dir": str(output_dir),
+        "request": "research-request.json",
+        "next_action": "Run trend_radar.py start --request research-request.json --output-dir run",
+    }
+
+
+def _apply_start_request(args: argparse.Namespace) -> None:
+    if not getattr(args, "request", None):
+        return
+    request = load_data(Path(args.request).resolve())
+    if request.get("schema_version") != INIT_SCHEMA_VERSION or request.get("status") != "ready":
+        raise ValueError("start --request requires a ready research-request.json created by init.")
+    args.prompt = str(request.get("prompt") or "").strip()
+    if not args.prompt:
+        raise ValueError("The initialized request is missing its prompt.")
+    args.platform = str(args.platform or request.get("platform") or "")
+    args.intent = str(args.intent or request.get("intent") or "")
+    args.language = str(args.language or request.get("language") or "")
 
 
 def _status_summaries(statuses: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -701,8 +851,21 @@ def main() -> None:
     doctor.add_argument("--output")
     doctor.add_argument("--require-live", action="store_true")
 
+    demo = subparsers.add_parser("demo", help="Generate a complete synthetic report without platform login or live collection.")
+    demo.add_argument("--output-dir", required=True)
+    demo.add_argument("--language", default="en", choices=["en", "zh-CN"])
+
+    init = subparsers.add_parser("init", help="Create a minimal two-input request for a first live study.")
+    init.add_argument("--topic", required=True)
+    init.add_argument("--platform", required=True)
+    init.add_argument("--output-dir", required=True)
+    init.add_argument("--intent", default="")
+    init.add_argument("--language", default="en", choices=["en", "zh-CN"])
+
     start = subparsers.add_parser("start", help="Freeze a request and return the single next workflow action.")
-    start.add_argument("--prompt", required=True)
+    start_input = start.add_mutually_exclusive_group(required=True)
+    start_input.add_argument("--prompt")
+    start_input.add_argument("--request", help="Initialized research-request.json.")
     start.add_argument("--output-dir", required=True)
     start.add_argument("--intent", default="")
     start.add_argument("--platform", default="")
@@ -738,6 +901,12 @@ def main() -> None:
     monitor_compare.add_argument("--html-output")
 
     args = parser.parse_args()
+    if args.command == "demo":
+        print(json.dumps(run_demo(args), ensure_ascii=True, indent=2))
+        return
+    if args.command == "init":
+        print(json.dumps(init_workspace(args), ensure_ascii=True, indent=2))
+        return
     if args.command == "doctor":
         statuses = _load_statuses(args.status)
         result = build_doctor_report(
@@ -774,6 +943,8 @@ def main() -> None:
                 html_output=Path(args.html_output) if args.html_output else None,
             )
     else:
+        if args.command == "start":
+            _apply_start_request(args)
         result = resume_run(args) if args.command == "resume" else start_run(args)
     print(json.dumps(result, ensure_ascii=True, indent=2))
 
