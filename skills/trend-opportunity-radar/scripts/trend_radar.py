@@ -10,6 +10,7 @@ from typing import Any
 
 from _common import load_data, now_iso, write_json
 from monitoring import append_snapshot, compare_monitor, create_monitor
+from workspace import build_workspace
 from prove_collection_route import validate_proof
 from research_context import compile_context, validate_context
 from select_collection_adapter import select_adapter
@@ -900,6 +901,11 @@ def main() -> None:
     monitor_compare.add_argument("--markdown-output")
     monitor_compare.add_argument("--html-output")
 
+    workspace = subparsers.add_parser("workspace", help="Build a local index of research runs, monitors, and next actions.")
+    workspace.add_argument("--root", required=True, help="Directory containing research runs and monitor cycles.")
+    workspace.add_argument("--output-dir", required=True, help="Output directory inside the indexed root.")
+    workspace.add_argument("--language", default="en", choices=["en", "zh-CN"])
+
     args = parser.parse_args()
     if args.command == "demo":
         print(json.dumps(run_demo(args), ensure_ascii=True, indent=2))
@@ -942,6 +948,8 @@ def main() -> None:
                 markdown_output=Path(args.markdown_output) if args.markdown_output else None,
                 html_output=Path(args.html_output) if args.html_output else None,
             )
+    elif args.command == "workspace":
+        result = build_workspace(Path(args.root), Path(args.output_dir), language=args.language)
     else:
         if args.command == "start":
             _apply_start_request(args)

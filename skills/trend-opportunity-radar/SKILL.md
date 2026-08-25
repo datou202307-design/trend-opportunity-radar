@@ -1,6 +1,6 @@
 ---
 name: trend-opportunity-radar
-description: Analyze one research topic on one platform as a constrained, evidence-backed decision study. Use to find business opportunities, monitor brand sentiment, study competitor users, find content opportunities, or validate product demand; collect or import platform signals; audit evidence; generate local reports; or compare compatible completed snapshots without predicting virality.
+description: Analyze one research topic on one platform as a constrained, evidence-backed decision study. Use to find business opportunities, monitor brand sentiment, study competitor users, find content opportunities, validate product demand, organize local research runs, or compare compatible completed snapshots without predicting virality.
 ---
 
 # Trend Opportunity Radar
@@ -174,6 +174,8 @@ Validate all three artifacts and inspect HTML through temporary loopback HTTP on
 For a cross-platform comparison, require completed reports with the same subject, research intent, Profile version, analysis unit, and report language. Keep each platform's collection basis, heat, and confidence separate; never total, average, normalize, or rank them. Use `scripts/generate_platform_comparison.py` and link back to the original reports.
 
 After a single snapshot, recommend optional repeated collection when time change matters: every three days for fast-moving platforms such as X or TikTok, or weekly elsewhere, for four runs by default. Read [monitoring.md](references/monitoring.md), then use `trend_radar.py monitor create`, `append`, and `compare`. Reuse the frozen subject, platform, Profile, analysis unit, language, region, exact query plan, sampling mode, and scoring versions. Never claim monitoring exists until the user confirms it and task creation succeeds.
+
+When the user wants to revisit or organize multiple existing runs, read [workspace.md](references/workspace.md) and build the local research workspace. Treat `run-manifest.json` and `monitor.json` as the sources of truth. Never infer that a scheduled task exists from a cadence recommendation or due date, and never upload workspace contents by default.
 
 ## Safety and delivery boundaries
 
