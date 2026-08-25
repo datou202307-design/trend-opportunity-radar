@@ -91,6 +91,20 @@ class CaseGalleryTest(unittest.TestCase):
                 for link in case_links:
                     self.assertTrue((hub.parent / link).resolve().exists())
 
+    def test_chinese_hub_preserves_copy_and_uses_balanced_typography(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory)
+            build_case_gallery.build(output)
+            text = (output / "zh-CN" / "index.html").read_text(encoding="utf-8")
+            css = (output / "site.css").read_text(encoding="utf-8")
+            self.assertIn("五种决策 · 五个完整示例", text)
+            self.assertIn('aria-label="先选你要做的决定，再开始研究"', text)
+            self.assertIn('<span class="headline-line">先选你要做的决定，</span>', text)
+            self.assertIn('<span class="headline-line">再开始研究</span>', text)
+            self.assertIn("如何根据五种常见研究目的改变问题", text)
+            self.assertIn('html[lang="zh-CN"] .hero h1', css)
+            self.assertIn("text-wrap: balance", css)
+
     def test_gallery_schema_rejects_missing_decision_mode(self) -> None:
         source = json.loads(build_case_gallery.DATA_PATH.read_text(encoding="utf-8"))
         source["cases"] = source["cases"][:-1]
