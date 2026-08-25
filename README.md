@@ -86,6 +86,8 @@ The evidence workflow stays stable while the business question and final action 
   <img src="assets/research-scenarios.svg" alt="Five research scenarios: business opportunities, brand sentiment, competitor users, content opportunities, and product-demand validation" width="100%">
 </p>
 
+<p align="center"><a href="https://datou202307-design.github.io/trend-opportunity-radar/"><strong>Explore five synthetic worked examples →</strong></a></p>
+
 | Your goal | Question answered | Main output |
 |---|---|---|
 | Find business opportunities | Which unsolved problems are worth testing? | A prioritized opportunity |

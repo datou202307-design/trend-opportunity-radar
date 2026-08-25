@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 
-TEXT_SUFFIXES = {".md", ".py", ".json", ".yaml", ".yml", ".txt", ".toml", ".ini"}
+TEXT_SUFFIXES = {".md", ".py", ".json", ".yaml", ".yml", ".txt", ".toml", ".ini", ".html", ".css", ".xml"}
 FORBIDDEN_FRAGMENTS = (
     "Circle" + "Up",
     "文旅全链路营销中心",
