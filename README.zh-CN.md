@@ -86,6 +86,8 @@ python3 skills/trend-opportunity-radar/scripts/trend_radar.py start --request ./
   <img src="assets/research-scenarios.zh-CN.svg" alt="五种研究场景：发现商业机会、监测品牌舆情、研究竞品用户、寻找内容机会和验证产品需求" width="100%">
 </p>
 
+<p align="center"><a href="https://datou202307-design.github.io/trend-opportunity-radar/zh-CN/"><strong>查看五个合成完整案例 →</strong></a></p>
+
 | 你想解决的问题 | 研究会回答什么 | 主要产出 |
 |---|---|---|
 | 发现商业机会 | 哪些问题还没被解决，值得先试？ | 优先验证的机会 |

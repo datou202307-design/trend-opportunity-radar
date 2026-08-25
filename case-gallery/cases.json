@@ -1,0 +1,191 @@
+{
+  "schema_version": "trend-radar-case-gallery-v0.1",
+  "campaign": "v0.13_case_gallery",
+  "cases": [
+    {
+      "slug": "business-opportunity",
+      "mode": "business_opportunity",
+      "platform": "TikTok",
+      "platform_status": {"en": "Topic research Beta", "zh": "主题研究 Beta"},
+      "accent": "mint",
+      "en": {
+        "name": "Find a business opportunity",
+        "topic": "AI-assisted trip planning for independent travelers",
+        "question": "Which recurring planning task is painful enough to justify a real-world test?",
+        "decision": "Test itinerary repair—turning a messy plan into a bookable day—before building an end-to-end travel planner.",
+        "why": "A broad idea becomes one audience, one repeated task, and one bounded offer to validate.",
+        "collect": [
+          "Repeated planning breakdowns and the words travelers use to describe them",
+          "Manual workarounds, abandoned attempts, and visible time or money costs",
+          "Representative comments that agree, qualify, or challenge the problem"
+        ],
+        "counter": "Free templates may solve the problem well enough, or the visible frustration may come from destination-specific complexity rather than a reusable need.",
+        "test": "Offer itinerary repair to 10 opt-in travelers. Continue only if at least 3 use the repaired plan; stop if the same task does not repeat.",
+        "prompt": "Use $trend-opportunity-radar to find business opportunities around AI-assisted trip planning for independent travelers on TikTok."
+      },
+      "zh": {
+        "name": "发现商业机会",
+        "topic": "面向自由行用户的 AI 行程规划",
+        "question": "哪个反复出现的规划难题，值得先做一次真实测试？",
+        "decision": "先测试“把混乱行程修成可执行的一天”，不要一开始就做完整旅行规划器。",
+        "why": "把宽泛想法收敛成一个人群、一个重复任务和一个可验证的小服务。",
+        "collect": [
+          "反复出现的规划中断，以及旅行者描述问题时使用的原话",
+          "人工替代方案、放弃过程，以及可见的时间或金钱成本",
+          "赞同、限定或反驳该问题的代表性评论"
+        ],
+        "counter": "免费模板可能已经足够，或者可见抱怨只是特定目的地太复杂，并不代表可复用需求。",
+        "test": "向 10 位自愿参与者提供行程修复；至少 3 人实际采用修复方案才继续，否则停止扩展。",
+        "prompt": "使用 $trend-opportunity-radar，分析“面向自由行用户的 AI 行程规划”在 TikTok 平台的商业机会。"
+      }
+    },
+    {
+      "slug": "brand-sentiment",
+      "mode": "brand_sentiment",
+      "platform": "Facebook",
+      "platform_status": {"en": "Posts topic-research Beta", "zh": "Posts 主题研究 Beta"},
+      "accent": "blue",
+      "en": {
+        "name": "Monitor brand sentiment",
+        "topic": "Northstar Bags delivery conversations (fictional brand)",
+        "question": "What needs a response now, and what should only be watched?",
+        "decision": "Separate delivery-status anxiety from product-quality sentiment; improve proactive shipping updates before changing product messaging.",
+        "why": "The report turns mixed mentions into response priorities without calling one complaint a trend.",
+        "collect": [
+          "Verified public posts that describe a current experience, question, or request for help",
+          "Visible comments that show whether others share or dispute the issue",
+          "Positive experiences and unrelated delivery incidents as counterevidence"
+        ],
+        "counter": "A seasonal carrier delay may affect many brands, and a high-engagement complaint can still be an isolated incident.",
+        "test": "Publish one proactive delivery-status update and compare the next bounded sample of support questions; do not claim sentiment recovery from fewer mentions alone.",
+        "prompt": "Use $trend-opportunity-radar to monitor brand sentiment around Northstar Bags delivery conversations on Facebook."
+      },
+      "zh": {
+        "name": "监测品牌舆情",
+        "topic": "Northstar Bags 配送讨论（虚构品牌）",
+        "question": "哪些问题现在需要回应，哪些只需要继续观察？",
+        "decision": "先把配送状态焦虑与产品质量评价分开；优先改善主动物流通知，而不是立刻修改产品宣传。",
+        "why": "把混杂的品牌提及整理成回应优先级，同时避免把单条投诉写成趋势。",
+        "collect": [
+          "描述当前体验、问题或求助的已核验公开帖子",
+          "能说明其他用户是否赞同或反驳该问题的可见评论",
+          "正面体验和与品牌无关的配送事故，作为反证"
+        ],
+        "counter": "季节性物流延迟可能影响多个品牌；高互动投诉也可能只是单一事件。",
+        "test": "发布一次主动配送状态说明，再比较下一批有限样本中的求助问题；不能仅凭提及减少就声称舆情改善。",
+        "prompt": "使用 $trend-opportunity-radar，监测 Northstar Bags 配送讨论在 Facebook 平台的品牌舆情。"
+      }
+    },
+    {
+      "slug": "competitor-users",
+      "mode": "competitor_users",
+      "platform": "Reddit",
+      "platform_status": {"en": "Validated topic research", "zh": "主题研究已验证"},
+      "accent": "violet",
+      "en": {
+        "name": "Study competitor users",
+        "topic": "Small teams switching away from established project tools",
+        "question": "Why do users stay, complain, or switch—and which problem is reachable?",
+        "decision": "Test a lightweight handoff log for small teams; do not compete on broad feature count.",
+        "why": "Competitor complaints become a narrow product wedge only after stay reasons and counterexamples are reviewed.",
+        "collect": [
+          "First-person switching stories with the previous tool, trigger, and current workaround",
+          "Reasons satisfied users stay, including integrations and organizational habit",
+          "Repeated comment themes separated from post-level trend volume"
+        ],
+        "counter": "Users may complain while remaining locked in by integrations, procurement, or team history; frustration does not prove willingness to switch.",
+        "test": "Prototype one handoff log with 5 small teams and measure repeated weekly use, not stated interest.",
+        "prompt": "Use $trend-opportunity-radar to study competitor users who are switching away from established project tools on Reddit."
+      },
+      "zh": {
+        "name": "研究竞品用户",
+        "topic": "小团队为什么离开成熟项目管理工具",
+        "question": "用户为什么留下、抱怨或切换，哪个问题真正可以切入？",
+        "decision": "先测试面向小团队的轻量交接记录，不要用更多功能正面竞争。",
+        "why": "只有同时检查留下原因和反例，竞品抱怨才能收敛成可信的产品切入口。",
+        "collect": [
+          "包含原工具、切换触发点和当前替代方案的第一人称经历",
+          "满意用户留下的原因，包括集成能力和组织习惯",
+          "反复出现的评论议题，并与帖子层趋势量分开"
+        ],
+        "counter": "用户可能一边抱怨，一边因为集成、采购或团队历史继续使用；不满不等于愿意切换。",
+        "test": "让 5 个小团队试用一个交接记录原型，观察是否每周重复使用，而不是只记录口头兴趣。",
+        "prompt": "使用 $trend-opportunity-radar，研究 Reddit 上“小团队为什么离开成熟项目管理工具”的竞品用户。"
+      }
+    },
+    {
+      "slug": "content-opportunity",
+      "mode": "content_opportunity",
+      "platform": "小红书 / Xiaohongshu",
+      "platform_status": {"en": "Validated topic research", "zh": "主题研究已验证"},
+      "accent": "amber",
+      "en": {
+        "name": "Find a content opportunity",
+        "topic": "First-time travelers choosing an overseas hotel",
+        "question": "Which repeated audience question deserves a useful piece of content next?",
+        "decision": "Create a saveable checklist that compares neighborhood, transit, and cancellation before price.",
+        "why": "The output prioritizes a user decision and proof format, not merely a popular keyword.",
+        "collect": [
+          "Repeated questions in post captions and representative comments",
+          "Content formats users save, revisit, or ask to expand",
+          "Existing posts that already answer the question well"
+        ],
+        "counter": "High saves may reflect attractive templates rather than unresolved decision difficulty; the platform sample does not prove search demand.",
+        "test": "Publish one checklist and one narrative comparison with the same decision scope; compare qualified follow-up questions, not views alone.",
+        "prompt": "Use $trend-opportunity-radar to find content opportunities around first-time travelers choosing an overseas hotel on Xiaohongshu."
+      },
+      "zh": {
+        "name": "寻找内容机会",
+        "topic": "第一次出国旅行时如何选择酒店",
+        "question": "用户反复在问的哪个问题，最值得下一篇内容认真回答？",
+        "decision": "先做一份可收藏的清单：在比较价格前，先比较区域、交通和取消政策。",
+        "why": "输出优先选择用户要做的决定和适合的证明形式，而不是只挑一个热门关键词。",
+        "collect": [
+          "帖子文案与代表性评论中反复出现的问题",
+          "用户会收藏、回看或要求展开的内容形式",
+          "已经把该问题回答得很好的现有内容"
+        ],
+        "counter": "高收藏可能只是模板好看，不代表决策问题没有被解决；平台样本也不能证明搜索需求。",
+        "test": "围绕同一决策分别发布一份清单和一篇叙事对比，比较有价值的后续提问，而不是只看浏览量。",
+        "prompt": "使用 $trend-opportunity-radar，分析“第一次出国旅行时如何选择酒店”在小红书平台的内容机会。"
+      }
+    },
+    {
+      "slug": "product-demand",
+      "mode": "product_demand",
+      "platform": "X",
+      "platform_status": {"en": "Validated", "zh": "已验证"},
+      "accent": "rose",
+      "en": {
+        "name": "Validate product demand",
+        "topic": "An AI assistant that reduces repetitive support replies for small online shops",
+        "question": "Does a repeated user task justify a bounded MVP test?",
+        "decision": "Validate reply drafting for order-status questions before attempting autonomous customer support.",
+        "why": "The study separates a recurring task from general AI enthusiasm and ends with a measurable MVP boundary.",
+        "collect": [
+          "First-person descriptions of repeated support work and current manual handling",
+          "Consequences such as delayed replies, owner workload, or inconsistent answers",
+          "Cases where templates, help centers, or existing tools already solve the task"
+        ],
+        "counter": "Small shops may have too little ticket volume, or trust and integration costs may outweigh saved drafting time.",
+        "test": "Run a human-approved drafting pilot for order-status questions. Continue only if operators repeatedly accept or lightly edit the drafts.",
+        "prompt": "Use $trend-opportunity-radar to validate product demand for an AI assistant that reduces repetitive support replies for small online shops on X."
+      },
+      "zh": {
+        "name": "验证产品需求",
+        "topic": "帮助小网店减少重复售后回复的 AI 助手",
+        "question": "反复出现的用户任务，是否值得做一个边界清晰的 MVP 测试？",
+        "decision": "先验证订单状态问题的回复草稿，不要直接尝试全自动客服。",
+        "why": "把真实重复任务与泛化的 AI 兴趣分开，并用可衡量的 MVP 边界结束研究。",
+        "collect": [
+          "经营者对重复售后工作和当前人工处理方式的第一人称描述",
+          "回复延迟、店主工作量或回答不一致等实际后果",
+          "模板、帮助中心或现有工具已经能解决问题的情况"
+        ],
+        "counter": "小店工单量可能太少，或者信任与集成成本高于节省的草稿时间。",
+        "test": "对订单状态问题进行人工确认的回复草稿试点；只有经营者反复采用或只做轻微修改时才继续。",
+        "prompt": "使用 $trend-opportunity-radar，分析“帮助小网店减少重复售后回复的 AI 助手”在 X 平台的产品需求。"
+      }
+    }
+  ]
+}
