@@ -11,7 +11,7 @@
 <p align="center">
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/releases"><img alt="发布版本" src="https://img.shields.io/github/v/release/datou202307-design/trend-opportunity-radar?include_prereleases&style=flat-square&label=release"></a>
   <img alt="5 个研究场景" src="https://img.shields.io/badge/research_scenarios-5-14b8a6?style=flat-square">
-  <img alt="6 条平台研究路径" src="https://img.shields.io/badge/platform_routes-6-0f766e?style=flat-square">
+  <img alt="7 条平台研究路径" src="https://img.shields.io/badge/platform_routes-7-0f766e?style=flat-square">
   <img alt="输出 HTML、Markdown 和 JSON" src="https://img.shields.io/badge/outputs-HTML_%C2%B7_MD_%C2%B7_JSON-0369a1?style=flat-square">
   <a href="LICENSE"><img alt="MIT 许可证" src="https://img.shields.io/badge/license-MIT-334155?style=flat-square"></a>
   <a href="https://github.com/datou202307-design/trend-opportunity-radar/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/datou202307-design/trend-opportunity-radar?style=flat-square"></a>
@@ -23,7 +23,7 @@
 
 这是一个独立、去品牌化的 Agent Skill。你提供研究主题和目标平台，Agent 负责采集或导入信号、打开原文、检查反例，并生成本地报告。它可以研究产品，也可以研究一个商机、想法、用户问题、受众需求或项目。
 
-当前版本是 **v0.11.0 candidate**。它帮助你形成更有依据的下一步判断，不预测爆款、流量、需求或收入。
+当前版本是 **v0.12.0 candidate**。它帮助你形成更有依据的下一步判断，不预测爆款、流量、需求或收入。兼容快照监测目前属于候选工作流：合成回放与响应式报告验收已经通过，首次真实三天前向对比仍待完成。
 
 ## 30 秒开始
 
@@ -102,6 +102,33 @@ skills/trend-opportunity-radar/
 
 在 Codex 中，把 `trend-opportunity-radar` 放到 `$CODEX_HOME/skills/`，然后重新加载 Agent 会话。其他 Agent 可以适配 `SKILL.md`、参考契约和 Python 脚本。内置脚本只使用 Python 标准库，建议使用 Python 3.10 或更高版本。
 
+也可以使用确定性的统一入口冻结请求，并且一次只返回一个下一动作：
+
+```bash
+python skills/trend-opportunity-radar/scripts/trend_radar.py start \
+  --prompt "分析 AI 旅行规划在 X 平台的内容机会。" \
+  --output-dir ./trend-research/ai-travel-x
+
+python skills/trend-opportunity-radar/scripts/trend_radar.py doctor \
+  --platform x \
+  --language zh-CN
+
+python skills/trend-opportunity-radar/scripts/trend_radar.py resume \
+  --run-dir ./trend-research/ai-travel-x
+```
+
+`doctor` 不会安装工具或修改登录状态。只有该平台实际使用的只读预检成功后，实时路径才会显示可用；否则仍可以使用结构化数据导入。每完成一个阶段后调用 `resume`：它会自动执行安全的确定性步骤、保存不可变阶段收据，并在实时采集、模型判断或视觉验收边界停下；只有运行清单进入 `complete` 才表示报告真正完成。
+
+如果需要持续观察，可以把一次已完成研究冻结为监测基线，追加后续兼容快照，再生成三种格式的时间对比：
+
+```bash
+python skills/trend-opportunity-radar/scripts/trend_radar.py monitor create --run-dir ./run-1 --monitor-dir ./monitor
+python skills/trend-opportunity-radar/scripts/trend_radar.py monitor append --monitor-dir ./monitor --run-dir ./run-2
+python skills/trend-opportunity-radar/scripts/trend_radar.py monitor compare --monitor-dir ./monitor
+```
+
+默认观察四次：X/TikTok 每三天一次，其他平台每周一次。命令会保存监测状态和建议频率，但未获得用户明确确认且外部定时任务未真实创建成功前，不会声称已经安排监测。快照变化只表示两次采集中可见信号的差异，不等于需求增长或未来表现。
+
 ## 数据访问与隐私
 
 Skill 可以使用用户上传的 JSON/CSV、公开网页、受控只读浏览器、已授权 API 或历史快照。Chrome、OpenCLI、DokoBot 和第三方 MCP 都是可选适配器，不随仓库分发。
@@ -126,6 +153,7 @@ Skill 可以使用用户上传的 JSON/CSV、公开网页、受控只读浏览�
 ## 方法和适配器文档
 
 - [采样合同](skills/trend-opportunity-radar/references/sampling-contract.md)
+- [统一执行入口](skills/trend-opportunity-radar/references/execution-cli.md)
 - [评分合同](skills/trend-opportunity-radar/references/scoring-contract.md)
 - [平台适配器](skills/trend-opportunity-radar/references/platform-adapters.md)
 - [浏览器采集](skills/trend-opportunity-radar/references/browser-collection.md)

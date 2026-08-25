@@ -15,6 +15,17 @@ This adapter supports bounded `topic_research` only through an explicit Facebook
 
 OpenCLI's built-in `facebook search` is a useful read-only capability diagnostic, but it currently describes a mixed people/Page/post search and exposes no Posts-only option. Its output must not enter the topic ledger unless the adapter independently proves the result came from the frozen Posts search surface.
 
+Before a live run, save one redacted capability probe from the exact authorized browser surface and validate it. The probe contains only the query URL and visible identity checks, canonical public links, one matching detail identity, boolean safety checks, and no page body beyond the bounded detail field used for capability proof:
+
+```bash
+python scripts/check_facebook_topic_adapter.py \
+  --probe facebook-preflight-probe.json \
+  --output facebook-status.json \
+  --require-ready
+```
+
+Pass `facebook-status.json` to `trend_radar.py doctor` or `start`. Do not hand-edit a ready status and do not treat generic Facebook mixed search as the Posts-only probe.
+
 Freeze each read before browser work and validate the redacted capture afterward:
 
 ```bash
@@ -29,6 +40,8 @@ python scripts/merge_facebook_topic_snapshots.py --snapshot raw-signals-baseline
 ```
 
 When the logged-in OpenCLI Browser Bridge is available, `scripts/run_facebook_opencli_capture.py` executes two paced Posts-only result passes, parses engagement only from buttons that contain both a number and a platform semantic label, and attempts bounded details sequentially. It never maps a bare adjacent number to reactions, comments, shares, or views.
+
+The route name and the executor name are intentionally different: `facebook_posts_browser_capture` identifies the allowed research surface, while the frozen route currently selects `run_facebook_opencli_capture.py` as the primary search, detail, and visible-comment executor. `run_facebook_topic_capture.py` may record an equivalent authorized browser capture only after that executor passes its own preflight and the route is frozen again. The Agent must not silently skip the primary runner or substitute the home Feed, mixed search, public-web snippets, or an unrelated browser tool.
 
 Use the background browser window first. If the frozen Posts URL is correct but the bounded surface probe repeatedly returns only the search-filter skeleton and no result cards, retry once in the user-visible foreground window with `--window foreground`. This is a rendering fallback, not permission to browse the home Feed or perform interactions. Preserve the failed probe and the successful window mode in the capture audit.
 

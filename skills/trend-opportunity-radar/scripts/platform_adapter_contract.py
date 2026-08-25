@@ -19,7 +19,10 @@ REQUIRED_CAPABILITY_FIELDS = {
     "capability_key", "search_builder", "detail_builder", "search_parser",
     "detail_runner", "pagination", "terminal_evidence", "safety_stops", "research_scopes",
 }
-OPTIONAL_CAPABILITY_FIELDS = {"comment_builder", "comment_sample_limit"}
+OPTIONAL_CAPABILITY_FIELDS = {
+    "comment_builder", "comment_sample_limit", "comment_runner", "media_builder", "media_runner",
+    "research_surface", "search_runner", "alternate_record_runner",
+}
 FORBIDDEN_WRITE_OPERATION_PREFIXES = ("create_", "update_", "delete_", "post_", "reply_", "vote_", "follow_")
 
 

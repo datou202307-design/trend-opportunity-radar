@@ -8,6 +8,7 @@ from typing import Any
 
 from _common import as_text, load_data, now_iso, require_text_integrity, write_json
 from profile_decisions import require_valid_findings
+from prove_collection_route import enforce_report_gate
 from research_context import load_context
 from validate_report_artifacts import validate_report_contents
 
@@ -30,8 +31,8 @@ PROFILE_UI = {
         "en": {"name": "Content opportunity research", "question": "What does the audience most want to solve now, and which content should come first?", "findings": "Audience questions to address", "action": "Content tests", "why": "Audience problem and content angle", "follow_title": "Check again in 7 days to see whether the audience need persists"},
     },
     "product_demand": {
-        "zh-CN": {"name": "产品需求验证", "question": "这个需求值得做吗？首版应该解决什么问题？", "findings": "需要验证的真实任务", "action": "MVP 验证建议", "why": "用户为什么需要、为什么会放弃", "follow_title": "7 天后再看一次，确认需求是否持续"},
-        "en": {"name": "Product demand validation", "question": "Is this demand worth building for, and what should the first version solve?", "findings": "Real tasks to validate", "action": "MVP demand tests", "why": "Why users need it and why they might leave", "follow_title": "Check again in 7 days to see whether demand persists"},
+        "zh-CN": {"name": "产品需求验证", "question": "这个需求值得做吗？首版应该解决什么问题？", "findings": "需要验证的真实任务", "action": "首版验证建议", "why": "用户为什么需要、为什么会放弃", "follow_title": "7 天后再看一次，确认需求是否持续"},
+        "en": {"name": "Product demand validation", "question": "Is this demand worth building for, and what should the first version solve?", "findings": "Real tasks to validate", "action": "First-version demand tests", "why": "Why users need it and why they might leave", "follow_title": "Check again in 7 days to see whether demand persists"},
     },
 }
 
@@ -70,7 +71,7 @@ SECTION_LABELS = {
     "content_test": {"zh-CN": "内容测试", "en": "Content test"},
     "user_tasks": {"zh-CN": "真实任务", "en": "User tasks"},
     "workarounds_and_failures": {"zh-CN": "替代办法与失败", "en": "Workarounds and failures"},
-    "mvp_scope": {"zh-CN": "MVP 范围", "en": "MVP scope"},
+    "mvp_scope": {"zh-CN": "首版范围", "en": "First-version scope"},
     "validation_metrics": {"zh-CN": "验证指标", "en": "Validation metrics"},
     "stop_conditions": {"zh-CN": "停止条件", "en": "Stop conditions"},
 }
@@ -102,6 +103,8 @@ ZH_VISIBLE_JARGON = {
     "赋能": "具体说明带来的帮助",
     "桥接": "具体说明连接的两件事",
     "守门层": "具体说明检查或阻止什么",
+    "零配置": "不需要设置即可使用",
+    "泛化": "说明具体要扩展成什么",
 }
 
 
@@ -163,6 +166,23 @@ def visible_plain_language_issues(findings_payload: dict[str, Any]) -> list[str]
             if term in combined:
                 issues.append(f"finding {index} uses ‘{term}’; rewrite it as {replacement}")
     return issues
+
+
+def require_complete_semantic_review(snapshot: dict[str, Any]) -> None:
+    """Block formal reports until every retained signal has been reviewed."""
+    mode = as_text((snapshot.get("collection") or {}).get("mode"))
+    if mode not in {"standard", "deep"}:
+        return
+    signals = snapshot.get("signals") or []
+    unreviewed = [
+        item for item in signals
+        if as_text(item.get("semantic_relevance")) not in {"direct", "adjacent", "weak"}
+    ]
+    if unreviewed:
+        raise SystemExit(
+            f"Formal {mode} report requires 100% semantic review; "
+            f"{len(unreviewed)} of {len(signals)} retained signals remain unreviewed."
+        )
 
 
 def subject_name(report: dict[str, Any]) -> str:
@@ -430,23 +450,56 @@ def finding_comment_evidence(snapshot: dict[str, Any], topic_key: str) -> dict[s
         return None
     categories: dict[str, int] = {}
     insights: list[str] = []
+    insight_rows: list[dict[str, Any]] = []
     refs: list[str] = []
     reviewed = relevant = support = counter = 0
+    prominence_coverage = high_prominence = 0
     for signal, analysis in analyses:
         reviewed += int(analysis.get("reviewed_count") or 0)
         relevant += int(analysis.get("relevant_count") or 0)
         support += int(analysis.get("support_count") or 0)
         counter += int(analysis.get("counter_count") or 0)
+        prominence_coverage += int(analysis.get("prominence_coverage_count") or 0)
+        high_prominence += int(analysis.get("high_prominence_relevant_count") or 0)
         for category, count in (analysis.get("category_counts") or {}).items():
             categories[str(category)] = categories.get(str(category), 0) + int(count)
-        insights.extend(str(item) for item in analysis.get("insights", []) if str(item).strip())
+        selection = analysis.get("insight_selection") if isinstance(analysis.get("insight_selection"), list) else []
+        if selection:
+            insight_rows.extend(item for item in selection if isinstance(item, dict) and as_text(item.get("insight")))
+        else:
+            insight_rows.extend({"insight": str(item), "evidence_role": "neutral", "category": "other"} for item in analysis.get("insights", []) if str(item).strip())
         if signal.get("canonical_url"):
             refs.append(str(signal["canonical_url"]))
+    selected_rows: list[dict[str, Any]] = []
+    selected_insights: set[str] = set()
+
+    def add_insight(item: dict[str, Any]) -> None:
+        insight = as_text(item.get("insight"))
+        if insight and insight not in selected_insights and len(selected_rows) < 4:
+            selected_rows.append(item)
+            selected_insights.add(insight)
+
+    for role in ("support", "counter", "neutral"):
+        candidate = next((item for item in insight_rows if item.get("evidence_role") == role), None)
+        if candidate:
+            add_insight(candidate)
+    represented_categories = {as_text(item.get("category")) for item in selected_rows}
+    for item in insight_rows:
+        category = as_text(item.get("category"))
+        if category and category not in represented_categories:
+            add_insight(item)
+            represented_categories.add(category)
+    for item in insight_rows:
+        add_insight(item)
+    insights = [as_text(item.get("insight")) for item in selected_rows]
     return {
         "reviewed_count": reviewed,
         "relevant_count": relevant,
         "support_count": support,
         "counter_count": counter,
+        "prominence_version": "comment-prominence-v0.1-candidate",
+        "prominence_coverage_count": prominence_coverage,
+        "high_prominence_relevant_count": high_prominence,
         "category_counts": dict(sorted(categories.items())),
         "insights": list(dict.fromkeys(insights))[:4],
         "source_refs": list(dict.fromkeys(refs)),
@@ -575,6 +628,18 @@ def build_report(context: dict[str, Any], snapshot: dict[str, Any], findings_pay
     )
     if findings and materially_duplicates(decision_answer, findings[0].get("decision_summary")):
         raise SystemExit("The report-level decision answer duplicates the first finding summary; make the answer shorter and decision-oriented.")
+    priority_actions = []
+    seen_actions = set()
+    for finding in findings:
+        for action in finding.get("recommended_actions", []):
+            action_text = as_text(action.get("action"))
+            if not action_text or action_text in seen_actions:
+                continue
+            seen_actions.add(action_text)
+            priority_actions.append({"action": action_text, "finding_title": as_text(finding.get("title"))})
+            break
+        if len(priority_actions) == 3:
+            break
     return {
         "schema_version": "profile-research-report-v0.4",
         "generated_at": now_iso(),
@@ -587,7 +652,9 @@ def build_report(context: dict[str, Any], snapshot: dict[str, Any], findings_pay
         "collection": snapshot.get("collection", {}),
         "collection_summary": collection_summary(snapshot),
         "platform_native_context": platform_native_context(snapshot, context["platform"], context["language"]),
+        "comment_demand_topics": snapshot.get("comment_demand_topics", []),
         "decision_answer": decision_answer,
+        "priority_actions": priority_actions,
         "decision_readiness": {"ready_findings": ready_count, "total_findings": len(findings), "status": "actionable_test" if ready_count else "exploratory"},
         "findings": findings,
         "excluded_topics": excluded_topics,
@@ -610,11 +677,11 @@ def render_markdown(report: dict[str, Any]) -> str:
     zh = lang == "zh-CN"
     ui = PROFILE_UI[report["research_context"]["research_intent"]][lang if lang in {"zh-CN", "en"} else "en"]
     lines = [f"# {ui['name']}：{subject_name(report)}" if zh else f"# {ui['name']}: {subject_name(report)}", "", f"> {ui['question']}", "",
-             f"## {'直接回答' if zh else 'Decision answer'}", "", report["decision_answer"], "",
-             f"## {'本次研究基础' if zh else 'Research basis'}", "", collection_summary_text(report), ""]
-    native_context = report.get("platform_native_context")
-    if native_context:
-        lines.extend([f"### {'这个平台的证据怎么看' if zh else 'How to read this platform evidence'}", "", platform_native_context_text(native_context, lang), ""])
+             f"## {'直接回答' if zh else 'Decision answer'}", "", report["decision_answer"], ""]
+    if report.get("priority_actions"):
+        lines.extend([f"## {'建议先做' if zh else 'Start here'}", ""])
+        lines.extend([f"{index}. {item['action']}" for index, item in enumerate(report["priority_actions"], 1)])
+        lines.append("")
     lines.extend([f"## {ui['findings']}", ""])
     for finding_index, finding in enumerate(report["findings"]):
         lines.extend([f"### {finding['title']}", "", finding["decision_summary"], "",
@@ -623,20 +690,21 @@ def render_markdown(report: dict[str, Any]) -> str:
         scores = finding.get("score_summary")
         if scores:
             lines.extend([
-                f"- **{'平台讨论强度' if zh else 'Platform discussion strength'}**: {scores['observed_heat']}/100 · {score_level(scores['observed_heat'], lang)}",
-                f"- **{'这项判断的可靠度' if zh else 'Reliability of this finding'}**: {scores['evidence_confidence']}/100 · {score_level(scores['evidence_confidence'], lang)}",
-                "",
+                f"- **{'平台讨论' if zh else 'Platform discussion'}**: {score_level(scores['observed_heat'], lang)}",
+                f"- **{'证据支撑' if zh else 'Evidence support'}**: {score_level(scores['evidence_confidence'], lang)}",
+                "", f"<details><summary>{'查看评分依据' if zh else 'View score details'}</summary>", "",
+                f"- {'平台讨论强度' if zh else 'Platform discussion strength'}: {scores['observed_heat']}/100",
+                f"- {'这项判断的可靠度' if zh else 'Reliability of this finding'}: {scores['evidence_confidence']}/100",
+                "", "</details>", "",
             ])
-            if finding_index == 0:
-                lines.extend(["讨论强度看这个问题在平台上有多明显；可靠度看这项判断有多少证据支撑。" if zh else "Discussion strength shows how visible the issue is on the platform; reliability shows how much evidence supports this finding.", ""])
         comment_evidence = finding.get("comment_evidence")
         if comment_evidence:
             lines.extend([f"#### {platform_comment_heading(report['platform'], lang)}", ""])
             lines.extend([f"- {item}" for item in comment_evidence["insights"]])
             note = (
-                f"已审查 {comment_evidence['reviewed_count']} 条代表性评论，其中 {comment_evidence['relevant_count']} 条与本主题相关。评论用于理解用户反馈，不增加趋势样本数。"
+                f"已审查 {comment_evidence['reviewed_count']} 条代表性评论，其中 {comment_evidence['relevant_count']} 条与本主题相关。点赞和回复用于识别平台上更显眼的意见，同时保留不同意见；它们不代表评论更真实，也不增加趋势样本数。"
                 if zh else
-                f"Reviewed {comment_evidence['reviewed_count']} representative comments; {comment_evidence['relevant_count']} were relevant to this topic. Comments add qualitative context, not trend sample volume."
+                f"Reviewed {comment_evidence['reviewed_count']} representative comments; {comment_evidence['relevant_count']} were relevant to this topic. Likes and replies identify more visible opinions while differing views remain represented; they do not make a comment more truthful or increase trend sample volume."
             )
             lines.extend([f"- {note}", ""])
         video_evidence = finding.get("video_evidence")
@@ -675,6 +743,21 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.extend(["", f"**{'相反情况' if zh else 'Counterexamples'}**"])
         lines.extend([f"- [{('相反情况' if zh else 'Counterexample')} {index}]({ref})" for index, ref in enumerate(finding["counter_refs"], 1)] or [f"- {'未列出直接链接' if zh else 'No direct links listed'}"])
         lines.append("")
+    lines.extend([f"## {'本次研究基础' if zh else 'Research basis'}", "", collection_summary_text(report), ""])
+    native_context = report.get("platform_native_context")
+    if native_context:
+        lines.extend([f"### {'这个平台的证据怎么看' if zh else 'How to read this platform evidence'}", "", platform_native_context_text(native_context, lang), ""])
+    comment_topics = report.get("comment_demand_topics") or []
+    visible_comment_topics = [item for item in comment_topics if item.get("status") in {"eligible_comment_demand", "cross_post_recurrence_unverified_commenters", "salient_single_thread"}]
+    if visible_comment_topics:
+        lines.extend([f"### {'评论中反复出现的需求与态度' if zh else 'Recurring needs and attitudes in comments'}", ""])
+        for item in visible_comment_topics:
+            recurring = item.get("status") == "eligible_comment_demand"
+            unverified = item.get("status") == "cross_post_recurrence_unverified_commenters"
+            label = (("跨帖子重复，评论者身份未核验" if unverified else "跨帖子反复出现") if recurring or unverified else "单个讨论中较显眼，仍需验证") if zh else (("Repeated across posts; commenter identity unverified" if unverified else "Recurring across posts") if recurring or unverified else "Salient in one discussion; validation needed")
+            title = (item.get("examples") or [item.get("topic_key")])[0]
+            lines.append(f"- **{title}**：{label}" if zh else f"- **{title}**: {label}")
+        lines.extend(["", "评论帮助解释需求和态度，但不增加帖子样本数。" if zh else "Comments help explain needs and attitudes but do not increase post sample volume.", ""])
     follow = report["follow_up_recommendation"]
     lines.extend([f"## {ui['follow_title']}", "",
                   (f"建议在 {follow['cadence']['initial']} 后再研究一次，共观察 {follow['cadence']['runs']} 次。只有你确认后才会创建定时任务。" if zh else f"Run the research again after {follow['cadence']['initial']} and observe {follow['cadence']['runs']} times in total. A scheduled task is created only after your confirmation."), ""])
@@ -709,7 +792,7 @@ def render_html(report: dict[str, Any]) -> str:
         scores = finding.get("score_summary")
         score_html = ""
         if scores:
-            score_html = f'''<div class="score-row" aria-label="{'评分' if zh else 'Scores'}"><span class="score"><b>{'平台讨论强度' if zh else 'Platform discussion strength'} {html.escape(str(scores['observed_heat']))}/100</b><em>{html.escape(score_level(scores['observed_heat'], lang))}</em></span><span class="score"><b>{'这项判断的可靠度' if zh else 'Reliability of this finding'} {html.escape(str(scores['evidence_confidence']))}/100</b><em>{html.escape(score_level(scores['evidence_confidence'], lang))}</em></span></div>{('<p class="score-help">讨论强度看这个问题在平台上有多明显；可靠度看这项判断有多少证据支撑。</p>' if zh else '<p class="score-help">Discussion strength shows how visible the issue is on the platform; reliability shows how much evidence supports this finding.</p>') if index == 0 else ''}'''
+            score_html = f'''<div class="score-row" aria-label="{'判断分级' if zh else 'Finding grades'}"><span class="score"><b>{'平台讨论' if zh else 'Platform discussion'}</b><em>{html.escape(score_level(scores['observed_heat'], lang))}</em></span><span class="score"><b>{'证据支撑' if zh else 'Evidence support'}</b><em>{html.escape(score_level(scores['evidence_confidence'], lang))}</em></span></div><details class="score-details"><summary>{'查看评分依据' if zh else 'View score details'}</summary><p>{'平台讨论强度' if zh else 'Platform discussion strength'} {html.escape(str(scores['observed_heat']))}/100 · {'这项判断的可靠度' if zh else 'Reliability of this finding'} {html.escape(str(scores['evidence_confidence']))}/100</p></details>'''
         comment_evidence = finding.get("comment_evidence")
         comment_html = ""
         if comment_evidence:
@@ -719,7 +802,7 @@ def render_html(report: dict[str, Any]) -> str:
                 if zh else
                 f"Reviewed {comment_evidence['reviewed_count']} representative comments; {comment_evidence['relevant_count']} were relevant to this topic. Comments add qualitative context, not trend sample volume."
             )
-            comment_html = f'''<section class="comment-voice" style="margin-top:14px;padding:14px 16px;border:1px solid #dfe8e4;border-radius:14px;background:#f4fbf8"><b>{html.escape(platform_comment_heading(report['platform'], lang))}</b><ul>{insights}</ul><p style="margin:6px 0 0;color:#667085;font-size:12px">{html.escape(note)}</p></section>'''
+            comment_html = f'''<details class="comment-voice"><summary>{html.escape(platform_comment_heading(report['platform'], lang))}</summary><ul>{insights}</ul><p>{html.escape(note)}</p></details>'''
         video_evidence = finding.get("video_evidence")
         video_html = ""
         if video_evidence:
@@ -739,11 +822,33 @@ def render_html(report: dict[str, Any]) -> str:
     native_html = ""
     if native_context:
         native_html = f'''<section class="platform-context"><span class="kicker">{'这个平台的证据怎么看' if zh else 'How to read this platform evidence'}</span><h3>{html.escape(str(native_context['focus']))}</h3><p>{html.escape(platform_native_context_text(native_context, lang, include_lead=False))}</p></section>'''
+    comment_topics = [item for item in (report.get("comment_demand_topics") or []) if item.get("status") in {"eligible_comment_demand", "cross_post_recurrence_unverified_commenters", "salient_single_thread"}]
+    comment_topics_html = ""
+    if comment_topics:
+        cards = []
+        for item in comment_topics:
+            recurring = item.get("status") == "eligible_comment_demand"
+            unverified = item.get("status") == "cross_post_recurrence_unverified_commenters"
+            label = (("跨帖子重复，评论者身份未核验" if unverified else "跨帖子反复出现") if recurring or unverified else "单个讨论中较显眼，仍需验证") if zh else (("Repeated across posts; commenter identity unverified" if unverified else "Recurring across posts") if recurring or unverified else "Salient in one discussion; validation needed")
+            title = (item.get("examples") or [item.get("topic_key")])[0]
+            count = item.get('independent_commenter_count', 0) if item.get('commenter_identity_available') else item.get('independent_comment_record_count', 0)
+            unit = ('位已识别评论者' if item.get('commenter_identity_available') else '条独立评论记录') if zh else ('identified commenters' if item.get('commenter_identity_available') else 'independent comment records')
+            recurrence = f"{item.get('independent_parent_count', 0)} {'个独立帖子 · ' if zh else 'independent posts · '}{count} {unit}"
+            cards.append(f'''<article class="comment-topic"><span class="tag">{html.escape(label)}</span><h3>{html.escape(str(title))}</h3><p>{html.escape(recurrence)}</p></article>''')
+        note = "评论可用于发现需求和态度，但不增加帖子趋势样本数；点赞和回复只表示该意见在当前讨论中更显眼。" if zh else "Comments can reveal needs and attitudes but do not increase post trend sample volume; likes and replies only show visibility within the current discussion."
+        comment_topics_html = f'''<section class="comment-topics"><span class="kicker">{'评论中反复出现的需求与态度' if zh else 'Recurring needs and attitudes in comments'}</span><div class="comment-topic-grid">{''.join(cards)}</div><p class="muted">{html.escape(note)}</p></section>'''
+    native_html += comment_topics_html
+    research_html = f'''<details class="research-notes"><summary>{'查看研究依据与评论线索' if zh else 'View research basis and comment signals'}</summary><section class="basis" aria-label="{'本次研究基础' if zh else 'Research basis'}"><span class="kicker">{'本次研究基础' if zh else 'Research basis'}</span><p>{html.escape(collection_summary_text(report))}</p></section>{native_html}</details>'''
+    priority_html = ""
+    if report.get("priority_actions"):
+        priority_cards = "".join(f'''<article><span>{index}</span><p>{html.escape(str(item['action']))}</p></article>''' for index, item in enumerate(report["priority_actions"], 1))
+        priority_html = f'''<section class="priorities"><span class="kicker">{'建议先做' if zh else 'Start here'}</span><div>{priority_cards}</div></section>'''
     return f'''<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{html.escape(ui['name'])} · {html.escape(subject_name(report))}</title><style>
 :root{{--bg:#f3f5f9;--panel:#fff;--ink:#16202c;--muted:#667085;--line:#e4e8ef;--accent:#5364d9;--accent2:#7a55ca;--soft:#eef0ff;--good:#14775a}}*{{box-sizing:border-box}}body{{margin:0;background:linear-gradient(180deg,#eef1f7 0,#f7f8fa 320px);color:var(--ink);font:15px/1.58 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}}main{{max-width:1120px;margin:auto;padding:28px 22px 64px}}header{{padding:34px;border-radius:26px;color:#fff;background:linear-gradient(135deg,#20274d,#5b4f9c);box-shadow:0 22px 55px #30385d26}}.kicker{{display:block;color:#888fa6;font-size:11px;font-weight:750;letter-spacing:.12em;text-transform:uppercase}}header .kicker{{color:#cad0ff}}h1{{font-size:clamp(30px,5vw,52px);line-height:1.1;margin:8px 0 16px;max-width:900px}}header p{{color:#e5e7f8;max-width:850px;margin:0}}.answer{{margin:18px 0 0;background:#fff;border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 8px 26px #1520380a}}.answer h2{{margin:6px 0 0;font-size:24px;line-height:1.45}}.basis{{margin-top:12px;padding:14px 18px;border:1px solid #dfe2fa;border-radius:16px;background:#f8f8ff}}.basis p{{margin:5px 0 0;color:#4f586b}}.platform-context{{margin-top:10px;padding:16px 18px;border:1px solid #dbe9e3;border-radius:16px;background:#f5fbf8}}.platform-context h3{{font-size:17px;margin:5px 0 3px}}.platform-context p{{margin:0;color:#4f5f58}}.finding{{margin-top:22px;background:var(--panel);border:1px solid var(--line);border-radius:22px;padding:25px;box-shadow:0 7px 24px #1520380a}}.finding-head{{display:flex;justify-content:space-between;align-items:start;gap:20px}}.finding h2{{font-size:23px;line-height:1.3;margin:5px 0 0}}.status,.tag{{border-radius:99px;padding:6px 10px;background:#e9f7f1;color:var(--good);font-size:12px;font-weight:700}}.status{{white-space:nowrap}}.tag{{display:inline-block;white-space:normal}}.score-row{{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}}.score{{display:inline-flex;align-items:center;gap:7px;padding:6px 10px;border:1px solid #dfe2fa;border-radius:99px;background:#f8f8ff;font-size:12px}}.score b{{color:#343e9c}}.score em{{color:var(--muted);font-style:normal}}.score-help{{margin:8px 0 0;color:var(--muted);font-size:12px}}.summary{{font-size:18px;max-width:850px}}.audience{{display:flex;gap:12px;padding:12px 14px;border-radius:12px;background:#f7f8fb}}.audience span{{color:var(--muted)}}.media-evidence{{margin-top:14px;padding:15px 17px;border:1px solid #d9e3fb;border-radius:14px;background:#f5f8ff}}.media-evidence ul{{display:grid;gap:8px;margin:10px 0;padding:0;list-style:none}}.media-evidence li{{display:grid;grid-template-columns:minmax(120px,auto) 1fr;gap:10px;align-items:start}}.media-evidence li b{{color:#3f4ca0;font-size:12px}}.media-evidence li span{{overflow-wrap:anywhere}}.media-evidence p{{margin:7px 0 0;color:var(--muted);font-size:12px}}.media-evidence .media-summary{{color:var(--ink);font-size:15px}}.details-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}}.detail{{border:1px solid var(--line);border-radius:14px;padding:15px}}.detail span{{font-size:12px;color:var(--accent);font-weight:750}}.detail p{{margin:6px 0 0}}.action-title{{margin-top:23px}}.actions{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:9px}}.action{{min-width:0;border:1px solid #dfe2fa;background:#fafaff;border-radius:16px;padding:16px}}.action h4{{font-size:17px;margin:9px 0 0}}.action p{{color:var(--muted)}}details{{border-top:1px solid var(--line);padding-top:11px;margin-top:13px}}summary{{cursor:pointer;font-weight:700}}dl{{display:grid;grid-template-columns:150px minmax(0,1fr);gap:7px 10px}}dt{{color:var(--muted)}}dd{{margin:0;overflow-wrap:anywhere}}.refs{{display:flex;flex-wrap:wrap;gap:8px}}.refs a{{text-decoration:none;color:#454eb2;background:var(--soft);padding:6px 9px;border-radius:9px}}.follow{{margin-top:22px;padding:22px;border:1px solid #dbdef8;background:#f8f8ff;border-radius:20px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px}}.follow h2{{margin:5px 0 8px}}.cadence{{display:flex;gap:10px;align-items:center;flex-wrap:wrap}}.cadence b{{font-size:20px}}.prompt{{background:#fff;border:1px solid var(--line);border-radius:14px;padding:13px;color:var(--muted)}}.audit{{margin-top:18px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:15px}}.muted{{color:var(--muted)}}#raw{{white-space:pre-wrap;max-height:440px;overflow:auto;font:12px/1.5 ui-monospace,Consolas,monospace}}@media(max-width:760px){{.finding-head,.audience{{display:block}}.status{{display:inline-block;margin-top:10px}}.media-evidence li{{grid-template-columns:1fr;gap:2px}}.details-grid,.actions,.follow{{grid-template-columns:1fr}}header{{padding:26px}}main{{padding:16px}}}}@media print{{body{{background:#fff}}main{{padding:0}}.finding,.answer,header{{box-shadow:none}}}}
 /* Keep long research subjects readable as interface titles, not billboard copy. */
 h1{{font-size:clamp(28px,3.8vw,42px);line-height:1.15;overflow-wrap:anywhere}}
-</style></head><body><main><header><span class="kicker">{html.escape(ui['name'])} · {html.escape(platform_label(report['platform'], lang))}</span><h1>{html.escape(subject_name(report))}</h1><p>{html.escape(ui['question'])}</p></header><section class="answer"><span class="kicker">{'直接回答' if zh else 'Decision answer'}</span><h2>{html.escape(str(report['decision_answer']))}</h2></section><section class="basis" aria-label="{'本次研究基础' if zh else 'Research basis'}"><span class="kicker">{'本次研究基础' if zh else 'Research basis'}</span><p>{html.escape(collection_summary_text(report))}</p></section>{native_html}<div aria-label="{html.escape(ui['findings'])}">{''.join(findings_html)}</div><section class="follow"><div><span class="kicker">{'可选的后续检查' if zh else 'Optional follow-up check'}</span><h2>{html.escape(ui['follow_title'])}</h2><p class="muted">{'这能帮助判断信号是否持续。定时任务尚未创建，只有你明确确认后才会设置。' if zh else 'This helps establish whether the signal persists. No scheduled task has been created; it will be set up only after your explicit confirmation.'}</p><div class="cadence"><span>{'首次' if zh else 'First'}</span><b>{html.escape(str(follow['cadence']['initial']))}</b><span>· {follow['cadence']['runs']} {'次' if zh else 'runs'}</span></div></div><details><summary>{'查看下次继续研究时使用的指令' if zh else 'View instructions for the next research run'}</summary><p class="prompt">{html.escape(str(follow['automation_prompt']))}</p></details></section><details class="audit"><summary>{'查看研究方法和原始记录' if zh else 'View research method and source record'}</summary><p class="muted">{'这些信息用于复核，不影响上面的业务阅读顺序。' if zh else 'This information supports audit and does not interrupt the decision flow above.'}</p><pre id="raw">{payload}</pre></details></main></body></html>'''
+.priorities{{margin-top:12px;padding:20px 24px;border:1px solid #dfe2fa;border-radius:20px;background:#f8f8ff}}.priorities>div{{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}}.priorities article{{display:flex;gap:10px;padding:13px;border-radius:14px;background:#fff}}.priorities article span{{display:grid;place-items:center;flex:0 0 25px;height:25px;border-radius:99px;background:#e9f7f1;color:var(--good);font-weight:800}}.priorities p{{margin:0;font-weight:650}}.score-details p{{margin:7px 0 0;color:var(--muted);font-size:12px}}.comment-voice{{margin-top:14px;padding:12px 15px;border:1px solid #dfe8e4;border-radius:14px;background:#f4fbf8}}.comment-voice p{{color:var(--muted);font-size:12px}}.research-notes{{margin-top:22px;padding:18px 20px;border:1px solid var(--line);border-radius:18px;background:#fff}}.research-notes>.basis{{margin-top:14px}}.comment-topics{{margin-top:14px;padding:20px;border:1px solid #dfe8e4;border-radius:20px;background:#f4fbf8}}.comment-topic-grid{{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:10px}}.comment-topic{{padding:14px;border:1px solid #dfe8e4;border-radius:14px;background:#fff}}.comment-topic h3{{margin:10px 0 4px;font-size:16px}}.comment-topic p{{margin:0;color:var(--muted);font-size:13px}}@media(max-width:760px){{.priorities>div,.comment-topic-grid{{grid-template-columns:1fr}}}}
+</style></head><body><main><header><span class="kicker">{html.escape(ui['name'])} · {html.escape(platform_label(report['platform'], lang))}</span><h1>{html.escape(subject_name(report))}</h1><p>{html.escape(ui['question'])}</p></header><section class="answer"><span class="kicker">{'直接回答' if zh else 'Decision answer'}</span><h2>{html.escape(str(report['decision_answer']))}</h2></section>{priority_html}<div aria-label="{html.escape(ui['findings'])}">{''.join(findings_html)}</div>{research_html}<section class="follow"><div><span class="kicker">{'可选的后续检查' if zh else 'Optional follow-up check'}</span><h2>{html.escape(ui['follow_title'])}</h2><p class="muted">{'这能帮助判断信号是否持续。定时任务尚未创建，只有你明确确认后才会设置。' if zh else 'This helps establish whether the signal persists. No scheduled task has been created; it will be set up only after your explicit confirmation.'}</p><div class="cadence"><span>{'首次' if zh else 'First'}</span><b>{html.escape(str(follow['cadence']['initial']))}</b><span>· {follow['cadence']['runs']} {'次' if zh else 'runs'}</span></div></div><details><summary>{'查看下次继续研究时使用的指令' if zh else 'View instructions for the next research run'}</summary><p class="prompt">{html.escape(str(follow['automation_prompt']))}</p></details></section><details class="audit"><summary>{'查看研究方法和原始记录' if zh else 'View research method and source record'}</summary><p class="muted">{'这些信息用于复核，不影响上面的业务阅读顺序。' if zh else 'This information supports audit and does not interrupt the decision flow above.'}</p><pre id="raw">{payload}</pre></details></main></body></html>'''
 
 
 def main() -> None:
@@ -751,8 +856,11 @@ def main() -> None:
     parser.add_argument("--research-context", required=True); parser.add_argument("--signals", required=True); parser.add_argument("--findings", required=True)
     parser.add_argument("--json-output", required=True); parser.add_argument("--markdown-output", required=True); parser.add_argument("--html-output")
     args = parser.parse_args()
-    context = load_context(Path(args.research_context).resolve()); snapshot = load_data(args.signals); findings = load_data(args.findings)
+    context_path = Path(args.research_context).resolve(); signals_path = Path(args.signals).resolve()
+    context = load_context(context_path); snapshot = load_data(signals_path); findings = load_data(args.findings)
+    enforce_report_gate(context_path, signals_path)
     require_text_integrity(snapshot, "Signals"); require_text_integrity(findings, "Profile findings")
+    require_complete_semantic_review(snapshot)
     report = build_report(context, snapshot, findings); require_text_integrity(report, "Profile report")
     markdown = render_markdown(report); page = render_html(report) if args.html_output else ""
     validate_report_contents(report, markdown, page or None)

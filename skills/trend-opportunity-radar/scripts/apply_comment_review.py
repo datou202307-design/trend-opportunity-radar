@@ -5,10 +5,13 @@ from collections import Counter
 from typing import Any
 
 from _common import as_text, load_data, now_iso, write_json
+from comment_prominence import VERSION as PROMINENCE_VERSION, select_diverse_insights
+from derive_comment_demand_topics import VERSION as DEMAND_TOPICS_VERSION, derive as derive_comment_demand_topics
 from prepare_comment_review import SCHEMA_VERSION as QUEUE_SCHEMA_VERSION
 
 
-SCHEMA_VERSION = "comment-evidence-review-v0.1"
+SCHEMA_VERSION = "comment-evidence-review-v0.2"
+LEGACY_SCHEMA_VERSION = "comment-evidence-review-v0.1"
 CATEGORIES = {
     "need", "pain", "question", "workaround", "purchase_intent",
     "objection", "positive_outcome", "comparison", "other", "irrelevant",
@@ -20,8 +23,9 @@ ROLES = {"support", "counter", "neutral"}
 def require_review(queue: dict[str, Any], review: dict[str, Any]) -> dict[str, dict[str, Any]]:
     if queue.get("schema_version") != QUEUE_SCHEMA_VERSION:
         raise SystemExit(f"Comment queue must use {QUEUE_SCHEMA_VERSION}.")
-    if review.get("schema_version") != SCHEMA_VERSION:
-        raise SystemExit(f"Comment review must use {SCHEMA_VERSION}.")
+    review_version = review.get("schema_version")
+    if review_version not in {SCHEMA_VERSION, LEGACY_SCHEMA_VERSION}:
+        raise SystemExit(f"Comment review must use {SCHEMA_VERSION} or legacy {LEGACY_SCHEMA_VERSION}.")
     if review.get("queue_sha256") != queue.get("queue_sha256"):
         raise SystemExit("Comment review queue_sha256 does not match the unchanged queue.")
     expected = {as_text(item.get("comment_key")) for item in queue.get("comments", []) if isinstance(item, dict)}
@@ -48,6 +52,8 @@ def require_review(queue: dict[str, Any], review: dict[str, Any]) -> dict[str, d
             errors.append(f"reviews[{index}].reason is required.")
         if row.get("semantic_relevance") in {"direct", "adjacent"} and not as_text(row.get("insight")):
             errors.append(f"reviews[{index}].insight is required for relevant comments.")
+        if review_version == SCHEMA_VERSION and row.get("semantic_relevance") in {"direct", "adjacent"} and row.get("category") in CATEGORIES - {"other", "irrelevant"} and not as_text(row.get("demand_topic_key")):
+            errors.append(f"reviews[{index}].demand_topic_key is required for relevant classified comments.")
         indexed[key] = row
     missing, extra = expected - set(indexed), set(indexed) - expected
     if missing:
@@ -59,23 +65,43 @@ def require_review(queue: dict[str, Any], review: dict[str, Any]) -> dict[str, d
     return indexed
 
 
-def summary(rows: list[dict[str, Any]]) -> dict[str, Any]:
+def summary(rows: list[dict[str, Any]], *, compare_prominence: bool = True, review_version: str = SCHEMA_VERSION) -> dict[str, Any]:
     relevant = [row for row in rows if row["semantic_relevance"] in {"direct", "adjacent"}]
-    insights = list(dict.fromkeys(as_text(row.get("insight")) for row in relevant if as_text(row.get("insight"))))
+    selected = select_diverse_insights(rows, compare_prominence=compare_prominence)
+    insights = list(dict.fromkeys(as_text(row.get("insight")) for row in selected if as_text(row.get("insight"))))
+    measured = [row for row in rows if (row.get("prominence") or {}).get("measured") is True]
     return {
         "status": "reviewed",
-        "review_version": SCHEMA_VERSION,
+        "review_version": review_version,
         "reviewed_count": len(rows),
         "relevant_count": len(relevant),
         "support_count": sum(1 for row in relevant if row["evidence_role"] == "support"),
         "counter_count": sum(1 for row in relevant if row["evidence_role"] == "counter"),
         "category_counts": dict(sorted(Counter(row["category"] for row in relevant).items())),
         "insights": insights[:5],
+        "prominence_version": PROMINENCE_VERSION,
+        "prominence_coverage_count": len(measured),
+        "high_prominence_relevant_count": sum(
+            1 for row in relevant if (row.get("prominence") or {}).get("tier") == "high"
+        ),
+        "insight_selection": [
+            {
+                "comment_key": row.get("comment_key"),
+                "category": row.get("category"),
+                "evidence_role": row.get("evidence_role"),
+                "semantic_relevance": row.get("semantic_relevance"),
+                "prominence_score": int((row.get("prominence") or {}).get("score") or 0),
+                "prominence_tier": (row.get("prominence") or {}).get("tier") or "unmeasured",
+                "insight": row.get("insight"),
+            }
+            for row in selected
+        ],
     }
 
 
 def apply(snapshot: dict[str, Any], queue: dict[str, Any], review: dict[str, Any]) -> dict[str, Any]:
     indexed = require_review(queue, review)
+    review_version = as_text(review.get("schema_version"))
     queued_by_signal: dict[str, list[dict[str, Any]]] = {}
     for item in queue.get("comments", []):
         queued_by_signal.setdefault(as_text(item.get("signal_key")), []).append(item)
@@ -88,9 +114,19 @@ def apply(snapshot: dict[str, Any], queue: dict[str, Any], review: dict[str, Any
         queued = queued_by_signal.get(signal_key, [])
         if not queued:
             continue
-        rows = [indexed[item["comment_key"]] for item in queued]
-        analysis = summary(rows)
+        rows = [{
+            **indexed[item["comment_key"]],
+            "prominence": item.get("prominence"),
+            "signal_key": signal_key,
+            "source_url": as_text(signal.get("canonical_url")),
+            "commenter_key": item.get("commenter_key") or "",
+            "commenter_key_basis": item.get("commenter_key_basis") or "unavailable",
+            "comment_instance_key": item.get("comment_instance_key") or item["comment_key"],
+            "query_layers": item.get("query_layers") or [],
+        } for item in queued]
+        analysis = summary(rows, review_version=review_version)
         analysis["comment_keys"] = [item["comment_key"] for item in queued]
+        analysis["reviewed_comments"] = rows
         facts = signal.setdefault("platform_facts", {})
         facts["comment_analysis"] = analysis
         reviewed_signal_count += 1
@@ -98,7 +134,7 @@ def apply(snapshot: dict[str, Any], queue: dict[str, Any], review: dict[str, Any
         if as_text(signal.get("canonical_url")):
             source_refs.append(as_text(signal["canonical_url"]))
 
-    aggregate = summary(all_reviews)
+    aggregate = summary(all_reviews, compare_prominence=False, review_version=review_version)
     aggregate.update({
         "reviewed_signal_count": reviewed_signal_count,
         "captured_comment_count": len(queue.get("comments", [])),
@@ -106,6 +142,8 @@ def apply(snapshot: dict[str, Any], queue: dict[str, Any], review: dict[str, Any
         "applied_at": now_iso(),
     })
     snapshot["comment_evidence"] = aggregate
+    snapshot["comment_demand_topics_version"] = DEMAND_TOPICS_VERSION
+    snapshot["comment_demand_topics"] = derive_comment_demand_topics(all_reviews)
     return snapshot
 
 

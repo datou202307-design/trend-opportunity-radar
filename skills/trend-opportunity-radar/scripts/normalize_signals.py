@@ -5,6 +5,7 @@ import argparse
 from _common import (
     SCHEMA_VERSION,
     SOURCE_MODES,
+    as_text,
     load_data,
     normalize_collection,
     merge_signals,
@@ -59,7 +60,8 @@ def main() -> None:
         "retained_sample_count": len(rows),
         "unique_sample_count": len(deduped),
         "collection": collection,
-        **({"platform_adapter": adapter_audit} if adapter_audit else {}),
+        **({"adapter": as_text(raw.get("adapter"))} if isinstance(raw, dict) and as_text(raw.get("adapter")) else {}),
+        **({"platform_adapter": adapter_audit} if adapter_audit else ({"platform_adapter": raw.get("platform_adapter")} if isinstance(raw, dict) and isinstance(raw.get("platform_adapter"), dict) else {})),
         "signals": deduped,
     }
     write_json(args.output, result)

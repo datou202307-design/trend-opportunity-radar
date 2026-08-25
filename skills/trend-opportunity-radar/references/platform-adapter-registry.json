@@ -203,12 +203,16 @@
         "facebook": {
           "research_scopes": ["topic_research"],
           "capability_key": "facebook",
+          "research_surface": "facebook_posts_search",
           "search_builder": "facebook_posts_capture_v1",
+          "search_runner": "run_facebook_opencli_capture.py",
           "detail_builder": "facebook_posts_capture_v1",
           "comment_builder": "embedded_visible_comments",
           "comment_sample_limit": 5,
+          "comment_runner": "run_facebook_opencli_capture.py",
           "search_parser": "facebook_posts_capture_v1",
-          "detail_runner": "browser_control",
+          "detail_runner": "run_facebook_opencli_capture.py",
+          "alternate_record_runner": "run_facebook_topic_capture.py",
           "pagination": "bounded_personalized_posts_results",
           "terminal_evidence": ["bounded_posts_result_limit_reached", "visible_posts_results_exhausted", "success_empty_result", "adapter_error"],
           "safety_stops": ["captcha", "rate_limit", "login_expired", "permission_prompt", "abnormal_redirect", "content_mismatch", "private_content"]

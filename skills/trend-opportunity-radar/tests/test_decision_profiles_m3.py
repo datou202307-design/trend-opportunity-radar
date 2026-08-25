@@ -241,7 +241,15 @@ class DecisionProfilesM3Test(unittest.TestCase):
             self.assertIn("打开并核验 0 条详情", page)
             self.assertIn("检查 1 条不同意见或相反情况", page)
             self.assertIn("标准采样已完成", page)
+            self.assertIn("建议先做", page)
+            self.assertIn("查看研究依据与评论线索", page)
+            self.assertIn("查看评分依据", page)
+            self.assertLess(page.index("建议先做"), page.index(ui["findings"]))
+            self.assertLess(page.index(ui["findings"]), page.index("查看研究依据与评论线索"))
+            self.assertLess(page.index("查看研究依据与评论线索"), page.index("可选的后续检查"))
+            self.assertIn('<details class="research-notes">', page)
             self.assertEqual(report["schema_version"], "profile-research-report-v0.4")
+            self.assertEqual(len(report["priority_actions"]), 1)
             self.assertEqual(report["collection_summary"], {
                 "query_count": 4, "observed_result_count": 77, "unique_signal_count": 3,
                 "relevant_signal_count": 2, "detail_open_count": 0,

@@ -8,9 +8,9 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-from _common import now_iso, write_json
+from _common import load_data, now_iso, write_json
 from check_collection_adapter import executable_command, resolve_opencli
-from collection_pacing import throttle_before_read
+from collection_pacing import RATE_LIMIT_COOLDOWN_SECONDS, throttle_before_read
 from orchestrate_dokobot_collection import action, load_state
 from platform_adapter_contract import parse_search_capture
 from run_dokobot_capture import build_metadata as build_dokobot_metadata
@@ -21,11 +21,25 @@ SCHEMA_VERSION = "collection-capture-execution-v0.2"
 
 
 def prior_query_read_count(state: dict[str, Any]) -> int:
-    return sum(
-        len(query.get("capture_executions", []))
-        for query in state.get("queries", [])
-        if isinstance(query, dict) and isinstance(query.get("capture_executions", []), list)
-    )
+    """Count every search read already attempted in the run, including finalized queries."""
+    total = 0
+    for query in state.get("queries", []):
+        if not isinstance(query, dict):
+            continue
+        executions = query.get("capture_executions")
+        if isinstance(executions, list) and executions:
+            total += len(executions)
+            continue
+        result_path = str(query.get("query_result") or "").strip()
+        if result_path and Path(result_path).is_file():
+            result = load_data(Path(result_path))
+            saved = result.get("capture_executions") if isinstance(result, dict) else None
+            if isinstance(saved, list):
+                total += len(saved)
+    active = state.get("active_query")
+    if isinstance(active, dict) and isinstance(active.get("capture_executions"), list):
+        total += len(active["capture_executions"])
+    return total
 
 
 def immutable_raw_path(requested: Path) -> Path:
@@ -134,6 +148,8 @@ def main() -> None:
             "started_at": started_at,
             "finished_at": finished_at,
         }
+        if hard_stop == "rate_limit":
+            metadata["retry_after_seconds"] = RATE_LIMIT_COOLDOWN_SECONDS
     else:
         metadata = build_dokobot_metadata(next_action["query"]["id"], requested, str(raw_path), stdout, stderr, exit_code, started_at, finished_at, timed_out)
         metadata["schema_version"] = SCHEMA_VERSION
