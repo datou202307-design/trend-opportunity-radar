@@ -173,6 +173,16 @@ python skills/trend-opportunity-radar/scripts/trend_radar.py monitor compare --m
 
 默认观察四次：X/TikTok 每三天一次，其他平台每周一次。命令会保存监测状态和建议频率，但未获得用户明确确认且外部定时任务未真实创建成功前，不会声称已经安排监测。快照变化只表示两次采集中可见信号的差异，不等于需求增长或未来表现。
 
+### 在一个本地工作区继续历史研究
+
+当你已经有多项研究或监测周期时，可以生成本地索引：
+
+```bash
+python skills/trend-opportunity-radar/scripts/trend_radar.py workspace --root ./trend-research --output-dir ./trend-research/workspace --language zh-CN
+```
+
+打开 `trend-research/workspace/index.html`。页面会分开显示尚未结束的研究、已经到期的复采建议、已完成报告和持续观察周期，并为每项行动提供可以直接交给 Agent 的继续用语；同时生成可选的本地摘要卡。工作区不会上传研究内容、暴露绝对路径，也不会把建议频率写成已经创建的定时任务。
+
 ## 数据访问与隐私
 
 Skill 可以使用用户上传的 JSON/CSV、公开网页、受控只读浏览器、已授权 API 或历史快照。Chrome、OpenCLI、DokoBot 和第三方 MCP 都是可选适配器，不随仓库分发。
@@ -198,6 +208,7 @@ Skill 可以使用用户上传的 JSON/CSV、公开网页、受控只读浏览�
 
 - [采样合同](skills/trend-opportunity-radar/references/sampling-contract.md)
 - [统一执行入口](skills/trend-opportunity-radar/references/execution-cli.md)
+- [本地研究工作区](skills/trend-opportunity-radar/references/workspace.md)
 - [评分合同](skills/trend-opportunity-radar/references/scoring-contract.md)
 - [平台适配器](skills/trend-opportunity-radar/references/platform-adapters.md)
 - [浏览器采集](skills/trend-opportunity-radar/references/browser-collection.md)

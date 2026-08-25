@@ -172,6 +172,16 @@ python skills/trend-opportunity-radar/scripts/trend_radar.py monitor compare --m
 
 Monitoring defaults to four snapshots (every three days for X/TikTok, weekly elsewhere). The command records state and cadence but never claims or creates an external schedule without explicit user confirmation. Snapshot movement describes visible signal differences, not demand growth or future performance.
 
+### Reopen past studies from one local workspace
+
+Build a local index after you have multiple runs or monitoring cycles:
+
+```bash
+python skills/trend-opportunity-radar/scripts/trend_radar.py workspace --root ./trend-research --output-dir ./trend-research/workspace
+```
+
+Open `trend-research/workspace/index.html`. It separates unfinished research, due collection recommendations, completed reports, and monitoring cycles; each action includes a prompt that can be handed back to an Agent. It also generates optional local summary cards. The workspace does not upload research content, expose absolute paths, or turn a recommended cadence into a scheduled task.
+
 ## Data access and privacy
 
 The Skill can use uploaded JSON/CSV, public web content, a controlled read-only browser, an authorized API, or historical snapshots. Chrome, OpenCLI, DokoBot, and third-party MCP services are optional adapters and are not bundled.
@@ -197,6 +207,7 @@ Users remain responsible for platform terms, account permissions, and applicable
 
 - [Sampling contract](skills/trend-opportunity-radar/references/sampling-contract.md)
 - [Unified execution entry point](skills/trend-opportunity-radar/references/execution-cli.md)
+- [Local research workspace](skills/trend-opportunity-radar/references/workspace.md)
 - [Scoring contract](skills/trend-opportunity-radar/references/scoring-contract.md)
 - [Platform adapters](skills/trend-opportunity-radar/references/platform-adapters.md)
 - [Browser collection](skills/trend-opportunity-radar/references/browser-collection.md)

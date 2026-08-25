@@ -102,6 +102,19 @@ python scripts/trend_radar.py monitor compare --monitor-dir PATH/TO/MONITOR
 
 Read [monitoring.md](monitoring.md) for the compatibility, cadence, idempotency, scheduling, stop, and interpretation contract. These commands do not create a scheduled task.
 
+## Reopen multiple local runs
+
+When the user wants to revisit several completed, unfinished, or monitored studies, build the local research workspace:
+
+```bash
+python scripts/trend_radar.py workspace \
+  --root PATH/TO/RESEARCH-ROOT \
+  --output-dir PATH/TO/RESEARCH-ROOT/workspace \
+  --language en
+```
+
+Read [workspace.md](workspace.md) for source-of-truth, privacy, idempotency, scheduling-state, and visual-acceptance rules.
+
 ## Prove the frozen route before reporting
 
 After collection, detail backfill, comment or media enrichment, and semantic review have produced the final signal snapshot, bind that exact file to the frozen route:
