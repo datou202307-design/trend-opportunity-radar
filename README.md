@@ -39,7 +39,7 @@ Trend Opportunity Radar is an independent, brand-neutral Agent Skill for social 
 | Highlights supporting examples | Requires semantic review, counterexamples, and visible evidence limits |
 | Ends with a generic summary | Produces local HTML, Markdown, and JSON with a concrete next test |
 
-Current release: **v0.14.0 candidate**. It adds a bilingual synthetic case gallery for all five decision scenarios and a local research workspace that brings unfinished runs, completed reports, and monitoring cycles back into one private, actionable view. It does not migrate legacy reports, create scheduled tasks, or predict virality, traffic, demand, or revenue. Compatible monitoring remains a candidate workflow, and the first real three-day forward comparison is still pending.
+Current release: **v0.14.1 candidate**. It adds state-aware install and first-use routes, a 60-second first-study path, and a bilingual animated workflow, alongside the five-scenario synthetic case gallery and private local research workspace. External uncoached onboarding validation is deferred, so this remains a candidate rather than a validated onboarding release. It does not migrate legacy reports, create scheduled tasks, or predict virality, traffic, demand, or revenue. Compatible monitoring remains a candidate workflow, and the first real three-day forward comparison is still pending.
 
 ## Start in 60 seconds
 
