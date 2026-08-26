@@ -11,7 +11,7 @@
     {
       "name": "trend-opportunity-radar",
       "description": "Evidence-backed platform research for business opportunities, brand sentiment, competitor users, content opportunities, and product-demand validation.",
-      "version": "0.14.0-candidate",
+      "version": "0.14.1-candidate",
       "author": {
         "name": "Trend Opportunity Radar maintainers",
         "url": "https://github.com/datou202307-design"

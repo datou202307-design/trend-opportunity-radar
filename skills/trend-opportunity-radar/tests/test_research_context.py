@@ -54,7 +54,15 @@ class ResearchContextTest(unittest.TestCase):
         self.assertEqual(compiled["platform"], "youtube")
         self.assertEqual(compiled["research_intent"], "content_opportunity")
 
+    def test_documented_onboarding_prompt_infers_product_demand(self) -> None:
+        compiled = research_context.compile_context(
+            "Use trend-opportunity-radar to analyze AI travel planning on YouTube for product-demand validation."
+        )
+        self.assertEqual(compiled["status"], "ready")
+        self.assertEqual(compiled["platform"], "youtube")
+        self.assertEqual(compiled["research_intent"], "product_demand")
     def test_quoted_subject_is_frozen_without_invocation_or_platform_wrapper(self) -> None:
+
         compiled = research_context.compile_context(
             "使用 trend-opportunity-radar，分析“普通上班族如何用 AI 管理个人财务和日常开支”在小红书中文市场的内容机会。"
         )

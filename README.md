@@ -22,7 +22,7 @@
 </p>
 
 <p align="center">
-  <a href="#install"><strong>Install the Skill</strong></a> ·
+  <a href="#start-in-60-seconds"><strong>Start in 60 seconds</strong></a> ·
   <a href="#try-the-complete-report-without-platform-login"><strong>Run the synthetic demo</strong></a> ·
   <a href="#see-the-result-before-you-run-it"><strong>View a synthetic report</strong></a> ·
   <a href="#five-research-scenarios"><strong>Choose a scenario</strong></a>
@@ -39,7 +39,49 @@ Trend Opportunity Radar is an independent, brand-neutral Agent Skill for social 
 | Highlights supporting examples | Requires semantic review, counterexamples, and visible evidence limits |
 | Ends with a generic summary | Produces local HTML, Markdown, and JSON with a concrete next test |
 
-Current release: **v0.14.0 candidate**. It adds a bilingual synthetic case gallery for all five decision scenarios and a local research workspace that brings unfinished runs, completed reports, and monitoring cycles back into one private, actionable view. It does not migrate legacy reports, create scheduled tasks, or predict virality, traffic, demand, or revenue. Compatible monitoring remains a candidate workflow, and the first real three-day forward comparison is still pending.
+Current release: **v0.14.1 candidate**. It adds state-aware install and first-use routes, a 60-second first-study path, and a bilingual animated workflow, alongside the five-scenario synthetic case gallery and private local research workspace. External uncoached onboarding validation is deferred, so this remains a candidate rather than a validated onboarding release. It does not migrate legacy reports, create scheduled tasks, or predict virality, traffic, demand, or revenue. Compatible monitoring remains a candidate workflow, and the first real three-day forward comparison is still pending.
+
+## Start in 60 seconds
+
+Choose the one route that matches your situation. Already-installed users should not download or reinstall anything.
+
+| Your situation | What to do now | ZIP required? |
+|---|---|---|
+| **Already installed** | Open a new Agent task and paste the first-study request below. | No |
+| **Managed installer** | Install from GitHub with the cross-Agent command below. Claude Code can also use its Marketplace commands in [Install](#install). | No |
+| **Manual fallback** | Download the latest audited archive from [Releases](https://github.com/datou202307-design/trend-opportunity-radar/releases), verify its checksum, and copy its single Skill folder into your Agent. | Yes |
+
+**1. Install only if needed**
+
+```bash
+npx skills add datou202307-design/trend-opportunity-radar -g
+```
+
+**2. Start the first study in a new Agent task**
+
+```text
+Use trend-opportunity-radar to analyze AI travel planning on YouTube for product-demand validation.
+```
+
+The Skill needs only a topic and one platform; add the business goal when you already know it. A live run checks only the read capability needed for that target platform. It does not install tools, change login state, or ask for passwords, cookies, or tokens. If one prerequisite is actually missing, the run names that one action and keeps the research request for continuation.
+
+**3. Reopen saved research later**
+
+```bash
+python skills/trend-opportunity-radar/scripts/trend_radar.py workspace --root ./trend-research --output-dir ./trend-research/workspace
+```
+
+Use the workspace only after at least one run has been saved. It indexes local run manifests and reports; it does not collect platform data, upload research, or create a scheduled task.
+
+## What happens after the request
+
+<p align="center">
+  <img src="assets/adoption-flow.gif" alt="Animated workflow: input a topic, collect platform signals, review evidence, generate a local report, and return for the next action" width="100%">
+</p>
+
+<p align="center"><a href="assets/adoption-flow.svg">View the static, accessible workflow</a></p>
+
+The Agent preserves one current state and one next action throughout the run. A report is complete only after collection, semantic review, route proof, cross-format consistency, and local HTML inspection pass.
 
 ## Try the complete report without platform login
 
@@ -126,14 +168,9 @@ Each study generates:
 
 Instagram known-account research remains a separate pilot and is not part of the validated topic route. Anonymous TikTok live research is unsupported, and Douyin has not passed separate real acceptance. Every run probes the actual capability it will use; an installed tool or an apparently signed-in browser never proves that the target platform is available.
 
-## How it works
+## What keeps the result reviewable
 
-1. **Define the question** — compile natural language into one topic, one platform, and one business question.
-2. **Collect signals** — read public or authorized content and retain source, time, engagement, and collection provenance.
-3. **Check evidence** — deduplicate, open sources, review relevance, inspect counterexamples, and surface gaps.
-4. **Recommend action** — state what the current evidence supports, why, and what to validate next.
-
-Observed heat and evidence confidence remain separate. High-engagement search cards do not become conclusions automatically. Captions, machine transcripts, and OCR remain labeled by source and are never rewritten as platform facts.
+The five-step path above is backed by a persistent run manifest, immutable stage receipts, source links, counterexamples, and separate observed-heat and evidence-confidence grades. High-engagement search cards do not become conclusions automatically. Captions, machine transcripts, and OCR remain labeled by source and are never rewritten as platform facts.
 
 ## Install
 

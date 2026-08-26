@@ -18,7 +18,7 @@ INTENT_PATTERNS = [
     ("competitor_users", [r"竞品用户", r"切换原因", r"切换触发", r"switching triggers?", r"competitor users?", r"\bversus\b.*\busers?\b", r"用户分别喜欢和抱怨"]),
     ("brand_sentiment", [r"品牌舆情", r"监测.*舆情", r"\bsentiment\b", r"需要.*回应", r"负面问题", r"怎么评价.*扩大"]),
     ("content_opportunity", [r"内容机会", r"content opportunities?", r"值得持续做内容", r"哪些问题值得.*内容"]),
-    ("product_demand", [r"产品需求", r"validate demand", r"验证.*需求", r"采用阻力", r"adoption barriers?", r"workarounds?.*adoption"]),
+    ("product_demand", [r"产品需求", r"validate demand", r"product[- ]demand validation", r"验证.*需求", r"采用阻力", r"adoption barriers?", r"workarounds?.*adoption"]),
     ("business_opportunity", [r"商业机会", r"business opportunities?", r"值得验证的生意", r"趋势机会", r"trend opportunities?"])
 ]
 PLATFORM_PATTERNS = [
