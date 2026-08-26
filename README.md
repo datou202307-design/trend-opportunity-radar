@@ -22,6 +22,7 @@
 </p>
 
 <p align="center">
+  <a href="#install"><strong>Install the Skill</strong></a> ·
   <a href="#try-the-complete-report-without-platform-login"><strong>Run the synthetic demo</strong></a> ·
   <a href="#see-the-result-before-you-run-it"><strong>View a synthetic report</strong></a> ·
   <a href="#five-research-scenarios"><strong>Choose a scenario</strong></a>
@@ -136,15 +137,24 @@ Observed heat and evidence confidence remain separate. High-engagement search ca
 
 ## Install
 
-Copy the Skill directory into your Agent's Skill directory:
+**Claude Code (marketplace-managed):**
 
 ```text
-skills/trend-opportunity-radar/
+/plugin marketplace add datou202307-design/trend-opportunity-radar
+/plugin install trend-opportunity-radar@trend-opportunity-radar
 ```
 
-For Codex, place `trend-opportunity-radar` under `$CODEX_HOME/skills/` and reload the Agent session. Other agents can adapt `SKILL.md`, the reference contracts, and the Python scripts. Bundled scripts use the Python standard library; Python 3.10 or later is recommended.
+**Codex, Cursor, GitHub Copilot, Gemini CLI, Claude Code, and other Agent Skills hosts:**
 
-Published v0.13+ releases attach an installable ZIP, SHA-256 checksum, and complete file manifest on the [Releases page](https://github.com/datou202307-design/trend-opportunity-radar/releases). The archive has one `trend-opportunity-radar/` folder ready to copy into an Agent's Skill directory; it excludes tests, caches, local outputs, credentials, browser sessions, and live platform data.
+```bash
+npx skills add datou202307-design/trend-opportunity-radar -g
+```
+
+The cross-Agent command detects compatible hosts and installs the Skill for the current user. Reload the Agent session after installation, then try: `Use trend-opportunity-radar to analyze AI travel planning on YouTube for product-demand validation.` Bundled scripts use the Python standard library; Python 3.10 or later is recommended.
+
+If your environment has no Node.js, npm, marketplace, or compatible installer, copy `skills/trend-opportunity-radar/` into the Agent's Skill directory manually. For Codex, the global destination is `$CODEX_HOME/skills/trend-opportunity-radar/`.
+
+Published v0.13+ releases also attach a manual-install ZIP, SHA-256 checksum, and complete file manifest on the [Releases page](https://github.com/datou202307-design/trend-opportunity-radar/releases). The archive has one `trend-opportunity-radar/` folder and excludes tests, caches, local outputs, credentials, browser sessions, and live platform data.
 
 The optional deterministic entry point freezes the request and reports exactly one next action:
 

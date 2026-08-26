@@ -1,0 +1,20 @@
+{
+  "name": "trend-opportunity-radar",
+  "version": "0.14.0-candidate",
+  "description": "Evidence-backed platform research for business opportunities, brand sentiment, competitor users, content opportunities, and product-demand validation.",
+  "author": {
+    "name": "Trend Opportunity Radar maintainers",
+    "url": "https://github.com/datou202307-design"
+  },
+  "homepage": "https://github.com/datou202307-design/trend-opportunity-radar",
+  "repository": "https://github.com/datou202307-design/trend-opportunity-radar",
+  "license": "MIT",
+  "keywords": [
+    "agent-skills",
+    "market-research",
+    "social-listening",
+    "trend-research",
+    "competitive-intelligence",
+    "product-validation"
+  ]
+}
