@@ -76,8 +76,10 @@ Use the workspace only after at least one run has been saved. It indexes local r
 ## What happens after the request
 
 <p align="center">
-  <img src="assets/adoption-flow.svg" alt="Input a topic, collect platform signals, review evidence, generate a local report, and return for the next action" width="100%">
+  <img src="assets/adoption-flow.gif" alt="Animated workflow: input a topic, collect platform signals, review evidence, generate a local report, and return for the next action" width="100%">
 </p>
+
+<p align="center"><a href="assets/adoption-flow.svg">View the static, accessible workflow</a></p>
 
 The Agent preserves one current state and one next action throughout the run. A report is complete only after collection, semantic review, route proof, cross-format consistency, and local HTML inspection pass.
 

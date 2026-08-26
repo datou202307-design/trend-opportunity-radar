@@ -76,8 +76,10 @@ python skills/trend-opportunity-radar/scripts/trend_radar.py workspace --root ./
 ## 发送口令后会发生什么
 
 <p align="center">
-  <img src="assets/adoption-flow.zh-CN.svg" alt="输入研究主题、采集平台信号、审查证据、生成本地报告，再回到下一步行动" width="100%">
+  <img src="assets/adoption-flow.zh-CN.gif" alt="动态运行流程：输入研究主题、采集平台信号、审查证据、生成本地报告，再回到下一步行动" width="100%">
 </p>
+
+<p align="center"><a href="assets/adoption-flow.zh-CN.svg">查看静态无障碍流程图</a></p>
 
 整个过程始终只保留一个当前状态和一个下一步操作。只有平台采集、语义审查、路线证明、三种格式一致性和本地页面检查都通过，报告才算真正完成。
 

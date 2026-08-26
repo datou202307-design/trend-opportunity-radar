@@ -18,7 +18,7 @@ class AdoptionOnboardingTest(unittest.TestCase):
                 "Managed installer",
                 "Manual fallback",
                 "Use trend-opportunity-radar to analyze",
-                "assets/adoption-flow.svg",
+                "assets/adoption-flow.gif",
             ),
             "README.zh-CN.md": (
                 "## 60 秒开始",
@@ -26,7 +26,7 @@ class AdoptionOnboardingTest(unittest.TestCase):
                 "一句安装",
                 "手动回退",
                 "使用 trend-opportunity-radar，分析",
-                "assets/adoption-flow.zh-CN.svg",
+                "assets/adoption-flow.zh-CN.gif",
             ),
         }
         install_command = f"npx skills add {REPOSITORY} -g"
@@ -56,6 +56,12 @@ class AdoptionOnboardingTest(unittest.TestCase):
             self.assertNotRegex(svg, re.compile(r'href="https?://', re.IGNORECASE))
             for label in labels:
                 self.assertIn(label, svg)
+
+        for filename in ("adoption-flow.gif", "adoption-flow.zh-CN.gif"):
+            data = (REPO_ROOT / "assets" / filename).read_bytes()
+            self.assertEqual(data[:6], b"GIF89a")
+            self.assertGreaterEqual(data.count(b"\x21\xF9\x04"), 5)
+            self.assertLess(len(data), 500_000)
 
     def test_external_acceptance_requires_three_uncoached_records(self) -> None:
         text = (REPO_ROOT / "docs" / "adoption-onboarding-test.md").read_text(encoding="utf-8")
