@@ -1,0 +1,75 @@
+<svg width="1280" height="260" viewBox="0 0 1280 260" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">从研究问题到下一步行动</title>
+  <desc id="desc">五个阶段：输入研究主题和平台、采集已授权的平台信号、核对证据、生成本地报告，再回来验证或持续观察。</desc>
+  <defs>
+    <linearGradient id="background" x1="24" y1="16" x2="1250" y2="244" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F"/>
+      <stop offset="0.55" stop-color="#0A2732"/>
+      <stop offset="1" stop-color="#0B3C3A"/>
+    </linearGradient>
+    <linearGradient id="line" x1="120" y1="0" x2="1160" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="0.55" stop-color="#5EEAD4"/>
+      <stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#020617" flood-opacity="0.34"/></filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" stroke="#8FE7DD" stroke-opacity="0.055"/></pattern>
+  </defs>
+  <rect width="1280" height="260" rx="28" fill="url(#background)"/>
+  <rect width="1280" height="260" rx="28" fill="url(#grid)"/>
+  <g font-family="Microsoft YaHei, PingFang SC, Noto Sans CJK SC, Segoe UI, sans-serif">
+    <text x="54" y="42" fill="#A5F3FC" font-size="13" font-weight="700" letter-spacing="1.3">从研究问题，到下一步行动</text>
+    <text x="1226" y="42" fill="#7CB7BD" font-size="11" text-anchor="end">一个主题 · 一个平台 · 可复核证据</text>
+    <path d="M160 142H1120" stroke="url(#line)" stroke-width="3" stroke-linecap="round"/>
+
+    <g transform="translate(48 72)" filter="url(#shadow)">
+      <rect width="202" height="136" rx="18" fill="#F4FBFB"/>
+      <circle cx="28" cy="28" r="15" fill="#DDF7F4"/><text x="28" y="33" fill="#0F766E" font-size="13" font-weight="800" text-anchor="middle">01</text>
+      <text x="52" y="33" fill="#123847" font-size="15" font-weight="750">输入问题</text>
+      <text x="22" y="72" fill="#123847" font-size="16" font-weight="700">研究主题 + 平台</text>
+      <text x="22" y="99" fill="#587D85" font-size="12">说明你想做的决定，</text>
+      <text x="22" y="118" fill="#587D85" font-size="12">不用先学习复杂提示词。</text>
+    </g>
+    <path d="M250 142H278M270 134L278 142L270 150" stroke="#4ED6D2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(278 72)" filter="url(#shadow)">
+      <rect width="202" height="136" rx="18" fill="#F4FBFB"/>
+      <circle cx="28" cy="28" r="15" fill="#DDF7F4"/><text x="28" y="33" fill="#0F766E" font-size="13" font-weight="800" text-anchor="middle">02</text>
+      <text x="52" y="33" fill="#123847" font-size="15" font-weight="750">平台采集</text>
+      <text x="22" y="72" fill="#123847" font-size="16" font-weight="700">读取平台信号</text>
+      <text x="22" y="99" fill="#587D85" font-size="12">只读取公开或你明确</text>
+      <text x="22" y="118" fill="#587D85" font-size="12">授权的内容。</text>
+    </g>
+    <path d="M480 142H508M500 134L508 142L500 150" stroke="#57DBCE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(508 72)" filter="url(#shadow)">
+      <rect width="202" height="136" rx="18" fill="#F4FBFB"/>
+      <circle cx="28" cy="28" r="15" fill="#DDF7F4"/><text x="28" y="33" fill="#0F766E" font-size="13" font-weight="800" text-anchor="middle">03</text>
+      <text x="52" y="33" fill="#123847" font-size="15" font-weight="750">证据审查</text>
+      <text x="22" y="72" fill="#123847" font-size="16" font-weight="700">核对原文与反例</text>
+      <text x="22" y="99" fill="#587D85" font-size="12">去重、打开详情，</text>
+      <text x="22" y="118" fill="#587D85" font-size="12">区分事实和推断。</text>
+    </g>
+    <path d="M710 142H738M730 134L738 142L730 150" stroke="#67DCC1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(738 72)" filter="url(#shadow)">
+      <rect width="202" height="136" rx="18" fill="#F4FBFB"/>
+      <circle cx="28" cy="28" r="15" fill="#E2F4FF"/><text x="28" y="33" fill="#0369A1" font-size="13" font-weight="800" text-anchor="middle">04</text>
+      <text x="52" y="33" fill="#123847" font-size="15" font-weight="750">本地报告</text>
+      <text x="22" y="72" fill="#123847" font-size="16" font-weight="700">先看结论和行动</text>
+      <text x="22" y="99" fill="#587D85" font-size="12">HTML 用来阅读 · Markdown</text>
+      <text x="22" y="118" fill="#587D85" font-size="12">方便复用 · JSON 保留审计。</text>
+    </g>
+    <path d="M940 142H968M960 134L968 142L960 150" stroke="#E5C04A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(968 72)" filter="url(#shadow)">
+      <rect width="264" height="136" rx="18" fill="#FFF8E7"/>
+      <circle cx="28" cy="28" r="15" fill="#FDECC8"/><text x="28" y="33" fill="#A16207" font-size="13" font-weight="800" text-anchor="middle">05</text>
+      <text x="52" y="33" fill="#463716" font-size="15" font-weight="750">再次行动</text>
+      <text x="22" y="72" fill="#463716" font-size="16" font-weight="700">验证、复采或继续研究</text>
+      <text x="22" y="99" fill="#79643A" font-size="12">执行下一项测试，或从工作区</text>
+      <text x="22" y="118" fill="#79643A" font-size="12">回到未完成研究和持续观察。</text>
+    </g>
+    <text x="54" y="237" fill="#83B7BC" font-size="11">正式采集前，系统只检查本次目标平台实际需要的只读能力；不会要求你在聊天中提供密码、Cookie 或 Token。</text>
+  </g>
+</svg>

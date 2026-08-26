@@ -1,0 +1,75 @@
+<svg width="1280" height="260" viewBox="0 0 1280 260" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">From a research question to the next action</title>
+  <desc id="desc">Five stages: define a topic and platform, collect authorized platform signals, review evidence, generate a local report, and return for validation or monitoring.</desc>
+  <defs>
+    <linearGradient id="background" x1="24" y1="16" x2="1250" y2="244" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F"/>
+      <stop offset="0.55" stop-color="#0A2732"/>
+      <stop offset="1" stop-color="#0B3C3A"/>
+    </linearGradient>
+    <linearGradient id="line" x1="120" y1="0" x2="1160" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#38BDF8"/>
+      <stop offset="0.55" stop-color="#5EEAD4"/>
+      <stop offset="1" stop-color="#FBBF24"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-30%" width="140%" height="160%"><feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#020617" flood-opacity="0.34"/></filter>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse"><path d="M40 0H0V40" stroke="#8FE7DD" stroke-opacity="0.055"/></pattern>
+  </defs>
+  <rect width="1280" height="260" rx="28" fill="url(#background)"/>
+  <rect width="1280" height="260" rx="28" fill="url(#grid)"/>
+  <g font-family="Segoe UI, Inter, Arial, sans-serif">
+    <text x="54" y="42" fill="#A5F3FC" font-size="13" font-weight="700" letter-spacing="1.3">FROM QUESTION TO NEXT ACTION</text>
+    <text x="1226" y="42" fill="#7CB7BD" font-size="11" text-anchor="end">one topic · one platform · reviewable evidence</text>
+    <path d="M160 142H1120" stroke="url(#line)" stroke-width="3" stroke-linecap="round"/>
+
+    <g transform="translate(48 72)" filter="url(#shadow)">
+      <rect width="202" height="136" rx="18" fill="#F4FBFB"/>
+      <circle cx="28" cy="28" r="15" fill="#DDF7F4"/><text x="28" y="33" fill="#0F766E" font-size="13" font-weight="800" text-anchor="middle">01</text>
+      <text x="52" y="33" fill="#123847" font-size="15" font-weight="750">Define</text>
+      <text x="22" y="72" fill="#123847" font-size="16" font-weight="700">Topic + platform</text>
+      <text x="22" y="99" fill="#587D85" font-size="12">Choose the decision</text>
+      <text x="22" y="118" fill="#587D85" font-size="12">you need to make.</text>
+    </g>
+    <path d="M250 142H278M270 134L278 142L270 150" stroke="#4ED6D2" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(278 72)" filter="url(#shadow)">
+      <rect width="202" height="136" rx="18" fill="#F4FBFB"/>
+      <circle cx="28" cy="28" r="15" fill="#DDF7F4"/><text x="28" y="33" fill="#0F766E" font-size="13" font-weight="800" text-anchor="middle">02</text>
+      <text x="52" y="33" fill="#123847" font-size="15" font-weight="750">Collect</text>
+      <text x="22" y="72" fill="#123847" font-size="16" font-weight="700">Platform signals</text>
+      <text x="22" y="99" fill="#587D85" font-size="12">Read public or explicitly</text>
+      <text x="22" y="118" fill="#587D85" font-size="12">authorized sources.</text>
+    </g>
+    <path d="M480 142H508M500 134L508 142L500 150" stroke="#57DBCE" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(508 72)" filter="url(#shadow)">
+      <rect width="202" height="136" rx="18" fill="#F4FBFB"/>
+      <circle cx="28" cy="28" r="15" fill="#DDF7F4"/><text x="28" y="33" fill="#0F766E" font-size="13" font-weight="800" text-anchor="middle">03</text>
+      <text x="52" y="33" fill="#123847" font-size="15" font-weight="750">Review</text>
+      <text x="22" y="72" fill="#123847" font-size="16" font-weight="700">Evidence check</text>
+      <text x="22" y="99" fill="#587D85" font-size="12">Open sources, dedupe,</text>
+      <text x="22" y="118" fill="#587D85" font-size="12">and inspect counterexamples.</text>
+    </g>
+    <path d="M710 142H738M730 134L738 142L730 150" stroke="#67DCC1" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(738 72)" filter="url(#shadow)">
+      <rect width="202" height="136" rx="18" fill="#F4FBFB"/>
+      <circle cx="28" cy="28" r="15" fill="#E2F4FF"/><text x="28" y="33" fill="#0369A1" font-size="13" font-weight="800" text-anchor="middle">04</text>
+      <text x="52" y="33" fill="#123847" font-size="15" font-weight="750">Report</text>
+      <text x="22" y="72" fill="#123847" font-size="16" font-weight="700">Local decision brief</text>
+      <text x="22" y="99" fill="#587D85" font-size="12">HTML for reading · Markdown</text>
+      <text x="22" y="118" fill="#587D85" font-size="12">for reuse · JSON for audit.</text>
+    </g>
+    <path d="M940 142H968M960 134L968 142L960 150" stroke="#E5C04A" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <g transform="translate(968 72)" filter="url(#shadow)">
+      <rect width="264" height="136" rx="18" fill="#FFF8E7"/>
+      <circle cx="28" cy="28" r="15" fill="#FDECC8"/><text x="28" y="33" fill="#A16207" font-size="13" font-weight="800" text-anchor="middle">05</text>
+      <text x="52" y="33" fill="#463716" font-size="15" font-weight="750">Continue</text>
+      <text x="22" y="72" fill="#463716" font-size="16" font-weight="700">Validate or monitor</text>
+      <text x="22" y="99" fill="#79643A" font-size="12">Run the next test, revisit the</text>
+      <text x="22" y="118" fill="#79643A" font-size="12">workspace, or compare snapshots.</text>
+    </g>
+    <text x="54" y="237" fill="#83B7BC" font-size="11">Live collection starts only after the target route passes its current read-only capability check.</text>
+  </g>
+</svg>

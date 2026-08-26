@@ -17,6 +17,14 @@ Default invocation:
 
 Infer the report language from the request language. Infer the decision goal, audience, region, time window, and collection mode when safe. Ask one concise question only when the topic or platform is indeterminate, the intended decision is materially ambiguous, or login/paid access needs authorization. Never request passwords, cookies, sessions, or tokens in chat.
 
+## Route first-time use without setup noise
+
+If the Skill is already loaded, start from the user's natural-language research request. Do not ask them to download a ZIP, reinstall the Skill, run a generic setup checklist, or learn the CLI before the task requires it.
+
+When the user asks how to install, prefer a compatible managed installer from the repository README and keep the audited Release ZIP as the manual fallback. Never claim installation or automatic updates until the chosen installer actually succeeds.
+
+For the first live study, use the unified `start` entry point below. It performs the minimum scoped environment diagnosis and preserves the request. Surface only the named prerequisite when `prerequisites.required` is true; do not turn optional adapters into mandatory global setup. Offer the synthetic Demo when the user wants to inspect a complete result without platform access. Offer the local workspace only after saved runs exist or when the user wants to return to prior research.
+
 ## Preview safely before live research
 
 When the user asks to try, preview, evaluate, or understand the output before connecting a platform, generate the bundled synthetic Demo:
