@@ -1,0 +1,24 @@
+{
+  "name": "trend-opportunity-radar",
+  "owner": {
+    "name": "Trend Opportunity Radar maintainers",
+    "url": "https://github.com/datou202307-design"
+  },
+  "metadata": {
+    "description": "Marketplace for the brand-neutral Trend Opportunity Radar research Skill."
+  },
+  "plugins": [
+    {
+      "name": "trend-opportunity-radar",
+      "description": "Evidence-backed platform research for business opportunities, brand sentiment, competitor users, content opportunities, and product-demand validation.",
+      "version": "0.14.0-candidate",
+      "author": {
+        "name": "Trend Opportunity Radar maintainers",
+        "url": "https://github.com/datou202307-design"
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/datou202307-design/trend-opportunity-radar"
+    }
+  ]
+}

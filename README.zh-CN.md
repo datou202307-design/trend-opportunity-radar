@@ -22,6 +22,7 @@
 </p>
 
 <p align="center">
+  <a href="#安装"><strong>安装 Skill</strong></a> ·
   <a href="#不登录平台先跑通完整报告"><strong>运行合成 Demo</strong></a> ·
   <a href="#先看看最后会得到什么"><strong>查看合成报告</strong></a> ·
   <a href="#五种研究场景"><strong>选择研究场景</strong></a>
@@ -136,15 +137,24 @@ Instagram 已知账号研究仍是独立试点，不等于主题研究能力。T
 
 ## 安装
 
-把 Skill 目录复制到你的 Agent Skill 目录：
+**Claude Code（通过 Marketplace 管理）：**
 
 ```text
-skills/trend-opportunity-radar/
+/plugin marketplace add datou202307-design/trend-opportunity-radar
+/plugin install trend-opportunity-radar@trend-opportunity-radar
 ```
 
-在 Codex 中，把 `trend-opportunity-radar` 放到 `$CODEX_HOME/skills/`，然后重新加载 Agent 会话。其他 Agent 可以适配 `SKILL.md`、参考契约和 Python 脚本。内置脚本只使用 Python 标准库，建议使用 Python 3.10 或更高版本。
+**Codex、Cursor、GitHub Copilot、Gemini CLI、Claude Code 及其他 Agent Skills 客户端：**
 
-从 v0.13 开始，正式发布会在 [Releases 页面](https://github.com/datou202307-design/trend-opportunity-radar/releases)附带可安装 ZIP、SHA-256 校验文件和完整清单。压缩包内只有一个可直接复制到 Agent Skill 目录的 `trend-opportunity-radar/` 文件夹，不包含测试、缓存、本机输出、凭据、浏览器会话或真实平台数据。
+```bash
+npx skills add datou202307-design/trend-opportunity-radar -g
+```
+
+这条跨 Agent 命令会识别兼容客户端，并为当前用户安装 Skill。安装后重新加载 Agent 会话，再发送：`使用 trend-opportunity-radar，分析 AI 旅行规划在 YouTube 英语市场的产品需求。` 内置脚本只使用 Python 标准库，建议使用 Python 3.10 或更高版本。
+
+如果环境没有 Node.js、npm、Marketplace 或兼容安装器，再把 `skills/trend-opportunity-radar/` 手动复制到 Agent 的 Skill 目录。Codex 的全局目录是 `$CODEX_HOME/skills/trend-opportunity-radar/`。
+
+从 v0.13 开始，[Releases 页面](https://github.com/datou202307-design/trend-opportunity-radar/releases)也会提供用于手动安装的 ZIP、SHA-256 校验文件和完整清单。压缩包内只有一个 `trend-opportunity-radar/` 文件夹，不包含测试、缓存、本机输出、凭据、浏览器会话或真实平台数据。
 
 也可以使用确定性的统一入口冻结请求，并且一次只返回一个下一动作：
 
